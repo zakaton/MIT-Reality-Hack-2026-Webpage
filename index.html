@@ -1,0 +1,104 @@
+<html>
+  <head>
+    <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+    <!-- <script src="./src/aframe/aframe-master.min.js"></script> -->
+    <script src="./src/aframe/occlude-hand-tracking-controls.js"></script>
+    <script src="./src/aframe/grabbable-listener.js"></script>
+    <script src="./src/aframe/grabbable-anchor.js"></script>
+    <script src="./src/script.js" type="module"></script>
+  </head>
+  <style>
+    a-scene {
+      width: 500;
+      height: 500;
+    }
+  </style>
+  <body>
+    <h1>MIT Reality Hack 2026</h1>
+    <a-scene
+      id="scene"
+      embedded
+      xr-mode-ui="XRMode: ar"
+      _light="defaultLightsEnabled: false"
+      grabbable-listener
+      real-world-meshing="meshMixin: realWorldMeshMixin; meshesEnabled: false; planeMixin: realWorldPlaneMixin; planesEnabled: true; filterLabels: table, desk;"
+    >
+      <a-assets>
+        <a-asset-item
+          id="anchorModel"
+          src="./assets/3d/anchor.glb"
+        ></a-asset-item>
+      </a-assets>
+
+      <a-mixin
+        id="realWorldPlaneMixin"
+        visible="true"
+        class="surface"
+      ></a-mixin>
+      <a-mixin id="realWorldMeshMixin" visible="true" class="surface"></a-mixin>
+
+      <a-entity
+        id="anchor"
+        anchored="persistent: true"
+        position="0.2 1 -0.3"
+        grabbable
+        grabbable-anchor
+        visible="false"
+      >
+        <a-entity
+          gltf-model="#anchorModel"
+          scale="0.020 0.020 0.020"
+          rotation="90 0 0"
+        ></a-entity>
+      </a-entity>
+
+      <a-entity id="raycasterDebug">
+        <a-ring
+          color="black"
+          radius-inner="0.05"
+          radius-outer="0.08"
+          rotation="-90 0 0"
+          position="0 0.01 0"
+        ></a-ring>
+      </a-entity>
+
+      <a-entity id="pet">
+        <a-entity class="debug">
+          <a-box
+            height="0.05"
+            width="0.1"
+            depth="0.1"
+            position="0 0.025 0"
+            color="red"
+          ></a-box>
+        </a-entity>
+      </a-entity>
+
+      <a-entity
+        id="leftController"
+        meta-touch-controls="hand: left"
+        laser-controls="hand: left"
+        raycaster="objects: [data-world-mesh]; far: 5"
+      ></a-entity>
+      <a-entity
+        id="rightController"
+        meta-touch-controls="hand: right"
+        laser-controls="hand: right"
+        raycaster="objects: [data-world-mesh]; far: 5"
+      ></a-entity>
+
+      <a-entity
+        id="leftHand"
+        hand-tracking-grab-controls="hand: left;"
+        occlude-hand-tracking-controls
+      ></a-entity>
+      <a-entity
+        id="rightHand"
+        hand-tracking-grab-controls="hand: right;"
+        occlude-hand-tracking-controls
+      ></a-entity>
+
+      <a-sky color="#ECECEC" hide-on-enter-ar></a-sky>
+    </a-scene>
+  </body>
+</html>
