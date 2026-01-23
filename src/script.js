@@ -1,8 +1,3 @@
-const controllers = {
-  left: document.getElementById("leftController"),
-  right: document.getElementById("rightController"),
-};
-
 /** @type {import("three")} */
 const THREE = window.THREE;
 
@@ -101,6 +96,12 @@ const loadPetTransform = () => {
   }
 };
 
+// CONTROLLERS
+const controllers = {
+  left: document.getElementById("leftController"),
+  right: document.getElementById("rightController"),
+};
+
 // CONTROLLER RAYCASTER
 const raycasterDebug = document.getElementById("raycasterDebug");
 const raycasterIntersection = new THREE.Vector3();
@@ -155,6 +156,32 @@ controllers.right.addEventListener("thumbstickmoved", (event) => {
   offsetPetEulerYaw(x * offsetPetEulerYawScalar);
 });
 
+// HAND TRACKING
+const handTracking = {
+  left: document.getElementById("leftHand"),
+  right: document.getElementById("rightHand"),
+};
+
+AFRAME.registerComponent("hand-tracking-poll", {
+  tick() {
+    const handTrackingComponent = this.el.components["hand-tracking-controls"];
+    if (!handTrackingComponent || !handTrackingComponent.controllerPresent) {
+      return;
+    }
+    const { indexTipPosition } = handTrackingComponent;
+    const { hand: side } = handTrackingComponent.data;
+    if (side == "right") {
+      console.log(
+        new THREE.Vector3().subVectors(indexTipPosition, petPosition).length()
+      );
+    }
+  },
+});
+console.log("handTracking", handTracking);
+for (const side in handTracking) {
+  handTracking[side].setAttribute("hand-tracking-poll", "");
+}
+
 // ANCHOR
 const anchor = document.getElementById("anchor");
 const waitForAnchor = async () => {
@@ -190,3 +217,81 @@ scene.addEventListener(
   },
   { once: true }
 );
+
+// TEST DOGGY
+
+/** @typedef {import("three").Material} Material */
+/** @typedef {import("three").Texture} Texture */
+/** @type {Record<name, Material} */
+const testDoggyMaterials = {};
+window.testDoggyMaterials = testDoggyMaterials;
+const testDoggyEntity = document.getElementById("testDoggy");
+testDoggyEntity.addEventListener("model-loaded", () => {
+  const root = testDoggyEntity.getObject3D("mesh");
+  if (!root) return;
+
+  root.traverse((node) => {
+    if (!node.isMesh) return;
+
+    const materials = Array.isArray(node.material)
+      ? node.material
+      : [node.material];
+
+    materials.forEach((material, index) => {
+      testDoggyMaterials[material.name] = material;
+
+      console.log("Mesh:", node.name || "(unnamed)");
+      console.log("Material:", material.name || index);
+
+      const textures = {
+        map: material.map,
+        normalMap: material.normalMap,
+        roughnessMap: material.roughnessMap,
+        metalnessMap: material.metalnessMap,
+        emissiveMap: material.emissiveMap,
+        aoMap: material.aoMap,
+        alphaMap: material.alphaMap,
+      };
+
+      Object.entries(textures).forEach(([key, texture]) => {
+        if (!texture) return;
+        console.log(`  ${key}:`, {
+          uuid: texture.uuid,
+          image: texture.image,
+          source: texture.image?.src,
+        });
+      });
+    });
+  });
+});
+
+const testDoggyPupilRange = {
+  x: 0.13,
+  y: 0.15,
+};
+const setTestDoggyPupil = (x, y) => {
+  testDoggyMaterials.Pupil.map.offset.x = THREE.MathUtils.lerp(
+    -testDoggyPupilRange.x,
+    testDoggyPupilRange.x,
+    x
+  );
+  testDoggyMaterials.Pupil.map.offset.y = THREE.MathUtils.lerp(
+    -testDoggyPupilRange.y,
+    testDoggyPupilRange.y,
+    y
+  );
+  testDoggyMaterials.Pupil.map.needsUpdate = true;
+};
+window.setTestDoggyPupil = setTestDoggyPupil;
+
+const testDoggy = true;
+if (testDoggy) {
+  testDoggyEntity.setAttribute("visible", "true");
+  scene.addEventListener("mousemove", (event) => {
+    const { offsetX, offsetY } = event;
+    const x = 1 - offsetX / scene.clientWidth;
+    const y = 1 - offsetY / scene.clientHeight;
+    //console.log({ x, y });
+    setTestDoggyPupil(x, y);
+  });
+}

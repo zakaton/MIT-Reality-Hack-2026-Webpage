@@ -19,16 +19,22 @@
       id="scene"
       embedded
       xr-mode-ui="XRMode: ar"
-      _light="defaultLightsEnabled: false"
+      light="defaultLightsEnabled: false"
       grabbable-listener
-      real-world-meshing="meshMixin: realWorldMeshMixin; meshesEnabled: false; planeMixin: realWorldPlaneMixin; planesEnabled: true; filterLabels: table, desk;"
+      real-world-meshing="meshMixin: realWorldMeshMixin; meshesEnabled: false; planeMixin: realWorldPlaneMixin; planesEnabled: true; filterLabels: table, desk, storage, other, plant, screen, lamp, couch, bed, screen;"
     >
       <a-assets>
         <a-asset-item
           id="anchorModel"
           src="./assets/3d/anchor.glb"
         ></a-asset-item>
+        <a-asset-item
+          id="testDoggyModel"
+          src="./assets/3d/testDoggy.glb"
+        ></a-asset-item>
       </a-assets>
+
+      <a-light type="ambient"></a-light>
 
       <a-mixin
         id="realWorldPlaneMixin"
@@ -52,6 +58,16 @@
         ></a-entity>
       </a-entity>
 
+      <a-entity
+        gltf-model="#testDoggyModel"
+        material="flatShading: true"
+        id="testDoggy"
+        scale="1 1 1"
+        rotation="0 0 0"
+        position="0 1.2 -3"
+        visible="false"
+      ></a-entity>
+
       <a-entity id="raycasterDebug">
         <a-ring
           color="black"
@@ -63,6 +79,12 @@
       </a-entity>
 
       <a-entity id="pet">
+        <a-entity class="yaw">
+          <a-entity class="debug"></a-entity>
+          <a-entity class="pitch">
+            <a-entity class="debug"></a-entity>
+          </a-entity>
+        </a-entity>
         <a-entity class="debug">
           <a-box
             height="0.05"
