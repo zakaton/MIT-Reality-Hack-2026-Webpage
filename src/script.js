@@ -376,21 +376,58 @@ if (testLindasDogMeshes) {
   });
 }
 
+// QUEST TRACKING
+// FILL - track relative headset transform
+// FILL - track relative hand transform
+
 // Socket.io
 /** @type {import("socket.io-client")} */
 const ioClient = window.io;
 const { io } = ioClient;
 
-const unoSocketAddress = "https://00322e7c0e3f.ngrok-free.app/";
+const unoSocketAddress = false
+  ? "http://localhost:6171"
+  : "https://0df1ce0ac784.ngrok-free.app";
 const unoSocket = io(unoSocketAddress);
 unoSocket.on("connect", () => {
   console.log("connected to uno");
+  unoSocket.emit("get_angles", {});
 });
 unoSocket.on("disconnect", () => {
   console.log("disconnected from uno");
 });
-unoSocket.on("did_set_servo_angle", () => {
-  console.log("did_set_servo_angle");
+let angles = {
+  servos: [0, 0],
+  steppers: [0],
+};
+const updateAngles = (newAngles) => {
+  angles = newAngles;
+  console.log("angles", angles);
+  // FILL - update UI
+  updateAnglesUI();
+};
+let setAngles = (newAngles) => {
+  unoSocket.emit("set_angles", newAngles);
+};
+setAngles = AFRAME.utils.throttleLeadingAndTrailing(setAngles, 40);
+unoSocket.on("get_angles", (newAngles) => {
+  console.log("get_angles", newAngles);
+  updateAngles(newAngles);
 });
+
+const angleRanges = {
+  servos: [
+    { min: 0, max: 150 },
+    { min: 0, max: 150 },
+  ],
+  steppers: [],
+};
+
+// UI
+const updateAnglesUI = () => {
+  // FILL
+};
+
+// FILL - get/set quest head/hands
 
 window.unoSocket = unoSocket;
