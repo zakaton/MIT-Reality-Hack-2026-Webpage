@@ -5,7 +5,13 @@
     <script src="./src/aframe/occlude-hand-tracking-controls.js"></script>
     <script src="./src/aframe/grabbable-listener.js"></script>
     <script src="./src/aframe/grabbable-anchor.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.6.1/dist/aframe-extras.min.js"></script>
     <script src="./src/script.js" type="module"></script>
+    <script
+      src="https://cdn.socket.io/4.8.1/socket.io.min.js"
+      integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+"
+      crossorigin="anonymous"
+    ></script>
   </head>
   <style>
     a-scene {
@@ -30,7 +36,19 @@
         ></a-asset-item>
         <a-asset-item
           id="testDoggyModel"
-          src="./assets/3d/testDoggy.glb"
+          src="./assets/3d/TestDoggy.glb"
+        ></a-asset-item>
+        <a-asset-item
+          id="testDoggySafeModel"
+          src="./assets/3d/TestFaceCard_MultiUV_SafeNaming.glb"
+        ></a-asset-item>
+        <a-asset-item
+          id="lindasDogModel"
+          src="./assets/3d/LindasDog.glb"
+        ></a-asset-item>
+        <a-asset-item
+          id="dogAttemptModel"
+          src="./assets/3d/DogAttempt.glb"
         ></a-asset-item>
       </a-assets>
 
@@ -65,6 +83,16 @@
         scale="1 1 1"
         rotation="0 0 0"
         position="0 1.2 -3"
+        visible="false"
+      ></a-entity>
+
+      <a-entity
+        gltf-model="#dogAttemptModel"
+        material="flatShading: true"
+        id="lindasDog"
+        scale="4 4 4"
+        rotation="0 0 0"
+        position="0 1.2 -0.5"
         visible="false"
       ></a-entity>
 

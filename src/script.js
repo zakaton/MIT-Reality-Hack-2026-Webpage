@@ -218,8 +218,15 @@ scene.addEventListener(
   { once: true }
 );
 
-// TEST DOGGY
+// EYE TRACKING
+// FILL
 
+const getRelativeOrientation = (quaternion, position) => {
+  // FILL
+  const lookAtEuler = new THREE.Euler();
+};
+
+// TEST DOGGY
 /** @typedef {import("three").Material} Material */
 /** @typedef {import("three").Texture} Texture */
 /** @type {Record<name, Material} */
@@ -240,8 +247,8 @@ testDoggyEntity.addEventListener("model-loaded", () => {
     materials.forEach((material, index) => {
       testDoggyMaterials[material.name] = material;
 
-      console.log("Mesh:", node.name || "(unnamed)");
-      console.log("Material:", material.name || index);
+      // console.log("node", node);
+      // console.log("material", material);
 
       const textures = {
         map: material.map,
@@ -269,22 +276,20 @@ const testDoggyPupilRange = {
   x: 0.13,
   y: 0.15,
 };
-const setTestDoggyPupil = (x, y) => {
-  testDoggyMaterials.Pupil.map.offset.x = THREE.MathUtils.lerp(
-    -testDoggyPupilRange.x,
-    testDoggyPupilRange.x,
-    x
-  );
-  testDoggyMaterials.Pupil.map.offset.y = THREE.MathUtils.lerp(
-    -testDoggyPupilRange.y,
-    testDoggyPupilRange.y,
-    y
-  );
-  testDoggyMaterials.Pupil.map.needsUpdate = true;
+const lerp = (halfRange, interpolation) => {
+  return THREE.MathUtils.lerp(-halfRange, halfRange, interpolation);
+};
+const setTestDoggyPupil = (x, y, startAtNegativeOne = false) => {
+  if (startAtNegativeOne) {
+    x = THREE.MathUtils.inverseLerp(-1, 1, x);
+    y = THREE.MathUtils.inverseLerp(-1, 1, y);
+  }
+  testDoggyMaterials.Pupil.map.offset.x = lerp(testDoggyPupilRange.x, x);
+  testDoggyMaterials.Pupil.map.offset.y = lerp(testDoggyPupilRange.y, y);
 };
 window.setTestDoggyPupil = setTestDoggyPupil;
 
-const testDoggy = true;
+const testDoggy = false;
 if (testDoggy) {
   testDoggyEntity.setAttribute("visible", "true");
   scene.addEventListener("mousemove", (event) => {
@@ -295,3 +300,97 @@ if (testDoggy) {
     setTestDoggyPupil(x, y);
   });
 }
+
+// TEST DOGGY 2
+const lindasDogEntity = document.getElementById("lindasDog");
+/** @typedef {import("three").Object3D} Object3D */
+/** @type {Record<string, Object3D>} */
+const lindasDogMeshes = {};
+window.lindasDogMeshes = lindasDogMeshes;
+lindasDogEntity.addEventListener("model-loaded", () => {
+  const root = lindasDogEntity.getObject3D("mesh");
+  if (!root) return;
+
+  root.traverse((node) => {
+    if (!node.isMesh) return;
+    lindasDogMeshes[node.name] = node;
+  });
+  console.log("lindasDogMeshes", lindasDogMeshes);
+});
+
+const allLindasDogMeshNames = [
+  "SM_EyePatch_4_L_Down",
+  "SM_EyePatch_3_R_Serious",
+  "SM_EyePatch_3_L_Serious",
+  "SM_EyePatch_2_R_Default",
+  "SM_EyePatch_2_L_Default",
+  "SM_EyePatch_1_R_Close",
+  "SM_EyePatch_1_L_Close",
+  "SM_EyeBrows",
+  "SM_Ear2",
+  "SM_Ear1",
+  "SM_Body",
+  "SM_Tail",
+  "SM_Pupil_4_R_Star",
+  "SM_Pupil_4_L_Star",
+  "SM_Pupil_3_R_Emotional",
+  "SM_Pupil_3_L_Emotional",
+  "SM_Pupil_2_R_Heart",
+  "SM_Pupil_2_L_Heart",
+  "SM_Pupil_1_R__default",
+  "SM_Pupil_1_L_default",
+  "SM_Nose",
+  "SM_Mouse_5_NOMouse",
+  "SM_Mouse_4_Tongue",
+  "SM_Mouse_3_W",
+  "SM_Mouse_2_C",
+  "SM_Mouse_1_o",
+  "SM_Head1",
+  "SM_EyePatch_4_R_Down",
+];
+const lindasDogMeshNames = allLindasDogMeshNames.filter(
+  (name) => name.includes("EyePatch") && name.includes("L")
+);
+
+const testLindasDogMeshes = true;
+const showLindasDogMeshNames = (...names) => {
+  //console.log("names", names);
+  //console.log("lindasDogMeshNames", lindasDogMeshNames, lindasDogMeshes);
+
+  lindasDogMeshNames
+    .map((name) => lindasDogMeshes[name])
+    .filter(Boolean)
+    .forEach((object3D) => {
+      object3D.visible = names.includes(object3D.name);
+    });
+};
+window.showLindasDogMeshNames = showLindasDogMeshNames;
+if (testLindasDogMeshes) {
+  lindasDogEntity.setAttribute("visible", "true");
+  showLindasDogMeshNames();
+  scene.addEventListener("mousemove", (event) => {
+    const { offsetX, offsetY } = event;
+    const x = offsetX / scene.clientWidth;
+    const showIndex = Math.floor(x * lindasDogMeshNames.length);
+    showLindasDogMeshNames(lindasDogMeshNames[showIndex]);
+  });
+}
+
+// Socket.io
+/** @type {import("socket.io-client")} */
+const ioClient = window.io;
+const { io } = ioClient;
+
+const unoSocketAddress = "https://00322e7c0e3f.ngrok-free.app/";
+const unoSocket = io(unoSocketAddress);
+unoSocket.on("connect", () => {
+  console.log("connected to uno");
+});
+unoSocket.on("disconnect", () => {
+  console.log("disconnected from uno");
+});
+unoSocket.on("did_set_servo_angle", () => {
+  console.log("did_set_servo_angle");
+});
+
+window.unoSocket = unoSocket;
