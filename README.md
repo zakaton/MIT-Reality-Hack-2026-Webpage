@@ -28,6 +28,19 @@ All messages are normalized (0–1) to allow easy extension.
 
 ![system architecture](powerpetarchitecture.png.webp)
 
+## Arduino Uno Q Hybrid Setup
+### Provisioning
+1. Power the Uno Q via USB
+2. Connect to the provisioning portal
+3. Enter WiFi credentials
+4. Wait for Linux services to initialize
+
+### Development
+- Linux code runs in App Lab’s web environment
+- MCU code runs as Arduino C++
+- Both compile together during deployment
+
+Because Uno Q uses a dual-system model, traditional Arduino IDE workflows do not apply. All networking must occur on the Linux side and be bridged to the MCU.
 
 run `sudo lsof -i -P -n | grep LISTEN` and find an adb task, e.g.  
 `adb 123 username 18u IPv4 0x8abb123 0t0 TCP 127.0.0.1:7114 (LISTEN)`
