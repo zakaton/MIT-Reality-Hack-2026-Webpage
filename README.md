@@ -29,6 +29,7 @@ All messages are normalized (0–1) to allow easy extension.
 ![system architecture](powerpetarchitecture.png.webp)
 
 ## Arduino Uno Q Hybrid Setup
+
 ### Provisioning
 1. Power the Uno Q via USB
 2. Connect to the provisioning portal
@@ -49,6 +50,22 @@ Because Uno Q uses a dual-system model, traditional Arduino IDE workflows do not
 3. Open WebXR page in Quest browser
 4. Power hardware
 5. Interact using hands (no controllers)
+
+## Extending the System
+
+**Adding a sensor**
+Connect sensor to MCU GPIO
+Read sensor values in the MCU loop
+Send normalized sensor data back through the bridge
+Handle it in WebXR as a new input
+
+**Adding new pet behaviors**
+Define a new pet state in WebXR
+Map it to motor + expression values
+Send updated state packets to Uno Q
+Physical pet automatically mirrors behavior
+
+This modular design allows easy expansion with new modulinos, emotions, or interactions.
 
 
 run `sudo lsof -i -P -n | grep LISTEN` and find an adb task, e.g.  
