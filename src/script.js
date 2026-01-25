@@ -261,6 +261,10 @@ const handTracking = {
   right: document.getElementById("rightHand"),
 };
 
+let isBeingPetSides = {
+  left: false,
+  right: false,
+};
 AFRAME.registerComponent("hand-tracking-poll", {
   tick() {
     const handTrackingComponent = this.el.components["hand-tracking-controls"];
@@ -269,11 +273,12 @@ AFRAME.registerComponent("hand-tracking-poll", {
     }
     const { indexTipPosition } = handTrackingComponent;
     const { hand: side } = handTrackingComponent.data;
-    if (side == "right") {
-      // console.log(
-      //   new THREE.Vector3().subVectors(indexTipPosition, petPosition).length()
-      // );
-    }
+    const distance = new THREE.Vector3()
+      .subVectors(indexTipPosition, petPosition)
+      .length();
+    isBeingPetSides[side] = distance < window.petThreshold;
+    const newIsBeingPet = isBeingPetSides.left && isBeingPetSides.right;
+    setIsBeingPet(newIsBeingPet);
   },
 });
 console.log("handTracking", handTracking);
@@ -577,7 +582,7 @@ const setLindasDogEyePatch = (isLeft, eyePatch) => {
     }
   });
 };
-/** @param {boolean} isLeft  */
+/** @param {LindasDogEyePatch} eyePatch  */
 const setLindasDogEyePatches = (eyePatch) => {
   setLindasDogEyePatch(true, eyePatch);
   setLindasDogEyePatch(false, eyePatch);
@@ -645,16 +650,41 @@ setInterval(() => {
   //console.log({ x, y });
 
   if (jimmysDogEntity.object3D.visible) {
-    setJimmysDogPupilPosition(true, x, 0.5);
-    setJimmysDogPupilPosition(false, x, 0.5);
+    setJimmysDogPupilPosition(true, x, 0.6);
+    setJimmysDogPupilPosition(false, x, 0.6);
   } else {
-    setLindasDogPupilPosition(true, x, 0.5);
-    setLindasDogPupilPosition(false, x, 0.5);
+    setLindasDogPupilPosition(true, x, 0.6);
+    setLindasDogPupilPosition(false, x, 0.6);
   }
 }, 200);
 
+let isBeingPet = false;
+const setIsBeingPet = (newIsBeingPet) => {
+  isBeingPet = newIsBeingPet;
+  if (isBeingPet) {
+    // setLindasDogEyePatches("down");
+    setLindasDogMouth("tongue");
+    setLindasDogPupils("emotional");
+  } else {
+    setLindasDogPupils("heart");
+    setLindasDogEyePatches("default");
+    setLindasDogMouth("c");
+    setTimeout(() => {
+      setLindasDogEyePatches("default");
+      setLindasDogMouth("nomouse");
+      setLindasDogPupils("default");
+      blink();
+    }, 600);
+  }
+};
+window.setIsBeingPet = setIsBeingPet;
+let isBlinking = false;
 const randomBlinkTime = () => Math.random() * 4000 + 800;
 const blink = () => {
+  if (isBlinking) {
+    return;
+  }
+  isBlinking = true;
   setTimeout(() => {
     if (lindasDogEntity.object3D.visible) {
       const isLeft = Math.random > 0.5;
@@ -666,11 +696,14 @@ const blink = () => {
         setLindasDogEyePatch(isLeft, "default");
         setTimeout(() => {
           setLindasDogEyePatch(!isLeft, "default");
+
+          isBlinking = false;
+          if (!isBeingPet) {
+            blink();
+          }
         }, 10);
       }, 150);
     }
-
-    blink();
   }, randomBlinkTime());
 };
 blink();
