@@ -29,7 +29,7 @@
         light="defaultLightsEnabled: false"
         grabbable-listener
         device-orientation-permission-ui="enabled: false"
-        real-world-meshing="meshMixin: realWorldMeshMixin; meshesEnabled: false; planeMixin: realWorldPlaneMixin; planesEnabled: true; filterLabels: table, desk, storage, other, plant, screen, lamp, couch, bed, screen;"
+        real-world-meshing="meshMixin: realWorldMeshMixin; meshesEnabled: false; planeMixin: realWorldPlaneMixin; planesEnabled: true; filterLabels: floor, table, desk, storage, other, plant, screen, lamp, couch, bed, screen;"
       >
         <a-assets>
           <a-asset-item
@@ -108,25 +108,84 @@
             radius-inner="0.05"
             radius-outer="0.08"
             rotation="-90 0 0"
-            position="0 0.01 0"
+            position="0 0 0"
           ></a-ring>
         </a-entity>
 
-        <a-entity id="pet">
-          <a-entity class="yaw">
-            <a-entity class="debug"></a-entity>
-            <a-entity class="pitch">
-              <a-entity class="debug"></a-entity>
-            </a-entity>
-          </a-entity>
-          <a-entity class="debug">
+        <a-entity id="pet" position="0 1.2 -0.8">
+          <a-entity class="debug" visible="false">
             <a-box
-              height="0.05"
-              width="0.1"
-              depth="0.1"
-              position="0 0.025 0"
+              height="0.0508"
+              width="0.1778"
+              depth="0.1651"
+              position="0 0.0254 0"
               color="red"
             ></a-box>
+          </a-entity>
+
+          <a-entity
+            class="yaw"
+            data-angle-type="steppers"
+            data-angle-index="0"
+            data-angle-axis="y"
+            data-angle-sign="-1"
+          >
+            <a-entity class="debug">
+              <a-box
+                height="0.1397"
+                width="0.04445"
+                depth="0.04445"
+                position="0 0.06985 0"
+                color="blue"
+              ></a-box>
+            </a-entity>
+
+            <a-entity
+              class="pitch0"
+              position="0 0.1397 0"
+              data-angle-type="servos"
+              data-angle-index="0"
+              data-angle-axis="x"
+            >
+              <a-entity class="debug">
+                <a-box
+                  height="0.12065"
+                  width="0.04445"
+                  depth="0.04445"
+                  position="0 0.060 0"
+                  color="green"
+                ></a-box>
+              </a-entity>
+
+              <a-entity
+                class="pitch1"
+                position="0 0.12065 0"
+                data-angle-type="servos"
+                data-angle-index="1"
+                data-angle-axis="x"
+              >
+                <a-entity class="debug">
+                  <a-box
+                    height="0.0889"
+                    width="0.04445"
+                    depth="0.04445"
+                    position="0 0.04445 0"
+                    color="orange"
+                  ></a-box>
+                </a-entity>
+
+                <a-entity class="head" position="0 0.0889 0">
+                  <a-entity class="debug">
+                    <a-box
+                      height="0.0889"
+                      width="0.0889"
+                      depth="0.06985"
+                      color="purple"
+                    ></a-box>
+                  </a-entity>
+                </a-entity>
+              </a-entity>
+            </a-entity>
           </a-entity>
         </a-entity>
 

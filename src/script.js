@@ -10,11 +10,20 @@ const setPetPosition = (newPetPosition) => {
   petEntity.object3D.position.copy(petPosition);
 };
 
-const petEuler = new THREE.Euler();
+const petEuler = new THREE.Euler(0, 0, 0, "YXZ");
+const offsetPetEulerPitch = (pitchOffset) => {
+  petEuler.x += pitchOffset;
+  onPetEulerUpdate();
+};
 const offsetPetEulerYaw = (yawOffset) => {
   petEuler.y += yawOffset;
   onPetEulerUpdate();
 };
+const offsetPetEulerRoll = (rollOffset) => {
+  petEuler.z += rollOffset;
+  onPetEulerUpdate();
+};
+
 const setPetEuler = (newPetEuler) => {
   petEuler.copy(newPetEuler);
   onPetEulerUpdate();
@@ -119,6 +128,34 @@ const loadPetTransform = () => {
   }
 };
 
+// PET RIG
+const petYawEntity = petEntity.querySelector(".yaw");
+const petPitch1Entity = petEntity.querySelector(".pitch");
+const petPitch2Entity = petEntity.querySelector(".pitch2");
+const petHeadEntity = petEntity.querySelector(".head");
+
+const { degToRad } = THREE.MathUtils;
+
+/** @type {Record<string, number[]>} */
+const angleOffsets = {
+  servos: [20, -72],
+  steppers: [0],
+};
+
+const angleEntities = petEntity.querySelectorAll("[data-angle-type]");
+console.log("angleEntities", angleEntities);
+const updateAnglesEntities = () => {
+  angleEntities.forEach((entity) => {
+    let { angleType, angleIndex, angleAxis, angleSign } = entity.dataset;
+    angleSign ??= 1;
+    const angle =
+      angles[angleType][angleIndex] * angleSign +
+      angleOffsets[angleType][angleIndex];
+    const axis = entity.dataset.angleAxis;
+    entity.object3D.rotation[axis] = degToRad(angle);
+  });
+};
+
 // CONTROLLERS
 const controllers = {
   left: document.getElementById("leftController"),
@@ -172,11 +209,18 @@ controllers.right.addEventListener("abuttondown", (event) => {
 });
 
 // SETUP PET ROTATION
-window.offsetPetEulerYawScalar = -0.1;
+window.offsetPetEulerScalars = { yaw: -0.03, pitch: 0.03, roll: -0.03 };
 controllers.right.addEventListener("thumbstickmoved", (event) => {
   const { x } = event.detail;
   //   console.log({ x });
-  offsetPetEulerYaw(x * offsetPetEulerYawScalar);
+  offsetPetEulerYaw(x * offsetPetEulerScalars.yaw);
+});
+
+controllers.left.addEventListener("thumbstickmoved", (event) => {
+  const { x, y } = event.detail;
+  // console.log({ x,y });
+  offsetPetEulerPitch(y * offsetPetEulerScalars.pitch);
+  offsetPetEulerRoll(x * offsetPetEulerScalars.roll);
 });
 
 // HAND TRACKING
@@ -194,9 +238,9 @@ AFRAME.registerComponent("hand-tracking-poll", {
     const { indexTipPosition } = handTrackingComponent;
     const { hand: side } = handTrackingComponent.data;
     if (side == "right") {
-      console.log(
-        new THREE.Vector3().subVectors(indexTipPosition, petPosition).length()
-      );
+      // console.log(
+      //   new THREE.Vector3().subVectors(indexTipPosition, petPosition).length()
+      // );
     }
   },
 });
@@ -375,7 +419,7 @@ const lindasDogMeshNames = allLindasDogMeshNames.filter(
   (name) => name.includes("EyePatch") && name.includes("L")
 );
 
-const testLindasDogMeshes = true;
+const testLindasDogMeshes = false;
 const showLindasDogMeshNames = (...names) => {
   //console.log("names", names);
   //console.log("lindasDogMeshNames", lindasDogMeshNames, lindasDogMeshes);
@@ -410,7 +454,7 @@ const { io } = ioClient;
 
 const unoSocketAddress = false
   ? "http://localhost:6171"
-  : "https://eeea72f4a0d4.ngrok-free.app";
+  : "https://mit-uno-q.ngrok.app";
 const unoSocket = io(unoSocketAddress);
 unoSocket.on("connect", () => {
   console.log("connected to uno");
@@ -423,12 +467,12 @@ let angles = {
   servos: [0, 0],
   steppers: [0],
 };
-const throttleRate = 100;
+const throttleRate = 20;
 const updateAngles = (newAngles) => {
   angles = newAngles;
   console.log("angles", angles);
   updateAnglesUI();
-  // FILL - update entities
+  updateAnglesEntities();
 };
 let setAngles = (newAngles) => {
   unoSocket.emit("set_angles", newAngles);
@@ -440,7 +484,7 @@ unoSocket.on("get_angles", (newAngles) => {
 });
 
 /** @type {Record<string, {min: number, max: number}[]>} */
-const angleRanges = {
+const angleInputRanges = {
   servos: [
     { min: 0, max: 160 },
     { min: 0, max: 160 },
@@ -482,7 +526,7 @@ const updateAnglesUI = () => {
           throttleRate
         );
         container.querySelectorAll("input").forEach((input) => {
-          const { min, max } = angleRanges[type][index];
+          const { min, max } = angleInputRanges[type][index];
           input.step = 1;
           input.min = min;
           input.max = max;
