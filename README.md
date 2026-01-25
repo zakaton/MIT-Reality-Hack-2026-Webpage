@@ -42,5 +42,14 @@ All messages are normalized (0–1) to allow easy extension.
 
 Because Uno Q uses a dual-system model, traditional Arduino IDE workflows do not apply. All networking must occur on the Linux side and be bridged to the MCU.
 
+## Quick Start
+
+1. Flash Uno Q via App Lab
+2. Connect to WiFi
+3. Open WebXR page in Quest browser
+4. Power hardware
+5. Interact using hands (no controllers)
+
+
 run `sudo lsof -i -P -n | grep LISTEN` and find an adb task, e.g.  
 `adb 123 username 18u IPv4 0x8abb123 0t0 TCP 127.0.0.1:7114 (LISTEN)`
