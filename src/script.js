@@ -387,7 +387,7 @@ const { io } = ioClient;
 
 const unoSocketAddress = false
   ? "http://localhost:6171"
-  : "https://0df1ce0ac784.ngrok-free.app";
+  : "https://eeea72f4a0d4.ngrok-free.app";
 const unoSocket = io(unoSocketAddress);
 unoSocket.on("connect", () => {
   console.log("connected to uno");
@@ -400,12 +400,12 @@ let angles = {
   servos: [0, 0],
   steppers: [0],
 };
-const throttleRate = 40;
+const throttleRate = 100;
 const updateAngles = (newAngles) => {
   angles = newAngles;
   console.log("angles", angles);
-  // FILL - update UI
   updateAnglesUI();
+  // FILL - update entities
 };
 let setAngles = (newAngles) => {
   unoSocket.emit("set_angles", newAngles);
@@ -464,8 +464,14 @@ const updateAnglesUI = () => {
           input.min = min;
           input.max = max;
           input.addEventListener("change", () => {
-            input.isChanging;
+            input.isChanging = true;
+            console.log("changing");
           });
+          const onDoneChanging = () => {
+            input.isChanging = false;
+          };
+          input.addEventListener("mouseup", onDoneChanging);
+          input.addEventListener("touchend", onDoneChanging);
           input.addEventListener("input", () => {
             setAngle(+input.value);
           });
@@ -474,6 +480,9 @@ const updateAnglesUI = () => {
         angleContainers[type][index] = container;
       }
       container.querySelectorAll("input").forEach((input) => {
+        if (input.isChanging) {
+          return;
+        }
         input.value = angle;
       });
     });
