@@ -1,6 +1,8 @@
 /** @type {import("three")} */
 const THREE = window.THREE;
 
+const camera = document.getElementById("camera");
+
 const scene = document.getElementById("scene");
 scene.addEventListener(
   "enter-vr",
@@ -400,7 +402,7 @@ const setJimmysDogPupilPosition = (
 };
 window.setJimmysDogPupilPosition = setJimmysDogPupilPosition;
 
-const testJimmysDogPupils = true;
+const testJimmysDogPupils = false;
 if (testJimmysDogPupils) {
   scene.addEventListener("mousemove", (event) => {
     const { offsetX, offsetY } = event;
@@ -472,7 +474,7 @@ const setLindasDogPupilPosition = (
 };
 window.setLindasDogPupilPosition = setLindasDogPupilPosition;
 
-const testLindasDogPupilsPositions = true;
+const testLindasDogPupilsPositions = false;
 if (testLindasDogPupilsPositions) {
   scene.addEventListener("mousemove", (event) => {
     const { offsetX, offsetY } = event;
@@ -555,7 +557,7 @@ const setLindasDogPupil = (isLeft, pupil) => {
     }
   });
 };
-/** @param {boolean} isLeft  */
+/** @param {LindasDogPupil} pupil  */
 const setLindasDogPupils = (pupil) => {
   setLindasDogPupil(true, pupil);
   setLindasDogPupil(false, pupil);
@@ -570,7 +572,7 @@ window.setLindasDogPupils = setLindasDogPupils;
  */
 const setLindasDogEyePatch = (isLeft, eyePatch) => {
   Object.entries(lindasDogMeshes).forEach(([name, mesh]) => {
-    if (name.includes("EyePatch")) {
+    if (name.includes("EyePatch") && name.includes(isLeft ? "_L_" : "_R_")) {
       mesh.visible = name.toLowerCase().endsWith(eyePatch);
     }
   });
@@ -594,12 +596,84 @@ const setLindasDogMouth = (mouth) => {
 };
 window.setLindasDogMouth = setLindasDogMouth;
 
-// FILL - EYE FOLLOWING
-// FILL - set
-const getRelativeOrientation = (quaternion, position) => {
-  // FILL
-  const lookAtEuler = new THREE.Euler();
+// EYE FOLLOWING
+/**
+ *
+ * @param {Object3D} object3D
+ * @param {import("three").Vector3} worldVector
+ * @returns
+ */
+function getRelativeAngles(object3D, worldVector) {
+  // Step 1: direction from object to target (world space)
+  const dirWorld = new THREE.Vector3()
+    .subVectors(worldVector, object3D.getWorldPosition(new THREE.Vector3()))
+    .normalize();
+
+  // Step 2: convert direction into object local space
+  const dirLocal = dirWorld.clone();
+  object3D.worldToLocal(dirLocal.add(object3D.position)).sub(object3D.position);
+  dirLocal.normalize();
+
+  // Step 3: compute angles
+  const horizontal = Math.atan2(dirLocal.x, dirLocal.z); // yaw
+  const vertical = Math.atan2(
+    dirLocal.y,
+    Math.sqrt(dirLocal.x * dirLocal.x + dirLocal.z * dirLocal.z)
+  ); // pitch
+
+  return {
+    horizontal, // radians
+    vertical, // radians
+  };
+}
+
+setInterval(() => {
+  const vector = camera.object3D.getWorldPosition(new THREE.Vector3());
+
+  const object3D = jimmysDogEntity.object3D.visible
+    ? jimmysDogEntity.object3D
+    : lindasDogEntity.object3D;
+  let { horizontal, vertical } = getRelativeAngles(object3D, vector);
+
+  //console.log({ horizontal, vertical });
+
+  let x = THREE.MathUtils.inverseLerp(-7, 7, horizontal);
+  x = 1 - THREE.MathUtils.clamp(x, 0, 1);
+  let y = THREE.MathUtils.inverseLerp(-1, 1, vertical);
+  y = THREE.MathUtils.clamp(y, 0, 1);
+
+  //console.log({ x, y });
+
+  if (jimmysDogEntity.object3D.visible) {
+    setJimmysDogPupilPosition(true, x, 0.5);
+    setJimmysDogPupilPosition(false, x, 0.5);
+  } else {
+    setLindasDogPupilPosition(true, x, 0.5);
+    setLindasDogPupilPosition(false, x, 0.5);
+  }
+}, 200);
+
+const randomBlinkTime = () => Math.random() * 4000 + 800;
+const blink = () => {
+  setTimeout(() => {
+    if (lindasDogEntity.object3D.visible) {
+      const isLeft = Math.random > 0.5;
+      setLindasDogEyePatch(isLeft, "close");
+      setTimeout(() => {
+        setLindasDogEyePatch(!isLeft, "close");
+      }, 10);
+      setTimeout(() => {
+        setLindasDogEyePatch(isLeft, "default");
+        setTimeout(() => {
+          setLindasDogEyePatch(!isLeft, "default");
+        }, 10);
+      }, 150);
+    }
+
+    blink();
+  }, randomBlinkTime());
 };
+blink();
 
 // QUEST TRACKING
 // FILL - track relative headset transform
@@ -613,14 +687,20 @@ const { io } = ioClient;
 const unoSocketAddress = false
   ? "http://localhost:6171"
   : "https://mit-uno-q.ngrok.app";
-const unoSocket = io(unoSocketAddress);
-unoSocket.on("connect", () => {
-  console.log("connected to uno");
-  unoSocket.emit("get_angles", {});
-});
-unoSocket.on("disconnect", () => {
-  console.log("disconnected from uno");
-});
+if (true) {
+  const unoSocket = io(unoSocketAddress);
+  unoSocket.on("connect", () => {
+    console.log("connected to uno");
+    unoSocket.emit("get_angles", {});
+  });
+  unoSocket.on("disconnect", () => {
+    console.log("disconnected from uno");
+  });
+  unoSocket.on("get_angles", (newAngles) => {
+    //console.log("get_angles", newAngles);
+    updateAngles(newAngles);
+  });
+}
 let angles = {
   servos: [0, 0],
   steppers: [0],
@@ -636,10 +716,6 @@ let setAngles = (newAngles) => {
   unoSocket.emit("set_angles", newAngles);
 };
 setAngles = AFRAME.utils.throttleLeadingAndTrailing(setAngles, throttleRate);
-unoSocket.on("get_angles", (newAngles) => {
-  //console.log("get_angles", newAngles);
-  updateAngles(newAngles);
-});
 
 /** @type {Record<string, {min: number, max: number}[]>} */
 const angleInputRanges = {

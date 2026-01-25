@@ -4,13 +4,13 @@
 
 const uint8_t numberOfServos = 2;
 Servo servos[numberOfServos];
-const uint8_t servoPins[numberOfServos] = {2, 4};
+const uint8_t servoPins[numberOfServos] = {2, 3};
 bool shouldUpdateServos[numberOfServos] = {false};
 int servoAngles[numberOfServos] = {0};
 
-#define STEP_PIN 3
-#define DIR_PIN 2
-#define STEPS_PER_REV 100
+#define STEP_PIN 5
+#define DIR_PIN 6
+#define STEPS_PER_REV 200
 
 AccelStepper stepper(AccelStepper::DRIVER, STEP_PIN, DIR_PIN);
 int stepperAngle = 0;
@@ -21,16 +21,23 @@ long stepperAngleToSteps(float degrees)
 }
 void moveStepperToAngle(float degrees)
 {
-    stepper.moveTo(stepperAngleToSteps(degrees));
+    long steps = stepperAngleToSteps(degrees);
+    // Monitor.print("moveStepperToAngle ");
+    // Monitor.print(degrees);
+    // Monitor.print(" => ");
+    // Monitor.print(steps);
+    // Monitor.println();
+    stepper.moveTo(steps);
 }
 
 bool shouldUpdateStepper = false;
+bool isUpdatingStepper = false;
 int servoAngle = 0;
 
 void setup()
 {
     stepper.setMaxSpeed(2000);
-    stepper.setAcceleration(500);
+    stepper.setAcceleration(1000);
 
     for (uint8_t i = 0; i < numberOfServos; i++)
     {
@@ -69,9 +76,16 @@ void loop()
 
     if (shouldUpdateStepper)
     {
-        // Monitor.println("shouldUpdateStepper");
+        // Monitor.print("shouldUpdateStepper ");
+        // Monitor.print(stepperAngle);
+        // Monitor.println();
         moveStepperToAngle(stepperAngle);
+        isUpdatingStepper = true;
         shouldUpdateStepper = false;
+    }
+    if (isUpdatingStepper)
+    {
+        isUpdatingStepper = stepper.run();
     }
 }
 

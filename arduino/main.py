@@ -5,7 +5,7 @@
 from arduino.app_utils import *
 from arduino.app_bricks.web_ui import WebUI
 
-angles = {"servos": [], "steppers": []}
+angles = {"servos": [0, 0], "steppers": [0]}
 
 
 def set_at_index(lst, index, value, fill=0):
@@ -14,26 +14,59 @@ def set_at_index(lst, index, value, fill=0):
     lst[index] = value
 
 
-def set_servo_angle(client, data):
+def set_servo_angle(client, data, notify=True):
     # print("set_servo_angle")
     # print(data)
 
     Bridge.call("set_servo_angle", data["index"], data["angle"])
     set_at_index(angles["servos"], data["index"], data["angle"])
-    ui.send_message("get_angles", angles)
+    if notify:
+        ui.send_message("get_angles", angles)
 
 
-def set_stepper_angle(client, data):
+def set_stepper_angle(client, data, notify=True):
     # print("set_stepper_angle")
     # print(data)
 
     Bridge.call("set_stepper_angle", data["angle"])
     set_at_index(angles["steppers"], 0, data["angle"])
-    ui.send_message("get_angles", angles)
+    if notify:
+        ui.send_message("get_angles", angles)
+
+
+def set_angles(client, data, notify=True):
+    # print("set_angles")
+    # print(data)
+
+    for index, angle in enumerate(data.get("servos", [])):
+        set_servo_angle(client, {"index": index, "angle": angle}, False)
+
+    for index, angle in enumerate(data.get("steppers", [])):
+        set_stepper_angle(client, {"angle": angle}, False)
+
+    if notify:
+        ui.send_message("get_angles", angles)
+
+
+def set_angle(client, data, notify=True):
+    # print("set_angle")
+    # print(data)
+
+    match data["type"]:
+        case "servos":
+            set_servo_angle(client, data, False)
+        case "steppers":
+            set_stepper_angle(client, data, False)
+        case _:
+            print("invalid angle type")
+            print(data["type"])
+
+    if notify:
+        ui.send_message("get_angles", angles)
 
 
 def get_angles(client, data):
-    print("get_angles")
+    # print("get_angles")
     # print(data)
 
     ui.send_message("get_angles", angles, client)
@@ -42,9 +75,13 @@ def get_angles(client, data):
 # Initialize WebUI
 ui = WebUI()
 
+ui.expose_api("GET", "/", lambda: "uno q")
+
 # Handle socket messages (like in Code Scanner example)
 ui.on_message("set_servo_angle", set_servo_angle)
 ui.on_message("set_stepper_angle", set_stepper_angle)
+ui.on_message("set_angles", set_angles)
+ui.on_message("set_angle", set_angle)
 ui.on_message("get_angles", get_angles)
 
 # Start the application
