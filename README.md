@@ -26,6 +26,57 @@ This allows the pet to exist simultaneously in VR and the real world.
 
 All messages are normalized (0–1) to allow easy extension.
 
+![system architecture](powerpetarchitecture.png.webp)
+
+## Arduino Uno Q Hybrid Setup
+
+### Provisioning
+1. Power the Uno Q via USB
+2. Connect to the provisioning portal
+3. Enter WiFi credentials
+4. Wait for Linux services to initialize
+
+### Development
+- Linux code runs in App Lab’s web environment
+- MCU code runs as Arduino C++
+- Both compile together during deployment
+
+Because Uno Q uses a dual-system model, traditional Arduino IDE workflows do not apply. All networking must occur on the Linux side and be bridged to the MCU.
+
+## Hardware Control Layer
+The MCU receives normalized values (0–1) from Linux and maps them to motor angles:
+- Yaw (stepper): 0–360°
+- Pitch (servo): 20–160°
+- Tilt (servo): 30–150°
+
+This mapping allows any XR animation to be mirrored physically without rewriting hardware logic.
+
+## Quick Start
+
+1. Flash Uno Q via App Lab
+2. Connect to WiFi
+3. Open WebXR page in Quest browser
+4. Power hardware
+5. Interact using hands (no controllers)
+
+## Extending the System
+
+**Adding a sensor**
+
+1. Connect sensor to MCU GPIO
+2. Read sensor values in the MCU loop
+3. Send normalized sensor data back through the bridge
+4. Handle it in WebXR as a new input
+
+**Adding new pet behaviors**
+
+1. Define a new pet state in WebXR
+2. Map it to motor + expression values
+3. Send updated state packets to Uno Q
+4. Physical pet automatically mirrors behavior
+
+This modular design allows easy expansion with new modulinos, emotions, or interactions.
+
 
 run `sudo lsof -i -P -n | grep LISTEN` and find an adb task, e.g.  
 `adb 123 username 18u IPv4 0x8abb123 0t0 TCP 127.0.0.1:7114 (LISTEN)`
