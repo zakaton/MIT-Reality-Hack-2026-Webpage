@@ -14,5 +14,18 @@ Power Pet runs on a **hybrid architecture**:
 
 This allows the pet to exist simultaneously in VR and the real world.
 
+## How Data Flows
+
+1. WebXR runs in the Quest browser (A-Frame)
+2. Hand tracking + pet state is captured in JavaScript
+3. State packets are sent via socket.io WebSocket
+4. Linux side receives and parses messages
+5. Messages are forwarded through the Uno Q bridge
+6. MCU converts state into motor angles
+7. Physical pet mirrors VR pet movement
+
+All messages are normalized (0–1) to allow easy extension.
+
+
 run `sudo lsof -i -P -n | grep LISTEN` and find an adb task, e.g.  
 `adb 123 username 18u IPv4 0x8abb123 0t0 TCP 127.0.0.1:7114 (LISTEN)`
