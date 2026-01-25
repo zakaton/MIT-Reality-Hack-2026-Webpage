@@ -687,20 +687,19 @@ const { io } = ioClient;
 const unoSocketAddress = false
   ? "http://localhost:6171"
   : "https://mit-uno-q.ngrok.app";
-if (true) {
-  const unoSocket = io(unoSocketAddress);
-  unoSocket.on("connect", () => {
-    console.log("connected to uno");
-    unoSocket.emit("get_angles", {});
-  });
-  unoSocket.on("disconnect", () => {
-    console.log("disconnected from uno");
-  });
-  unoSocket.on("get_angles", (newAngles) => {
-    //console.log("get_angles", newAngles);
-    updateAngles(newAngles);
-  });
-}
+const unoSocket = io(unoSocketAddress);
+unoSocket.on("connect", () => {
+  console.log("connected to uno");
+  unoSocket.emit("get_angles", {});
+});
+unoSocket.on("disconnect", () => {
+  console.log("disconnected from uno");
+});
+unoSocket.on("get_angles", (newAngles) => {
+  //console.log("get_angles", newAngles);
+  updateAngles(newAngles);
+});
+
 let angles = {
   servos: [0, 0],
   steppers: [0],
