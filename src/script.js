@@ -24,10 +24,10 @@ const onPetEulerUpdate = () => {
   petEntity.object3D.rotation.copy(petEuler);
 };
 
-const petTransformLocalStorageKey = "petTransform";
-const savePetTransform = () => {
-  console.log("savePetTransform");
+/** @typedef {import("three").Object3D} Object3D */
 
+/** @param {Object3D} object3D */
+const getRelativeTransform = (object3D) => {
   const relativeMatrix = new THREE.Matrix4();
   const inverseRelativeMatrix = new THREE.Matrix4()
     .copy(anchor.object3D.matrixWorld)
@@ -37,17 +37,68 @@ const savePetTransform = () => {
   const relativeQuaternion = new THREE.Quaternion();
   const relativeScale = new THREE.Vector3();
 
-  relativeMatrix.multiplyMatrices(
-    inverseRelativeMatrix,
-    petEntity.object3D.matrixWorld
-  );
+  relativeMatrix.multiplyMatrices(inverseRelativeMatrix, object3D.matrixWorld);
 
   relativeMatrix.decompose(relativePosition, relativeQuaternion, relativeScale);
 
   const transform = {
-    position: relativePosition.toArray(),
-    quaternion: relativeQuaternion.toArray(),
-    scale: relativeScale.toArray(),
+    position: relativePosition,
+    quaternion: relativeQuaternion,
+    scale: relativeScale,
+  };
+
+  return transform;
+};
+
+/** @param {string} transformString */
+const loadRelativeTransform = (transformString) => {
+  const relativePosition = new THREE.Vector3();
+  const relativeQuaternion = new THREE.Quaternion();
+  const relativeScale = new THREE.Vector3();
+
+  const worldPosition = new THREE.Vector3();
+  const worldQuaternion = new THREE.Quaternion();
+  const worldScale = new THREE.Vector3();
+
+  const localMatrix = new THREE.Matrix4();
+  const referenceMatrix = new THREE.Matrix4().copy(anchor.object3D.matrixWorld);
+  const worldMatrix = new THREE.Matrix4();
+
+  const {
+    position: positionArray,
+    quaternion: quaternionArray,
+    scale: scaleArray,
+  } = JSON.parse(transformString);
+  relativePosition.set(...positionArray);
+  relativeQuaternion.set(...quaternionArray);
+  relativeScale.set(...scaleArray);
+
+  localMatrix.compose(relativePosition, relativeQuaternion, relativeScale);
+  worldMatrix.multiplyMatrices(referenceMatrix, localMatrix);
+  worldMatrix.decompose(worldPosition, worldQuaternion, worldScale);
+
+  const worldEuler = new THREE.Euler().setFromQuaternion(worldQuaternion);
+
+  return {
+    position: worldPosition,
+    quaternion: worldQuaternion,
+    scale: worldScale,
+    euler: worldEuler,
+  };
+};
+
+const petTransformLocalStorageKey = "petTransform";
+const savePetTransform = () => {
+  console.log("savePetTransform");
+
+  const { position, scale, quaternion } = getRelativeTransform(
+    petEntity.object3D
+  );
+
+  const transform = {
+    position: position.toArray(),
+    quaternion: quaternion.toArray(),
+    scale: scale.toArray(),
   };
 
   localStorage.setItem(petTransformLocalStorageKey, JSON.stringify(transform));
@@ -58,39 +109,11 @@ const loadPetTransform = () => {
   if (!petTransformString) {
     return;
   }
+
   try {
-    const relativePosition = new THREE.Vector3();
-    const relativeQuaternion = new THREE.Quaternion();
-    const relativeScale = new THREE.Vector3();
-
-    const worldPosition = new THREE.Vector3();
-    const worldQuaternion = new THREE.Quaternion();
-    const worldScale = new THREE.Vector3();
-
-    const localMatrix = new THREE.Matrix4();
-    const referenceMatrix = new THREE.Matrix4().copy(
-      anchor.object3D.matrixWorld
-    );
-    const worldMatrix = new THREE.Matrix4();
-
-    const {
-      position: positionArray,
-      quaternion: quaternionArray,
-      scale: scaleArray,
-    } = JSON.parse(petTransformString);
-    relativePosition.set(...positionArray);
-    relativeQuaternion.set(...quaternionArray);
-    relativeScale.set(...scaleArray);
-
-    localMatrix.compose(relativePosition, relativeQuaternion, relativeScale);
-    worldMatrix.multiplyMatrices(referenceMatrix, localMatrix);
-    worldMatrix.decompose(worldPosition, worldQuaternion, worldScale);
-
-    const newPetPosition = worldPosition;
-    setPetPosition(newPetPosition);
-
-    const newPetEuler = new THREE.Euler().setFromQuaternion(worldQuaternion);
-    setPetEuler(newPetEuler);
+    const { position, euler } = loadRelativeTransform(petTransformString);
+    setPetPosition(position);
+    setPetEuler(euler);
   } catch (error) {
     console.error("error parsing petTransform", error);
   }
