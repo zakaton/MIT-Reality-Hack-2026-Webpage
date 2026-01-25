@@ -230,7 +230,12 @@ const setShowDebugEntities = (newShowDebugEntities) => {
 };
 window.setShowDebugEntities = setShowDebugEntities;
 controllers.right.addEventListener("bbuttondown", (event) => {
-  setShowDebugEntities(!showDebugEntities);
+  toggleShowDebugEntities();
+});
+const toggleShowDebugEntities = () => setShowDebugEntities(!showDebugEntities);
+window.toggleShowDebugEntities = toggleShowDebugEntities;
+scene.addEventListener("loaded", () => {
+  setShowDebugEntities(false);
 });
 
 // SETUP PET ROTATION
@@ -299,23 +304,51 @@ window.addEventListener("beforeunload", () => {
   savePetTransform();
 });
 
-// EYE TRACKING
-// FILL
-
-const getRelativeOrientation = (quaternion, position) => {
-  // FILL
-  const lookAtEuler = new THREE.Euler();
+// SHOW
+const jimmysDogEntity = document.getElementById("jimmysDog");
+const lindasDogEntity = document.getElementById("lindasDog");
+const showJimmysDog = () => {
+  jimmysDogEntity.object3D.visible = true;
+  lindasDogEntity.object3D.visible = false;
 };
+window.showJimmysDog = showJimmysDog;
+const showLindasDog = () => {
+  lindasDogEntity.object3D.visible = true;
+  jimmysDogEntity.object3D.visible = false;
+};
+window.showLindasDog = showLindasDog;
 
-// TEST DOGGY
+// JIMMY EYE TRACKING
 /** @typedef {import("three").Material} Material */
 /** @typedef {import("three").Texture} Texture */
+
+/** @type {Record<string, Object3D>} */
+const jimmysDogMeshes = {};
+window.jimmysDogMeshes = jimmysDogMeshes;
+jimmysDogEntity.addEventListener("model-loaded", () => {
+  const root = jimmysDogEntity.getObject3D("mesh");
+  if (!root) return;
+
+  root.traverse((node) => {
+    if (!node.isMesh) return;
+    jimmysDogMeshes[node.name] = node;
+    if (node.name.includes("Pupil_L")) {
+      node.material = node.material.clone();
+      node.material.map = node.material.map.clone();
+
+      const tex = node.material.map;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.needsUpdate = true;
+    }
+  });
+  console.log("jimmysDogMeshes", jimmysDogMeshes);
+});
+
 /** @type {Record<name, Material} */
-const testDoggyMaterials = {};
-window.testDoggyMaterials = testDoggyMaterials;
-const testDoggyEntity = document.getElementById("testDoggy");
-testDoggyEntity.addEventListener("model-loaded", () => {
-  const root = testDoggyEntity.getObject3D("mesh");
+const jimmysDogMaterials = {};
+window.jimmysDogMaterials = jimmysDogMaterials;
+jimmysDogEntity.addEventListener("model-loaded", () => {
+  const root = jimmysDogEntity.getObject3D("mesh");
   if (!root) return;
 
   root.traverse((node) => {
@@ -326,65 +359,133 @@ testDoggyEntity.addEventListener("model-loaded", () => {
       : [node.material];
 
     materials.forEach((material, index) => {
-      testDoggyMaterials[material.name] = material;
-
-      // console.log("node", node);
-      // console.log("material", material);
-
-      const textures = {
-        map: material.map,
-        normalMap: material.normalMap,
-        roughnessMap: material.roughnessMap,
-        metalnessMap: material.metalnessMap,
-        emissiveMap: material.emissiveMap,
-        aoMap: material.aoMap,
-        alphaMap: material.alphaMap,
-      };
-
-      Object.entries(textures).forEach(([key, texture]) => {
-        if (!texture) return;
-        console.log(`  ${key}:`, {
-          uuid: texture.uuid,
-          image: texture.image,
-          source: texture.image?.src,
-        });
-      });
+      jimmysDogMaterials[material.name] = material;
     });
   });
+  console.log("jimmysDogMaterials", jimmysDogMaterials);
 });
 
-const testDoggyPupilRange = {
-  x: 0.13,
-  y: 0.15,
+const jimmysDogPupilRange = {
+  left: {
+    x: { min: -0.13, max: 0.13 },
+    y: { min: -0.15, max: 0.15 },
+  },
+  right: {
+    x: { min: -0.13, max: 0.13 },
+    y: { min: -0.15, max: 0.15 },
+  },
 };
-const lerp = (halfRange, interpolation) => {
-  return THREE.MathUtils.lerp(-halfRange, halfRange, interpolation);
+const lerp = (range, interpolation) => {
+  return THREE.MathUtils.lerp(range.min, range.max, interpolation);
 };
-const setTestDoggyPupil = (x, y, startAtNegativeOne = false) => {
+
+const setJimmysDogPupilPosition = (
+  isLeft,
+  x,
+  y,
+  startAtNegativeOne = false
+) => {
   if (startAtNegativeOne) {
     x = THREE.MathUtils.inverseLerp(-1, 1, x);
     y = THREE.MathUtils.inverseLerp(-1, 1, y);
   }
-  testDoggyMaterials.Pupil.map.offset.x = lerp(testDoggyPupilRange.x, x);
-  testDoggyMaterials.Pupil.map.offset.y = lerp(testDoggyPupilRange.y, y);
+  const name = isLeft ? "Pupil_Left" : "Pupil_Right";
+  if (isLeft) {
+    x = 1 - x;
+  }
+  const { offset } = jimmysDogMeshes[name].material.map;
+  const side = isLeft ? "left" : "right";
+  offset.x = lerp(jimmysDogPupilRange[side].x, x);
+  offset.y = lerp(jimmysDogPupilRange[side].y, y);
 };
-window.setTestDoggyPupil = setTestDoggyPupil;
+window.setJimmysDogPupilPosition = setJimmysDogPupilPosition;
 
-const testDoggy = false;
-if (testDoggy) {
-  testDoggyEntity.setAttribute("visible", "true");
+const testJimmysDogPupils = true;
+if (testJimmysDogPupils) {
   scene.addEventListener("mousemove", (event) => {
     const { offsetX, offsetY } = event;
     const x = 1 - offsetX / scene.clientWidth;
     const y = 1 - offsetY / scene.clientHeight;
     //console.log({ x, y });
-    setTestDoggyPupil(x, y);
+    setJimmysDogPupilPosition(true, x, y);
+    setJimmysDogPupilPosition(false, x, y);
   });
 }
 
-// TEST DOGGY 2
-const lindasDogEntity = document.getElementById("lindasDog");
+// LINDA EYE TRACKING
+/** @type {Record<name, Material} */
+const lindasDogMaterials = {};
+window.lindasDogMaterials = lindasDogMaterials;
+lindasDogEntity.addEventListener("model-loaded", () => {
+  const root = lindasDogEntity.getObject3D("mesh");
+  if (!root) return;
+
+  root.traverse((node) => {
+    if (!node.isMesh) return;
+
+    const materials = Array.isArray(node.material)
+      ? node.material
+      : [node.material];
+
+    materials.forEach((material, index) => {
+      lindasDogMaterials[material.name] = material;
+    });
+  });
+  console.log("lindasDogMaterials", lindasDogMaterials);
+});
+
+const lindasDogPupilRange = {
+  left: {
+    x: { min: -0.13, max: 0.13 },
+    y: { min: -0.15, max: 0.15 },
+  },
+  right: {
+    x: { min: -0.13, max: 0.13 },
+    y: { min: -0.15, max: 0.15 },
+  },
+};
+
+const setLindasDogPupilPosition = (
+  isLeft,
+  x,
+  y,
+  startAtNegativeOne = false
+) => {
+  if (startAtNegativeOne) {
+    x = THREE.MathUtils.inverseLerp(-1, 1, x);
+    y = THREE.MathUtils.inverseLerp(-1, 1, y);
+  }
+  const mesh = Object.values(lindasDogMeshes).find((mesh) => {
+    const { name, visible } = mesh;
+    return (
+      name.includes("Pupil") && name.includes(isLeft ? "_L_" : "_R_") && visible
+    );
+  });
+  if (isLeft) {
+    x = 1 - x;
+  }
+  const { offset } = mesh.material.map;
+  const side = isLeft ? "left" : "right";
+
+  offset.x = lerp(lindasDogPupilRange[side].x, x);
+  offset.y = lerp(lindasDogPupilRange[side].y, y);
+};
+window.setLindasDogPupilPosition = setLindasDogPupilPosition;
+
+const testLindasDogPupilsPositions = true;
+if (testLindasDogPupilsPositions) {
+  scene.addEventListener("mousemove", (event) => {
+    const { offsetX, offsetY } = event;
+    const x = 1 - offsetX / scene.clientWidth;
+    const y = 1 - offsetY / scene.clientHeight;
+    //console.log({ x, y });
+    setLindasDogPupilPosition(true, x, y);
+    setLindasDogPupilPosition(false, x, y);
+  });
+}
+
 /** @typedef {import("three").Object3D} Object3D */
+
 /** @type {Record<string, Object3D>} */
 const lindasDogMeshes = {};
 window.lindasDogMeshes = lindasDogMeshes;
@@ -395,8 +496,20 @@ lindasDogEntity.addEventListener("model-loaded", () => {
   root.traverse((node) => {
     if (!node.isMesh) return;
     lindasDogMeshes[node.name] = node;
+
+    if (node.name.includes("_L_") && node.name.includes("_Pupil_")) {
+      node.material = node.material.clone();
+      node.material.map = node.material.map.clone();
+
+      const tex = node.material.map;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.needsUpdate = true;
+    }
   });
   console.log("lindasDogMeshes", lindasDogMeshes);
+  setLindasDogEyePatches("default");
+  setLindasDogPupils("default");
+  setLindasDogMouth("nomouse");
 });
 
 const allLindasDogMeshNames = [
@@ -429,33 +542,64 @@ const allLindasDogMeshNames = [
   "SM_Head1",
   "SM_EyePatch_4_R_Down",
 ];
-const lindasDogMeshNames = allLindasDogMeshNames.filter(
-  (name) => name.includes("EyePatch") && name.includes("L")
-);
 
-const testLindasDogMeshes = false;
-const showLindasDogMeshNames = (...names) => {
-  //console.log("names", names);
-  //console.log("lindasDogMeshNames", lindasDogMeshNames, lindasDogMeshes);
-
-  lindasDogMeshNames
-    .map((name) => lindasDogMeshes[name])
-    .filter(Boolean)
-    .forEach((object3D) => {
-      object3D.visible = names.includes(object3D.name);
-    });
-};
-window.showLindasDogMeshNames = showLindasDogMeshNames;
-if (testLindasDogMeshes) {
-  lindasDogEntity.setAttribute("visible", "true");
-  showLindasDogMeshNames();
-  scene.addEventListener("mousemove", (event) => {
-    const { offsetX, offsetY } = event;
-    const x = offsetX / scene.clientWidth;
-    const showIndex = Math.floor(x * lindasDogMeshNames.length);
-    showLindasDogMeshNames(lindasDogMeshNames[showIndex]);
+/** @typedef {"default" | "heart" | "emotional" | "star"} LindasDogPupil */
+/**
+ * @param {boolean} isLeft
+ * @param {LindasDogPupil} pupil
+ */
+const setLindasDogPupil = (isLeft, pupil) => {
+  Object.entries(lindasDogMeshes).forEach(([name, mesh]) => {
+    if (name.includes(isLeft ? "_L_" : "_R_") && name.includes("Pupil")) {
+      mesh.visible = name.toLowerCase().includes(pupil);
+    }
   });
-}
+};
+/** @param {boolean} isLeft  */
+const setLindasDogPupils = (pupil) => {
+  setLindasDogPupil(true, pupil);
+  setLindasDogPupil(false, pupil);
+};
+window.setLindasDogPupil = setLindasDogPupil;
+window.setLindasDogPupils = setLindasDogPupils;
+
+/** @typedef {"default" | "close" | "serious" | "down"} LindasDogEyePatch */
+/**
+ * @param {boolean} isLeft
+ * @param {LindasDogEyePatch} eyePatch
+ */
+const setLindasDogEyePatch = (isLeft, eyePatch) => {
+  Object.entries(lindasDogMeshes).forEach(([name, mesh]) => {
+    if (name.includes("EyePatch")) {
+      mesh.visible = name.toLowerCase().endsWith(eyePatch);
+    }
+  });
+};
+/** @param {boolean} isLeft  */
+const setLindasDogEyePatches = (eyePatch) => {
+  setLindasDogEyePatch(true, eyePatch);
+  setLindasDogEyePatch(false, eyePatch);
+};
+window.setLindasDogEyePatch = setLindasDogEyePatch;
+window.setLindasDogEyePatches = setLindasDogEyePatches;
+
+/** @typedef {"nomouse" | "tongue" | "w" | "c" | "o"} LindasDogMouth */
+/**  @param {LindasDogMouth} mouth */
+const setLindasDogMouth = (mouth) => {
+  Object.entries(lindasDogMeshes).forEach(([name, mesh]) => {
+    if (name.includes("Mouse")) {
+      mesh.visible = name.toLowerCase().includes(mouth);
+    }
+  });
+};
+window.setLindasDogMouth = setLindasDogMouth;
+
+// FILL - EYE FOLLOWING
+// FILL - set
+const getRelativeOrientation = (quaternion, position) => {
+  // FILL
+  const lookAtEuler = new THREE.Euler();
+};
 
 // QUEST TRACKING
 // FILL - track relative headset transform
@@ -484,7 +628,7 @@ let angles = {
 const throttleRate = 20;
 const updateAngles = (newAngles) => {
   angles = newAngles;
-  console.log("angles", angles);
+  //console.log("angles", angles);
   updateAnglesUI();
   updateAnglesEntities();
 };
@@ -493,7 +637,7 @@ let setAngles = (newAngles) => {
 };
 setAngles = AFRAME.utils.throttleLeadingAndTrailing(setAngles, throttleRate);
 unoSocket.on("get_angles", (newAngles) => {
-  console.log("get_angles", newAngles);
+  //console.log("get_angles", newAngles);
   updateAngles(newAngles);
 });
 

@@ -46,11 +46,11 @@
           ></a-asset-item>
           <a-asset-item
             id="lindasDogModel"
-            src="./assets/3d/LindasDog.glb"
+            src="./assets/3d/DogAttempt.glb"
           ></a-asset-item>
           <a-asset-item
-            id="dogAttemptModel"
-            src="./assets/3d/DogAttempt.glb"
+            id="jimmysDogModel"
+            src="./assets/3d/JimmysDog.glb"
           ></a-asset-item>
         </a-assets>
 
@@ -92,7 +92,7 @@
           visible="false"
         ></a-entity>
 
-        <a-entity
+        <!-- <a-entity
           gltf-model="#dogAttemptModel"
           material="flatShading: true"
           id="lindasDog"
@@ -100,7 +100,7 @@
           rotation="0 0 0"
           position="0 1.2 -0.5"
           visible="false"
-        ></a-entity>
+        ></a-entity> -->
 
         <a-entity id="raycasterDebug">
           <a-ring
@@ -112,7 +112,7 @@
           ></a-ring>
         </a-entity>
 
-        <a-entity id="pet" position="0 1.2 -0.8">
+        <a-entity id="pet" position="0 1.2 -0.3">
           <a-entity class="debug" visible="false">
             <!-- <a-box
               height="0.0508"
@@ -183,6 +183,26 @@
                       color="purple"
                     ></a-box>
                   </a-entity>
+
+                  <a-entity
+                    gltf-model="#jimmysDogModel"
+                    material="flatShading: true"
+                    id="jimmysDog"
+                    scale="0.5 0.5 0.5"
+                    rotation="0 0 0"
+                    position="0 0 0"
+                    visible="false"
+                  ></a-entity>
+
+                  <a-entity
+                    gltf-model="#lindasDogModel"
+                    material="flatShading: true"
+                    id="lindasDog"
+                    scale="0.9 0.9 0.9"
+                    rotation="0 0 0"
+                    position="0 -0.12 0"
+                    visible="true"
+                  ></a-entity>
                 </a-entity>
               </a-entity>
             </a-entity>
