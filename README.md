@@ -62,16 +62,18 @@ This mapping allows any XR animation to be mirrored physically without rewriting
 ## Extending the System
 
 **Adding a sensor**
-Connect sensor to MCU GPIO
-Read sensor values in the MCU loop
-Send normalized sensor data back through the bridge
-Handle it in WebXR as a new input
+
+1. Connect sensor to MCU GPIO
+2. Read sensor values in the MCU loop
+3. Send normalized sensor data back through the bridge
+4. Handle it in WebXR as a new input
 
 **Adding new pet behaviors**
-Define a new pet state in WebXR
-Map it to motor + expression values
-Send updated state packets to Uno Q
-Physical pet automatically mirrors behavior
+
+1. Define a new pet state in WebXR
+2. Map it to motor + expression values
+3. Send updated state packets to Uno Q
+4. Physical pet automatically mirrors behavior
 
 This modular design allows easy expansion with new modulinos, emotions, or interactions.
 
