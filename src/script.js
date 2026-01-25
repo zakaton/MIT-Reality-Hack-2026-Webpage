@@ -486,15 +486,6 @@ const updateAnglesUI = () => {
           input.step = 1;
           input.min = min;
           input.max = max;
-          input.addEventListener("change", () => {
-            input.isChanging = true;
-            console.log("changing");
-          });
-          const onDoneChanging = () => {
-            input.isChanging = false;
-          };
-          input.addEventListener("mouseup", onDoneChanging);
-          input.addEventListener("touchend", onDoneChanging);
           input.addEventListener("input", () => {
             setAngle(+input.value);
           });
