@@ -1,6 +1,17 @@
 /** @type {import("three")} */
 const THREE = window.THREE;
 
+const scene = document.getElementById("scene");
+scene.addEventListener(
+  "enter-vr",
+  async () => {
+    await waitForAnchor();
+    loadPetTransform();
+    anchor.setAttribute("visible", "true");
+  },
+  { once: true }
+);
+
 // PET
 const petEntity = document.getElementById("pet");
 const petPosition = new THREE.Vector3();
@@ -207,6 +218,20 @@ controllers.right.addEventListener("abuttondown", (event) => {
   }
   setPetPosition(raycasterIntersection);
 });
+const debugEntities = scene.querySelectorAll(".debug");
+console.log("debugEntities", debugEntities);
+let showDebugEntities = false;
+const setShowDebugEntities = (newShowDebugEntities) => {
+  showDebugEntities = newShowDebugEntities;
+  console.log({ showDebugEntities });
+  debugEntities.forEach(
+    (entity) => (entity.object3D.visible = showDebugEntities)
+  );
+};
+window.setShowDebugEntities = setShowDebugEntities;
+controllers.right.addEventListener("bbuttondown", (event) => {
+  setShowDebugEntities(!showDebugEntities);
+});
 
 // SETUP PET ROTATION
 window.offsetPetEulerScalars = { yaw: -0.03, pitch: 0.03, roll: -0.03 };
@@ -273,17 +298,6 @@ const waitForAnchor = async () => {
 window.addEventListener("beforeunload", () => {
   savePetTransform();
 });
-
-const scene = document.getElementById("scene");
-scene.addEventListener(
-  "enter-vr",
-  async () => {
-    await waitForAnchor();
-    loadPetTransform();
-    anchor.setAttribute("visible", "true");
-  },
-  { once: true }
-);
 
 // EYE TRACKING
 // FILL
