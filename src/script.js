@@ -422,7 +422,7 @@ const angleRanges = {
     { min: 0, max: 160 },
     { min: 0, max: 160 },
   ],
-  steppers: [{ min: -360, max: 360 }],
+  steppers: [{ min: -180, max: 180 }],
 };
 
 // UI
