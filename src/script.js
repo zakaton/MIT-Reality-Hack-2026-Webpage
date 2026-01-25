@@ -400,6 +400,7 @@ let angles = {
   servos: [0, 0],
   steppers: [0],
 };
+const throttleRate = 40;
 const updateAngles = (newAngles) => {
   angles = newAngles;
   console.log("angles", angles);
@@ -409,24 +410,76 @@ const updateAngles = (newAngles) => {
 let setAngles = (newAngles) => {
   unoSocket.emit("set_angles", newAngles);
 };
-setAngles = AFRAME.utils.throttleLeadingAndTrailing(setAngles, 40);
+setAngles = AFRAME.utils.throttleLeadingAndTrailing(setAngles, throttleRate);
 unoSocket.on("get_angles", (newAngles) => {
   console.log("get_angles", newAngles);
   updateAngles(newAngles);
 });
 
+/** @type {Record<string, {min: number, max: number}[]>} */
 const angleRanges = {
   servos: [
-    { min: 0, max: 150 },
-    { min: 0, max: 150 },
+    { min: 0, max: 160 },
+    { min: 0, max: 160 },
   ],
-  steppers: [],
+  steppers: [{ min: -360, max: 360 }],
 };
 
 // UI
-const updateAnglesUI = () => {
-  // FILL
+const anglesContainer = document.getElementById("angles");
+const stepperAnglesContainer = document.getElementById("steppers");
+const servoAnglesContainer = document.getElementById("servos");
+/** @type {Record<string, HTMLElement[]>} */
+const angleContainers = {
+  servos: [],
+  steppers: [],
 };
+/** @type {HTMLTemplateElement} */
+const angleTemplate = document.getElementById("angleTemplate");
+const updateAnglesUI = () => {
+  Object.entries(angles).forEach(([type, angles]) => {
+    angles.forEach((angle, index) => {
+      let container = angleContainers[type][index];
+      if (!container) {
+        container = angleTemplate.content
+          .cloneNode(true)
+          .querySelector(".angle");
+        const containerParent =
+          type == "servos" ? servoAnglesContainer : stepperAnglesContainer;
+        containerParent.appendChild(container);
+
+        container.querySelector("span.index").innerText = index;
+        container.querySelector("span.type").innerText = type;
+
+        let setAngle = (angle) => {
+          unoSocket.emit("set_angle", { type, angle, index });
+        };
+        setAngle = AFRAME.utils.throttleLeadingAndTrailing(
+          setAngle,
+          throttleRate
+        );
+        container.querySelectorAll("input").forEach((input) => {
+          const { min, max } = angleRanges[type][index];
+          input.step = 1;
+          input.min = min;
+          input.max = max;
+          input.addEventListener("change", () => {
+            input.isChanging;
+          });
+          input.addEventListener("input", () => {
+            setAngle(+input.value);
+          });
+        });
+
+        angleContainers[type][index] = container;
+      }
+      container.querySelectorAll("input").forEach((input) => {
+        input.value = angle;
+      });
+    });
+  });
+};
+updateAnglesUI();
 
 // FILL - get/set quest head/hands
 

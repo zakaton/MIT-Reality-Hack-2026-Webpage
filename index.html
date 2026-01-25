@@ -21,134 +21,156 @@
   </style>
   <body>
     <h1>MIT Reality Hack 2026</h1>
-    <a-scene
-      id="scene"
-      embedded
-      xr-mode-ui="XRMode: ar"
-      light="defaultLightsEnabled: false"
-      grabbable-listener
-      real-world-meshing="meshMixin: realWorldMeshMixin; meshesEnabled: false; planeMixin: realWorldPlaneMixin; planesEnabled: true; filterLabels: table, desk, storage, other, plant, screen, lamp, couch, bed, screen;"
-    >
-      <a-assets>
-        <a-asset-item
-          id="anchorModel"
-          src="/assets/3d/anchor.glb"
-        ></a-asset-item>
-        <a-asset-item
-          id="testDoggyModel"
-          src="/assets/3d/TestDoggy.glb"
-        ></a-asset-item>
-        <a-asset-item
-          id="testDoggySafeModel"
-          src="/assets/3d/TestFaceCard_MultiUV_SafeNaming.glb"
-        ></a-asset-item>
-        <a-asset-item
-          id="lindasDogModel"
-          src="/assets/3d/LindasDog.glb"
-        ></a-asset-item>
-        <a-asset-item
-          id="dogAttemptModel"
-          src="/assets/3d/DogAttempt.glb"
-        ></a-asset-item>
-      </a-assets>
-
-      <a-light type="ambient"></a-light>
-
-      <a-mixin
-        id="realWorldPlaneMixin"
-        visible="true"
-        class="surface"
-      ></a-mixin>
-      <a-mixin id="realWorldMeshMixin" visible="true" class="surface"></a-mixin>
-
-      <a-entity
-        id="anchor"
-        anchored="persistent: true"
-        position="0.2 1 -0.3"
-        grabbable
-        grabbable-anchor
-        visible="false"
+    <div style="display: flex; flex-wrap: wrap">
+      <a-scene
+        id="scene"
+        embedded
+        xr-mode-ui="XRMode: ar"
+        light="defaultLightsEnabled: false"
+        grabbable-listener
+        real-world-meshing="meshMixin: realWorldMeshMixin; meshesEnabled: false; planeMixin: realWorldPlaneMixin; planesEnabled: true; filterLabels: table, desk, storage, other, plant, screen, lamp, couch, bed, screen;"
       >
+        <a-assets>
+          <a-asset-item
+            id="anchorModel"
+            src="/assets/3d/anchor.glb"
+          ></a-asset-item>
+          <a-asset-item
+            id="testDoggyModel"
+            src="/assets/3d/TestDoggy.glb"
+          ></a-asset-item>
+          <a-asset-item
+            id="testDoggySafeModel"
+            src="/assets/3d/TestFaceCard_MultiUV_SafeNaming.glb"
+          ></a-asset-item>
+          <a-asset-item
+            id="lindasDogModel"
+            src="/assets/3d/LindasDog.glb"
+          ></a-asset-item>
+          <a-asset-item
+            id="dogAttemptModel"
+            src="/assets/3d/DogAttempt.glb"
+          ></a-asset-item>
+        </a-assets>
+
+        <a-light type="ambient"></a-light>
+
+        <a-mixin
+          id="realWorldPlaneMixin"
+          visible="true"
+          class="surface"
+        ></a-mixin>
+        <a-mixin
+          id="realWorldMeshMixin"
+          visible="true"
+          class="surface"
+        ></a-mixin>
+
         <a-entity
-          gltf-model="#anchorModel"
-          scale="0.020 0.020 0.020"
-          rotation="90 0 0"
+          id="anchor"
+          anchored="persistent: true"
+          position="0.2 1 -0.3"
+          grabbable
+          grabbable-anchor
+          visible="false"
+        >
+          <a-entity
+            gltf-model="#anchorModel"
+            scale="0.020 0.020 0.020"
+            rotation="90 0 0"
+          ></a-entity>
+        </a-entity>
+
+        <a-entity
+          gltf-model="#testDoggyModel"
+          material="flatShading: true"
+          id="testDoggy"
+          scale="1 1 1"
+          rotation="0 0 0"
+          position="0 1.2 -3"
+          visible="false"
         ></a-entity>
-      </a-entity>
 
-      <a-entity
-        gltf-model="#testDoggyModel"
-        material="flatShading: true"
-        id="testDoggy"
-        scale="1 1 1"
-        rotation="0 0 0"
-        position="0 1.2 -3"
-        visible="false"
-      ></a-entity>
+        <a-entity
+          gltf-model="#dogAttemptModel"
+          material="flatShading: true"
+          id="lindasDog"
+          scale="4 4 4"
+          rotation="0 0 0"
+          position="0 1.2 -0.5"
+          visible="false"
+        ></a-entity>
 
-      <a-entity
-        gltf-model="#dogAttemptModel"
-        material="flatShading: true"
-        id="lindasDog"
-        scale="4 4 4"
-        rotation="0 0 0"
-        position="0 1.2 -0.5"
-        visible="false"
-      ></a-entity>
+        <a-entity id="raycasterDebug">
+          <a-ring
+            color="black"
+            radius-inner="0.05"
+            radius-outer="0.08"
+            rotation="-90 0 0"
+            position="0 0.01 0"
+          ></a-ring>
+        </a-entity>
 
-      <a-entity id="raycasterDebug">
-        <a-ring
-          color="black"
-          radius-inner="0.05"
-          radius-outer="0.08"
-          rotation="-90 0 0"
-          position="0 0.01 0"
-        ></a-ring>
-      </a-entity>
-
-      <a-entity id="pet">
-        <a-entity class="yaw">
-          <a-entity class="debug"></a-entity>
-          <a-entity class="pitch">
+        <a-entity id="pet">
+          <a-entity class="yaw">
             <a-entity class="debug"></a-entity>
+            <a-entity class="pitch">
+              <a-entity class="debug"></a-entity>
+            </a-entity>
+          </a-entity>
+          <a-entity class="debug">
+            <a-box
+              height="0.05"
+              width="0.1"
+              depth="0.1"
+              position="0 0.025 0"
+              color="red"
+            ></a-box>
           </a-entity>
         </a-entity>
-        <a-entity class="debug">
-          <a-box
-            height="0.05"
-            width="0.1"
-            depth="0.1"
-            position="0 0.025 0"
-            color="red"
-          ></a-box>
-        </a-entity>
-      </a-entity>
 
-      <a-entity
-        id="leftController"
-        meta-touch-controls="hand: left"
-        laser-controls="hand: left"
-        raycaster="objects: [data-world-mesh]; far: 5"
-      ></a-entity>
-      <a-entity
-        id="rightController"
-        meta-touch-controls="hand: right"
-        laser-controls="hand: right"
-        raycaster="objects: [data-world-mesh]; far: 5"
-      ></a-entity>
+        <a-entity
+          id="leftController"
+          meta-touch-controls="hand: left"
+          laser-controls="hand: left"
+          raycaster="objects: [data-world-mesh]; far: 5"
+        ></a-entity>
+        <a-entity
+          id="rightController"
+          meta-touch-controls="hand: right"
+          laser-controls="hand: right"
+          raycaster="objects: [data-world-mesh]; far: 5"
+        ></a-entity>
 
-      <a-entity
-        id="leftHand"
-        hand-tracking-grab-controls="hand: left;"
-        occlude-hand-tracking-controls
-      ></a-entity>
-      <a-entity
-        id="rightHand"
-        hand-tracking-grab-controls="hand: right;"
-        occlude-hand-tracking-controls
-      ></a-entity>
+        <a-entity
+          id="leftHand"
+          hand-tracking-grab-controls="hand: left;"
+          occlude-hand-tracking-controls
+        ></a-entity>
+        <a-entity
+          id="rightHand"
+          hand-tracking-grab-controls="hand: right;"
+          occlude-hand-tracking-controls
+        ></a-entity>
 
-      <a-sky color="#ECECEC" hide-on-enter-ar></a-sky>
-    </a-scene>
+        <a-sky color="#ECECEC" hide-on-enter-ar></a-sky>
+      </a-scene>
+      <div>
+        <h2>Angles</h2>
+        <div id="angles">
+          <template id="angleTemplate">
+            <div class="angle">
+              <label>
+                <span class="type"></span> #<span class="index"></span>:
+                <input type="range" min="0" max="180" />
+              </label>
+              <input type="number" />
+            </div>
+          </template>
+          <div id="servos"></div>
+          <div id="steppers"></div>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
