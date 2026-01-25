@@ -43,6 +43,14 @@ All messages are normalized (0–1) to allow easy extension.
 
 Because Uno Q uses a dual-system model, traditional Arduino IDE workflows do not apply. All networking must occur on the Linux side and be bridged to the MCU.
 
+## Hardware Control Layer
+The MCU receives normalized values (0–1) from Linux and maps them to motor angles:
+- Yaw (stepper): 0–360°
+- Pitch (servo): 20–160°
+- Tilt (servo): 30–150°
+
+This mapping allows any XR animation to be mirrored physically without rewriting hardware logic.
+
 ## Quick Start
 
 1. Flash Uno Q via App Lab
