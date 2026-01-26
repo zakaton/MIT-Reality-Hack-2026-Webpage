@@ -265,7 +265,7 @@ let isBeingPetSides = {
   left: false,
   right: false,
 };
-window.petThreshold = 0.08;
+window.petThreshold = 0.12;
 AFRAME.registerComponent("hand-tracking-poll", {
   tick() {
     const handTrackingComponent = this.el.components["hand-tracking-controls"];
@@ -280,10 +280,10 @@ AFRAME.registerComponent("hand-tracking-poll", {
     const distance = new THREE.Vector3()
       .subVectors(indexTipPosition, petHeadPosition)
       .length();
-    console.log({ distance, side, petThreshold });
+    //console.log({ distance, side, petThreshold });
     isBeingPetSides[side] = distance < window.petThreshold;
     const newIsBeingPet = isBeingPetSides.left || isBeingPetSides.right;
-    console.log(isBeingPetSides);
+    //console.log(isBeingPetSides);
     setIsBeingPet(newIsBeingPet);
   },
 });
@@ -674,9 +674,9 @@ const setIsBeingPet = (newIsBeingPet) => {
   if (isBeingPet) {
     // setLindasDogEyePatches("down");
     setLindasDogMouth("tongue");
-    setLindasDogPupils("emotional");
-  } else {
     setLindasDogPupils("heart");
+  } else {
+    setLindasDogPupils("emotional");
     setLindasDogEyePatches("default");
     setLindasDogMouth("w");
     setTimeout(() => {
