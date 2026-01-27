@@ -14,6 +14,13 @@ scene.addEventListener(
   { once: true }
 );
 
+const wait = async (delay) => {
+  return new Promise((resolve) => {
+    setTimeout(() => resolve(), delay);
+  });
+};
+window.wait = wait;
+
 // PET
 const petEntity = document.getElementById("pet");
 const petPosition = new THREE.Vector3();
@@ -237,7 +244,7 @@ controllers.right.addEventListener("bbuttondown", (event) => {
 const toggleShowDebugEntities = () => setShowDebugEntities(!showDebugEntities);
 window.toggleShowDebugEntities = toggleShowDebugEntities;
 scene.addEventListener("loaded", () => {
-  setShowDebugEntities(false);
+  setShowDebugEntities(true);
 });
 
 // SETUP PET ROTATION
@@ -727,21 +734,23 @@ blink();
 const ioClient = window.io;
 const { io } = ioClient;
 
-const unoSocketAddress = false
-  ? "http://localhost:6171"
-  : "https://mit-uno-q.ngrok.app";
-const unoSocket = io(unoSocketAddress);
-unoSocket.on("connect", () => {
-  console.log("connected to uno");
-  unoSocket.emit("get_angles", {});
-});
-unoSocket.on("disconnect", () => {
-  console.log("disconnected from uno");
-});
-unoSocket.on("get_angles", (newAngles) => {
-  //console.log("get_angles", newAngles);
-  updateAngles(newAngles);
-});
+const unoSocketAddress = ""; // FILL YOUR UNO Q's address here, e.g. "http://localhost:7000"
+/** @type {import("socket.io-client").Socket?} */
+let unoSocket;
+if (unoSocketAddress.length) {
+  unoSocket = io(unoSocketAddress);
+  unoSocket.on("connect", () => {
+    console.log("connected to uno");
+    unoSocket.emit("get_angles", {});
+  });
+  unoSocket.on("disconnect", () => {
+    console.log("disconnected from uno");
+  });
+  unoSocket.on("get_angles", (newAngles) => {
+    //console.log("get_angles", newAngles);
+    updateAngles(newAngles);
+  });
+}
 
 let angles = {
   servos: [0, 0],
@@ -754,8 +763,12 @@ const updateAngles = (newAngles) => {
   updateAnglesUI();
   updateAnglesEntities();
 };
-let setAngles = (newAngles) => {
-  unoSocket.emit("set_angles", newAngles);
+let setAngles = async (newAngles) => {
+  if (unoSocket?.connected) {
+    unoSocket.emit("set_angles", newAngles);
+  } else {
+    updateAngles(newAngles);
+  }
 };
 setAngles = AFRAME.utils.throttleLeadingAndTrailing(setAngles, throttleRate);
 
@@ -777,11 +790,89 @@ const angleContainers = {
   servos: [],
   steppers: [],
 };
+/** @type {HTMLCanvasElement} */
+const angles2DCanvas = document.getElementById("angles2D");
+const angles2DContext = angles2DCanvas.getContext("2d");
+const angles2DMap = {
+  x: { type: "servos", index: 0 },
+  y: { type: "servos", index: 1 },
+};
+let isMouseDown = false;
+const setIsMouseDown = (newIsMouseDown) => {
+  isMouseDown = newIsMouseDown;
+  console.log({ isMouseDown });
+  drawAngles2D();
+};
+document.addEventListener("mousedown", () => {
+  setIsMouseDown(true);
+});
+document.addEventListener("mouseup", () => {
+  setIsMouseDown(false);
+});
+const angles2DColor = "white";
+const angles2DCursor = {
+  x: 0,
+  y: 0,
+};
+angles2DCanvas.addEventListener("mousemove", (event) => {
+  const { offsetX, offsetY } = event;
+  angles2DCursor.x = offsetX / angles2DCanvas.clientWidth;
+  angles2DCursor.y = offsetY / angles2DCanvas.clientHeight;
+  console.log(angles2DCursor);
+
+  drawAngles2D();
+
+  if (isMouseDown) {
+    set2DAngles();
+  }
+});
+let set2DAngles = () => {
+  const { x, y } = angles2DCursor;
+
+  const xAngleRange = angleInputRanges[angles2DMap.x.type][angles2DMap.x.index];
+  const xAngle = xAngleRange.min + x * (xAngleRange.max - xAngleRange.min);
+
+  const yAngleRange = angleInputRanges[angles2DMap.y.type][angles2DMap.y.index];
+  const yAngle = yAngleRange.min + y * (yAngleRange.max - yAngleRange.min);
+
+  console.log({ xAngle, yAngle });
+
+  if (unoSocket?.connected) {
+    const newAngles = {
+      servos: [],
+      steppers: [],
+    };
+    newAngles[angles2DMap.x.type][angles2DMap.x.index] = xAngle;
+    newAngles[angles2DMap.y.type][angles2DMap.y.index] = yAngle;
+    unoSocket.emit("set_angles", newAngles);
+  } else {
+    const newAngles = structuredClone(angles);
+    newAngles[angles2DMap.x.type][angles2DMap.x.index] = xAngle;
+    newAngles[angles2DMap.y.type][angles2DMap.y.index] = yAngle;
+    updateAngles(newAngles);
+  }
+};
+set2DAngles = AFRAME.utils.throttleLeadingAndTrailing(
+  set2DAngles,
+  throttleRate
+);
+const drawAngles2D = () => {
+  const { x, y } = angles2DCursor;
+  const { width, height } = angles2DCanvas;
+
+  angles2DContext.clearRect(0, 0, width, height);
+
+  angles2DContext.fillStyle = isMouseDown ? "green" : "white";
+  angles2DContext.beginPath();
+  angles2DContext.arc(x * width, y * height, 5, 0, 2 * Math.PI);
+  angles2DContext.fill();
+};
+
 /** @type {HTMLTemplateElement} */
 const angleTemplate = document.getElementById("angleTemplate");
 const updateAnglesUI = () => {
-  Object.entries(angles).forEach(([type, angles]) => {
-    angles.forEach((angle, index) => {
+  Object.entries(angles).forEach(([type, typeAngles]) => {
+    typeAngles.forEach((angle, index) => {
       let container = angleContainers[type][index];
       if (!container) {
         container = angleTemplate.content
@@ -795,7 +886,13 @@ const updateAnglesUI = () => {
         container.querySelector("span.type").innerText = type;
 
         let setAngle = (angle) => {
-          unoSocket.emit("set_angle", { type, angle, index });
+          if (unoSocket?.connected) {
+            unoSocket.emit("set_angle", { type, angle, index });
+          } else {
+            const newAngles = structuredClone(angles);
+            newAngles[type][index] = angle;
+            updateAngles(newAngles);
+          }
         };
         setAngle = AFRAME.utils.throttleLeadingAndTrailing(
           setAngle,
