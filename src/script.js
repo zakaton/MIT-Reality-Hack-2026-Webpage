@@ -158,7 +158,7 @@ const { degToRad } = THREE.MathUtils;
 
 /** @type {Record<string, number[]>} */
 const angleOffsets = {
-  servos: [20, -72],
+  servos: [20, -72 - 45],
   steppers: [0],
 };
 
@@ -803,10 +803,10 @@ const setIsMouseDown = (newIsMouseDown) => {
   console.log({ isMouseDown });
   drawAngles2D();
 };
-document.addEventListener("mousedown", () => {
+angles2DCanvas.addEventListener("mousedown", () => {
   setIsMouseDown(true);
 });
-document.addEventListener("mouseup", () => {
+angles2DCanvas.addEventListener("mouseup", () => {
   setIsMouseDown(false);
 });
 const angles2DColor = "white";
