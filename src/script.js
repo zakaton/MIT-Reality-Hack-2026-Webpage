@@ -818,7 +818,7 @@ angles2DCanvas.addEventListener("mousemove", (event) => {
   const { offsetX, offsetY } = event;
   angles2DCursor.x = offsetX / angles2DCanvas.clientWidth;
   angles2DCursor.y = offsetY / angles2DCanvas.clientHeight;
-  console.log(angles2DCursor);
+  //console.log(angles2DCursor);
 
   drawAngles2D();
 
@@ -835,7 +835,7 @@ let set2DAngles = () => {
   const yAngleRange = angleInputRanges[angles2DMap.y.type][angles2DMap.y.index];
   const yAngle = yAngleRange.min + y * (yAngleRange.max - yAngleRange.min);
 
-  console.log({ xAngle, yAngle });
+  //console.log({ xAngle, yAngle });
 
   if (unoSocket?.connected) {
     const newAngles = {
@@ -921,6 +921,40 @@ const updateAnglesUI = () => {
 };
 updateAnglesUI();
 
+const uvTestDogEntity = document.getElementById("uvTestDog");
+/** @type {Record<string, Object3D>} */
+const uvTestDogMeshes = {};
+window.uvTestDogMeshes = uvTestDogMeshes;
+uvTestDogEntity.addEventListener("model-loaded", () => {
+  const root = uvTestDogEntity.getObject3D("mesh");
+  if (!root) return;
+
+  root.traverse((node) => {
+    if (!node.isMesh) return;
+    uvTestDogMeshes[node.name] = node;
+  });
+  console.log("uvTestDogMeshes", uvTestDogMeshes);
+});
+/** @type {Record<name, Material} */
+const uvTestDogMaterials = {};
+window.uvTestDogMaterials = uvTestDogMaterials;
+uvTestDogEntity.addEventListener("model-loaded", () => {
+  const root = uvTestDogEntity.getObject3D("mesh");
+  if (!root) return;
+
+  root.traverse((node) => {
+    if (!node.isMesh) return;
+
+    const materials = Array.isArray(node.material)
+      ? node.material
+      : [node.material];
+
+    materials.forEach((material, index) => {
+      uvTestDogMaterials[material.name] = material;
+    });
+  });
+  console.log("uvTestDogMaterials", uvTestDogMaterials);
+});
 // FILL - get/set quest head/hands
 
 window.unoSocket = unoSocket;
