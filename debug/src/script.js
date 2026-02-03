@@ -26,13 +26,13 @@ sceneEntity.addEventListener("power-pet-model-added", (event) => {
   const { models } = event.detail;
 
   powerPetModelOptgroup.innerHTML = "";
-  Object.keys(models).forEach((modelName) => {
-    powerPetModelOptgroup.appendChild(new Option(modelName));
+  Object.keys(models).forEach((name) => {
+    powerPetModelOptgroup.appendChild(new Option(name));
   });
 });
 powerPetEntity.addEventListener("power-pet-model", (event) => {
-  const { modelName } = event.detail;
-  powerPetModelSelect.value = modelName;
+  const { name } = event.detail;
+  powerPetModelSelect.value = name;
 });
 // POWER PET MODEL SELECT END
 
@@ -98,12 +98,12 @@ glbFileInput.addEventListener("input", async () => {
 /** @param {File} file */
 const onFile = async (file) => {
   if (acceptedFileTypes.includes(file.name.split(".")[1])) {
-    await loadGlb(file);
+    await loadModelFile(file);
   }
 };
-/** @param {File} glbFile */
-const loadGlb = async (glbFile) => {
-  console.log("loadGlb", glbFile);
-  sceneEntity.systems["power-pet"].addModelFile(glbFile);
+/** @param {File} file */
+const loadModelFile = async (file) => {
+  console.log("loadModelFile", file);
+  sceneEntity.emit("power-pet-add-model-file", { file });
 };
 // GLB UPLOAD STOP

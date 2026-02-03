@@ -8,6 +8,15 @@ AFRAME.registerSystem("power-pet", {
   init: function () {
     this.components = [];
     this.models = {};
+
+    this.el.addEventListener(
+      "power-pet-add-model-file",
+      this._onAddModelFile.bind(this)
+    );
+    this.el.addEventListener(
+      "power-pet-add-model",
+      this._onAddModel.bind(this)
+    );
   },
 
   update: function (oldData) {
@@ -31,6 +40,7 @@ AFRAME.registerSystem("power-pet", {
     });
   },
 
+  // COMPONENT START
   _add: function (component) {
     console.log("_add", component);
     this.components.push(component);
@@ -41,9 +51,20 @@ AFRAME.registerSystem("power-pet", {
       this.component.splice(this.components.indexOf(component), 1);
     }
   },
+  // COMPONENT END
 
+  // MODEL START
+  _onAddModelFile: function (event) {
+    const { file } = event.detail;
+    this.addModelFile(file);
+  },
   addModelFile: function (file) {
     this.addModel(file.name.split(".")[0], URL.createObjectURL(file));
+  },
+
+  _onAddModel: function (event) {
+    const { name, src } = event.detail;
+    this.addModel(name, src);
   },
   addModel: function (name, src) {
     console.log("addModel", name, src);
@@ -68,9 +89,10 @@ AFRAME.registerSystem("power-pet", {
     console.log("models", this.models);
     this.el.emit("power-pet-model-added", {
       models: this.models,
-      modelName: name,
+      name,
     });
   },
+  // MODEL END
 });
 
 AFRAME.registerComponent("power-pet", {
@@ -141,18 +163,18 @@ AFRAME.registerComponent("power-pet", {
     this.modelContainerEntity = document.createElement("a-entity");
     this.el.appendChild(this.modelContainerEntity);
   },
-  _loadModel: function (modelName) {
-    console.log("loadModel", modelName);
-    if (!this.system.models[modelName]) {
-      console.log(`no model found for modelName "${modelName}"`);
+  _loadModel: function (name) {
+    console.log("loadModel", name);
+    if (!this.system.models[name]) {
+      console.log(`no model found for name "${name}"`);
       return;
     }
-    if (this.models[modelName]) {
-      this.models[modelName].entity.remove();
-      delete this.models[modelName];
+    if (this.models[name]) {
+      this.models[name].entity.remove();
+      delete this.models[name];
     }
 
-    const modelSrc = this.system.models[modelName];
+    const modelSrc = this.system.models[name];
 
     //console.log("creating new entity");
     const modelEntity = document.createElement("a-entity");
@@ -196,49 +218,49 @@ AFRAME.registerComponent("power-pet", {
       });
 
       console.log("meshTree", meshTree);
-      this.models[modelName] = {
+      this.models[name] = {
         src: modelSrc,
         entity: modelEntity,
         meshTree,
       };
       this.el.emit("power-pet-model-loaded", {
-        modelName,
+        name,
       });
-      this.selectModel(modelName);
+      this.selectModel(name);
     });
     this.modelContainerEntity.appendChild(modelEntity);
   },
-  selectModel: function (modelName) {
-    if (!this.system.models[modelName]) {
-      console.log(`no model found with modelName "${modelName}"`);
+  selectModel: function (name) {
+    if (!this.system.models[name]) {
+      console.log(`no model found with name "${name}"`);
       return;
     }
-    if (!this.models[modelName]) {
-      this._loadModel(modelName);
+    if (!this.models[name]) {
+      this._loadModel(name);
       return;
     }
-    if (this.models[modelName].src != this.system.models[modelName]) {
-      console.log(`reloading model "${modelName}"`);
-      this._loadModel(modelName);
+    if (this.models[name].src != this.system.models[name]) {
+      console.log(`reloading model "${name}"`);
+      this._loadModel(name);
       return;
     }
-    //console.log("selectModel", { modelName });
+    //console.log("selectModel", { name });
 
-    const previousModelName = this.selectedModelName;
-    if (this.models[previousModelName]) {
-      const { entity } = this.models[previousModelName];
+    const previousname = this.selectedname;
+    if (this.models[previousname]) {
+      const { entity } = this.models[previousname];
       entity.object3D.visible = false;
     }
 
-    const { entity } = this.models[modelName];
+    const { entity } = this.models[name];
     entity.object3D.visible = true;
 
-    this.selectedModelName = modelName;
+    this.selectedname = name;
 
     this.el.emit("power-pet-model", {
-      modelName,
+      name,
     });
-    this._updateData("model", modelName);
+    this._updateData("model", name);
   },
   // MODEL END
 });
