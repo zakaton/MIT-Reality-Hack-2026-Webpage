@@ -69,7 +69,7 @@
         <a-scene
           id="scene"
           embedded
-          power-pet="models: #dogModel"
+          power-pet="models: #dogModel,#jimmyModel,#mouthModel"
           xr-mode-ui="XRMode: ar"
           light="defaultLightsEnabled: false"
           grabbable-listener
@@ -82,7 +82,15 @@
             ></a-asset-item>
             <a-asset-item
               id="dogModel"
-              src="../assets/3d/pets/dogModel.glb"
+              src="../assets/3d/pets/dog.glb"
+            ></a-asset-item>
+            <a-asset-item
+              id="mouthModel"
+              src="../assets/3d/pets/mouth.glb"
+            ></a-asset-item>
+            <a-asset-item
+              id="jimmyModel"
+              src="../assets/3d/pets/jimmy.glb"
             ></a-asset-item>
           </a-assets>
 
@@ -95,7 +103,7 @@
 
           <a-entity
             id="powerPet"
-            power-pet="model: dogModel"
+            power-pet="model: mouthModel"
             position="0 1.55 -0.2"
           ></a-entity>
 
@@ -147,12 +155,12 @@
       <div id="options">
         <button id="openInspector">open inspector</button>
         <label>
-          load glb
+          load model
           <input
             type="file"
-            id="glbFile"
+            id="modelFile"
             accept=""
-            accept=".glb"
+            accept=".glb,.gltf"
             multiple="true"
         /></label>
         <label>

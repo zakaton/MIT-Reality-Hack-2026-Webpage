@@ -53,7 +53,7 @@ openInspectorButton.addEventListener("click", () => {
 });
 // INSPECTOR END
 
-// GLB UPLOAD START
+// FILE UPLOAD START
 window.addEventListener("dragover", (e) => {
   e.preventDefault();
 });
@@ -82,17 +82,17 @@ window.addEventListener("paste", async (event) => {
   }
 });
 
-const glbFileInput = document.getElementById("glbFile");
-glbFileInput.addEventListener("input", async () => {
-  for (let i = 0; i < glbFileInput.files.length; i++) {
-    const file = glbFileInput.files[i];
+const modelFileInput = document.getElementById("modelFile");
+modelFileInput.addEventListener("input", async () => {
+  for (let i = 0; i < modelFileInput.files.length; i++) {
+    const file = modelFileInput.files[i];
     if (!file) {
       continue;
     }
     //console.log("input file", file);
     await onFile(file);
   }
-  glbFileInput.value = "";
+  modelFileInput.value = "";
 });
 
 /** @param {File} file */
@@ -106,4 +106,4 @@ const loadModelFile = async (file) => {
   console.log("loadModelFile", file);
   sceneEntity.emit("power-pet-add-model-file", { file });
 };
-// GLB UPLOAD STOP
+// FILE UPLOAD STOP

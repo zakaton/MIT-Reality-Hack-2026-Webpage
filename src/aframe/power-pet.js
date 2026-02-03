@@ -99,7 +99,6 @@ AFRAME.registerComponent("power-pet", {
   schema: {
     model: { oneOf: [] },
   },
-  dependencies: [],
 
   init: function () {
     this._modelInit();
@@ -109,12 +108,11 @@ AFRAME.registerComponent("power-pet", {
     this.system._remove(this);
   },
 
-  tick: function () {
-    // FILL
-  },
+  tick: function (time, timeDelta) {},
 
   // UTILS START
   _updateData: function (key, value, shouldFlushToDOM = true) {
+    this.data[key] = value;
     this.attrValue[key] = value;
     if (shouldFlushToDOM) {
       this._flushToDOM();
@@ -140,19 +138,23 @@ AFRAME.registerComponent("power-pet", {
 
     diffKeys.forEach((diffKey) => {
       //console.log("update", { [diffKey]: this.data[diffKey] });
-      switch (diffKey) {
-        case "model":
-          if (this.data.model.startsWith("#")) {
-            const model = this.data.model.replaceAll("#", "");
-            this._updateData("model", model);
-            this.system.addModel(model, this.data.model);
-          } else {
-            this.selectModel(this.data.model);
-          }
-          break;
-        default:
-          console.warn(`uncaught diffKey "${diffKey}"`);
-          break;
+      if (diffKey.startsWith(this._variantPrefix)) {
+        this.selectVariant(diffKey, this.data[diffKey]);
+      } else {
+        switch (diffKey) {
+          case "model":
+            if (this.data.model.startsWith("#")) {
+              const model = this.data.model.replaceAll("#", "");
+              this._updateData("model", model);
+              this.system.addModel(model, this.data.model);
+            } else {
+              this.selectModel(this.data.model);
+            }
+            break;
+          default:
+            console.warn(`uncaught diffKey "${diffKey}"`);
+            break;
+        }
       }
     });
   },
@@ -181,7 +183,7 @@ AFRAME.registerComponent("power-pet", {
     modelEntity.setAttribute("gltf-model", modelSrc);
     modelEntity.setAttribute("visible", "false");
     modelEntity.addEventListener("model-loaded", () => {
-      //console.log("model-loaded", modelEntity);
+      // console.log("model-loaded", modelEntity);
 
       const root = modelEntity.getObject3D("mesh");
       if (!root) {
@@ -190,38 +192,84 @@ AFRAME.registerComponent("power-pet", {
       }
 
       const meshTree = {};
-      root.traverse((node) => {
-        if (!node.isMesh) return;
+      const variants = {}; // "path.to.mesh": ["each", "possible", "variant"]
+      root.traverse((object3D) => {
+        if (!object3D.isMesh) return;
 
         /** @type {Mesh} */
-        const mesh = node;
+        const mesh = object3D;
+
+        mesh.name = this._variantPrefix + mesh.name;
 
         const meshPath = mesh.name.split("_");
         const uvCount = Object.keys(mesh.geometry.attributes).filter((name) =>
           name.startsWith("uv")
         ).length;
+        const uvMap = {};
 
-        console.log("mesh", meshPath, { uvCount });
+        const variantPath = meshPath.join(".");
+        variants[variantPath] = [];
+        if (uvCount > 1) {
+          variants[variantPath] = new Array(uvCount).fill(0).map((_, index) => {
+            const uvName =
+              mesh.material.userData[`uv${index == 0 ? "" : index}`];
+            if (uvName) {
+              uvMap[uvName] = index;
+              return uvName;
+            }
+            return index;
+          });
+        }
 
-        let meshTreeWalker = meshTree;
-        meshPath.forEach((segment, index) => {
+        //console.log("mesh", meshPath, { uvCount });
+
+        const onMeshSegment = (meshTree, index = 0) => {
+          const variantPath = meshPath.slice(0, index + 1).join(".");
+          const segment = meshPath[index];
           const isLast = index == meshPath.length - 1;
           if (isLast) {
-            meshTreeWalker[segment] = { mesh, uvCount, isLast };
+            meshTree[segment] = { mesh, uvCount, uvMap, isLast };
           } else {
-            if (!meshTreeWalker[segment]) {
-              meshTreeWalker[segment] = {};
+            if (!meshTree[segment]) {
+              meshTree[segment] = {};
             }
-            meshTreeWalker = meshTreeWalker[segment];
           }
-        });
+
+          meshTree = meshTree[segment];
+
+          if (!isLast) {
+            onMeshSegment(meshTree, index + 1);
+            const hasMeshChildren =
+              Object.values(meshTree).filter((node) => node.isLast).length > 1;
+            if (hasMeshChildren) {
+              variants[variantPath] = Object.keys(meshTree).sort();
+            }
+          }
+
+          if (index > 0) {
+            const parentVariantPath = meshPath.slice(0, index).join(".");
+            //console.log({ variantPath, parentVariantPath });
+            variants[parentVariantPath] = variants[variantPath].slice().sort();
+          }
+        };
+        onMeshSegment(meshTree);
+      });
+      console.log("meshTree", meshTree);
+
+      Object.entries(variants).forEach(([key, oneOf]) => {
+        if (oneOf.length < 2) {
+          delete variants[key];
+        }
       });
 
-      console.log("meshTree", meshTree);
+      console.log("variants", variants);
+
       this.models[name] = {
         src: modelSrc,
         entity: modelEntity,
         meshTree,
+        variants,
+        selectedVariants: {},
       };
       this.el.emit("power-pet-model-loaded", {
         name,
@@ -246,7 +294,7 @@ AFRAME.registerComponent("power-pet", {
     }
     //console.log("selectModel", { name });
 
-    const previousname = this.selectedname;
+    const previousname = this.selectedName;
     if (this.models[previousname]) {
       const { entity } = this.models[previousname];
       entity.object3D.visible = false;
@@ -255,7 +303,8 @@ AFRAME.registerComponent("power-pet", {
     const { entity } = this.models[name];
     entity.object3D.visible = true;
 
-    this.selectedname = name;
+    this.selectedName = name;
+    this._updateVariants();
 
     this.el.emit("power-pet-model", {
       name,
@@ -263,4 +312,101 @@ AFRAME.registerComponent("power-pet", {
     this._updateData("model", name);
   },
   // MODEL END
+
+  // VARIANT START
+  _variantPrefix: "$",
+  _updateVariants: function () {
+    // console.log("_updateVariants");
+
+    const variants = this.models[this.selectedName]?.variants ?? {};
+    const selectedVariants =
+      this.models[this.selectedName]?.selectedVariants ?? {};
+
+    const variantsArray = Object.entries(variants);
+    const variantSchema = {};
+
+    variantsArray.forEach(([key, oneOf]) => {
+      variantSchema[key] = { oneOf };
+    });
+    this.extendSchema(variantSchema);
+
+    variantsArray.forEach(([key, oneOf]) => {
+      this.selectVariant(
+        key,
+        selectedVariants[key] ??
+          (oneOf.includes("default") ? "default" : oneOf[0])
+      );
+    });
+    this._flushToDOM();
+  },
+  selectVariant: function (path, value) {
+    console.log("selectVariant", { path, value });
+    if (!this.models[this.selectedName]) {
+      console.log("no model selected");
+      return;
+    }
+    const { meshTree, selectedVariants, uvCount, uvMap } =
+      this.models[this.selectedName];
+
+    let meshTreeWalker = meshTree;
+    const segments = path.split(".");
+    const isValid = !segments.some((segment) => {
+      if (!meshTreeWalker[segment]) {
+        console.error(
+          `invalid path "${path}" - no segment "${segment}" found`,
+          meshTreeWalker,
+          "in",
+          meshTree
+        );
+        return true;
+      }
+      if (
+        meshTreeWalker[segment].isLast &&
+        meshTreeWalker[segment].uvCount == 1
+      ) {
+        console.error(
+          `invalid path "${path}" - segment "${segment}" goes past last segment and has single uv`,
+          meshTreeWalker,
+          "in",
+          meshTree
+        );
+        return true;
+      }
+      meshTreeWalker = meshTreeWalker[segment];
+    });
+    if (!isValid) {
+      return;
+    }
+
+    //console.log("meshTreeWalker", meshTreeWalker);
+
+    if (meshTreeWalker.isLast) {
+      const node = meshTreeWalker;
+      let channel = 0;
+      if (isNaN(value)) {
+        channel = node.uvMap[value];
+      } else {
+        channel = +value;
+      }
+      if (channel >= node.uvCount) {
+        console.error(`invalid uv index ${channel}, max ${node.uvCount - 1}`);
+        return;
+      }
+      console.log(`setting uv index to ${channel}`);
+      node.mesh.material.map.channel = channel;
+    } else {
+      const children = Object.entries(meshTreeWalker);
+      children.forEach(([name, child]) => {
+        if (child.isLast && isNaN(value)) {
+          const visible = name == value;
+          child.mesh.visible = visible;
+        } else {
+          this.selectVariant([segments, name].join("."), value);
+        }
+      });
+    }
+    selectedVariants[path] = value;
+    this._updateData(path, value, false);
+  },
+  // VARIANT END
 });
