@@ -471,6 +471,7 @@ const setLindasDogPupilPosition = (
   y,
   startAtNegativeOne = false
 ) => {
+  return;
   if (startAtNegativeOne) {
     x = THREE.MathUtils.inverseLerp(-1, 1, x);
     y = THREE.MathUtils.inverseLerp(-1, 1, y);
@@ -517,14 +518,14 @@ lindasDogEntity.addEventListener("model-loaded", () => {
     if (!node.isMesh) return;
     lindasDogMeshes[node.name] = node;
 
-    if (node.name.includes("_L_") && node.name.includes("_Pupil_")) {
-      node.material = node.material.clone();
-      node.material.map = node.material.map.clone();
+    // if (node.name.includes("_L_") && node.name.includes("_Pupil_")) {
+    //   node.material = node.material.clone();
+    //   node.material.map = node.material.map.clone();
 
-      const tex = node.material.map;
-      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-      tex.needsUpdate = true;
-    }
+    //   const tex = node.material.map;
+    //   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    //   tex.needsUpdate = true;
+    // }
   });
   console.log("lindasDogMeshes", lindasDogMeshes);
   setLindasDogEyePatches("default");
@@ -734,20 +735,20 @@ blink();
 const ioClient = window.io;
 const { io } = ioClient;
 
-const unoSocketAddress = ""; // FILL YOUR UNO Q's address here, e.g. "http://localhost:7000"
+const unoSocketAddress = "http://192.168.4.251:7000"; // FILL YOUR UNO Q's address here, e.g. "http://localhost:7000" or "http://powerpet.local:7000"
 /** @type {import("socket.io-client").Socket?} */
 let unoSocket;
 if (unoSocketAddress.length) {
   unoSocket = io(unoSocketAddress);
   unoSocket.on("connect", () => {
     console.log("connected to uno");
-    unoSocket.emit("get_angles", {});
+    unoSocket.emit("getAngles", {});
   });
   unoSocket.on("disconnect", () => {
     console.log("disconnected from uno");
   });
-  unoSocket.on("get_angles", (newAngles) => {
-    //console.log("get_angles", newAngles);
+  unoSocket.on("getAngles", (newAngles) => {
+    //console.log("getAngles", newAngles);
     updateAngles(newAngles);
   });
 }
@@ -765,7 +766,7 @@ const updateAngles = (newAngles) => {
 };
 let setAngles = async (newAngles) => {
   if (unoSocket?.connected) {
-    unoSocket.emit("set_angles", newAngles);
+    unoSocket.emit("setAngles", newAngles);
   } else {
     updateAngles(newAngles);
   }
@@ -844,7 +845,7 @@ let set2DAngles = () => {
     };
     newAngles[angles2DMap.x.type][angles2DMap.x.index] = xAngle;
     newAngles[angles2DMap.y.type][angles2DMap.y.index] = yAngle;
-    unoSocket.emit("set_angles", newAngles);
+    unoSocket.emit("setAngles", newAngles);
   } else {
     const newAngles = structuredClone(angles);
     newAngles[angles2DMap.x.type][angles2DMap.x.index] = xAngle;
@@ -886,8 +887,9 @@ const updateAnglesUI = () => {
         container.querySelector("span.type").innerText = type;
 
         let setAngle = (angle) => {
+          console.log("setAngle", { type, angle, index });
           if (unoSocket?.connected) {
-            unoSocket.emit("set_angle", { type, angle, index });
+            unoSocket.emit("setAngle", { type, angle, index });
           } else {
             const newAngles = structuredClone(angles);
             newAngles[type][index] = angle;

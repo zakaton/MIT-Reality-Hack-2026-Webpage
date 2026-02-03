@@ -4,3 +4,4 @@ sec
 yarn.lock
 node_modules
 .DS_Store
+assets/3d/.DS_Store
