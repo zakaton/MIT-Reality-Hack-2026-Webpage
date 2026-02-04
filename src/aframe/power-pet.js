@@ -333,7 +333,9 @@ AFRAME.registerComponent("power-pet", {
       this.models[this.selectedName]?.selectedVariants ?? {};
     selectedVariants = structuredClone(selectedVariants);
 
-    const variantsArray = Object.entries(variants);
+    const variantsArray = Object.entries(variants).sort((a, b) =>
+      a[0].localeCompare(b[0])
+    );
     const variantSchema = {};
 
     variantsArray.forEach(([key, oneOf]) => {
