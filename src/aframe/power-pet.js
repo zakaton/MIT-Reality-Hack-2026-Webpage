@@ -264,15 +264,24 @@ AFRAME.registerComponent("power-pet", {
 
       console.log("variants", variants);
 
-      this.models[name] = {
+      const selectedVariants = {};
+      Object.entries(variants).forEach(([key, oneOf]) => {
+        selectedVariants[key] = oneOf.includes("default")
+          ? "default"
+          : oneOf[0];
+      });
+
+      const model = {
         src: modelSrc,
         entity: modelEntity,
         meshTree,
         variants,
-        selectedVariants: {},
+        selectedVariants,
       };
+      this.models[name] = model;
       this.el.emit("power-pet-model-loaded", {
         name,
+        model,
       });
       this.selectModel(name);
     });
@@ -308,13 +317,14 @@ AFRAME.registerComponent("power-pet", {
 
     this.el.emit("power-pet-model", {
       name,
+      model: this.models[name],
     });
     this._updateData("model", name);
   },
   // MODEL END
 
   // VARIANT START
-  _variantPrefix: "$",
+  _variantPrefix: "~",
   _updateVariants: function () {
     // console.log("_updateVariants");
 
@@ -331,16 +341,12 @@ AFRAME.registerComponent("power-pet", {
     this.extendSchema(variantSchema);
 
     variantsArray.forEach(([key, oneOf]) => {
-      this.selectVariant(
-        key,
-        selectedVariants[key] ??
-          (oneOf.includes("default") ? "default" : oneOf[0])
-      );
+      this.selectVariant(key, selectedVariants[key]);
     });
     this._flushToDOM();
   },
   selectVariant: function (path, value) {
-    console.log("selectVariant", { path, value });
+    //console.log("selectVariant", { path, value });
     if (!this.models[this.selectedName]) {
       console.log("no model selected");
       return;
@@ -407,6 +413,11 @@ AFRAME.registerComponent("power-pet", {
     }
     selectedVariants[path] = value;
     this._updateData(path, value, false);
+    this.el.emit("power-pet-variant", {
+      name: this.selectedName,
+      path,
+      value,
+    });
   },
   // VARIANT END
 });

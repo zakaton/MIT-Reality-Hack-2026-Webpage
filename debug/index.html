@@ -49,6 +49,13 @@
       flex-direction: column;
       align-items: baseline;
     }
+    .variantContainers {
+      display: flex;
+      flex-direction: column;
+    }
+    .hidden {
+      display: none !important;
+    }
   </style>
   <body>
     <a
@@ -66,6 +73,9 @@
     <h1>Debug | Power Pet</h1>
     <div id="container">
       <div id="sceneContainer">
+        <img id="sceneBackgroundImage" />
+        <video id="sceneBackgroundVideo"></video>
+        <video id="sceneBackgroundWebcam"></video>
         <a-scene
           id="scene"
           embedded
@@ -97,13 +107,13 @@
           <a-light type="ambient"></a-light>
 
           <a-camera
-            look-controls="enabled: false"
-            wasd-controls="enabled: false"
+            look-controls="enabled: true; magicWindowTrackingEnabled: false;"
+            wasd-controls="enabled: true; acceleration: 2;"
           ></a-camera>
 
           <a-entity
             id="powerPet"
-            power-pet="model: mouthModel"
+            power-pet=""
             position="0 1.55 -0.2"
           ></a-entity>
 
@@ -148,11 +158,9 @@
 
           <a-sky color="#ECECEC" hide-on-enter-ar></a-sky>
         </a-scene>
-        <img id="sceneBackgroundImage" />
-        <video id="sceneBackgroundVideo"></video>
-        <video id="sceneBackgroundWebcam"></video>
       </div>
       <div id="options">
+        <h2>Options</h2>
         <button id="openInspector">open inspector</button>
         <label>
           load model
@@ -169,6 +177,17 @@
             <optgroup label="select model"></optgroup>
           </select>
         </label>
+      </div>
+      <div id="variantsContainer">
+        <h2>Variants</h2>
+        <template id="variantTemplate">
+          <label class="variant">
+            <span class="path"></span>
+            <select>
+              <optgroup label="select variant"></optgroup>
+            </select>
+          </label>
+        </template>
       </div>
     </div>
   </body>
