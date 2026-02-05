@@ -115,13 +115,14 @@ AFRAME.registerComponent("power-pet", {
     model: { oneOf: [] },
 
     squashCenter: { type: "vec3", default: "0 0 0" },
-    squash: { type: "number", value: 0 },
+    squash: { type: "number", default: 1 },
     squashMax: { type: "vec2", default: "1.15 0.85" },
     showSquashCenter: { default: false },
 
     squashColliderSize: { type: "number", default: "0.2" },
     squashColliderCenter: { type: "vec3", default: "0 0.040 0" },
     showSquashCollider: { default: false },
+    showSquashControlPoint: { default: false },
 
     tilt: { type: "vec2", value: "0 0" },
     tiltMin: { type: "vec2", default: "-0.3 -0.3" },
@@ -165,7 +166,7 @@ AFRAME.registerComponent("power-pet", {
   _flushToDOM: function () {
     this.el.flushToDOM();
     if (this.getIsSelectedInInspector()) {
-      AFRAME.INSPECTOR.selectEntity(selected);
+      AFRAME.INSPECTOR.selectEntity(this.el);
     }
   },
   // UTILS END
@@ -204,6 +205,9 @@ AFRAME.registerComponent("power-pet", {
           case "showSquashCenter":
             this.setShowSquashCenter(this.data.showSquashCenter);
             break;
+          case "showSquashControlPoint":
+            this.setShowSquashControlPoint(this.data.showSquashControlPoint);
+            break;
           case "tilt":
             this.setTilt(this.data.tilt);
             break;
@@ -234,6 +238,7 @@ AFRAME.registerComponent("power-pet", {
   _initModel: function () {
     this.models = {};
     this.modelsEntity = document.createElement("a-entity");
+    this.modelsEntity.setAttribute("rotation", "0 180 0");
     this.modelsEntity.classList.add("models");
   },
   _loadModel: function (name) {
@@ -511,9 +516,26 @@ AFRAME.registerComponent("power-pet", {
     this.squashCenterSphere.setAttribute("radius", "0.005");
     this.squashCenterSphere.setAttribute(
       "material",
-      "depthTest: false; depthWrite: false;"
+      "depthTest: false; depthWrite: false; transparent: true; renderOrder: 999"
     );
     this.squashCenterEntity.appendChild(this.squashCenterSphere);
+
+    this.squashControlPointEntity = document.createElement("a-entity");
+    this.squashControlPointEntity.classList.add("squashControlPoint");
+    this.squashControlPointEntity.setAttribute(
+      "visible",
+      this.data.showSquashControlPoint
+    );
+    this.squashCenterEntity.appendChild(this.squashControlPointEntity);
+
+    this.squashControlPointSphere = document.createElement("a-sphere");
+    this.squashControlPointSphere.setAttribute("color", "green");
+    this.squashControlPointSphere.setAttribute("radius", "0.005");
+    this.squashControlPointSphere.setAttribute(
+      "material",
+      "depthTest: false; depthWrite: false; transparent: true; renderOrder: 999"
+    );
+    this.squashControlPointEntity.appendChild(this.squashControlPointSphere);
 
     const squashColliderSizeString = `${this.data.squashColliderSize} ${this.data.squashColliderSize} ${this.data.squashColliderSize};`;
     this.squashColliderEntity = document.createElement("a-entity");
@@ -544,6 +566,13 @@ AFRAME.registerComponent("power-pet", {
     );
 
     this._squashCollidedEntities = [];
+
+    this._squashCenterWorldPosition = new THREE.Vector3();
+    this._squashControlPoint = new THREE.Vector3();
+    this._squashControlPoint2d = new THREE.Vector2();
+    this._hasSquashControlPoint = false;
+    this._squashColliderTempPosition = new THREE.Vector3();
+    this._squashColliderClosestPosition = new THREE.Vector3();
   },
   setSquashMax: function (squashMax) {
     this._updateData("squashMax", squashMax);
@@ -552,10 +581,10 @@ AFRAME.registerComponent("power-pet", {
   setSquash: function (squash) {
     const { x, y } = this.data.squashMax;
 
-    squash = THREE.MathUtils.clamp(squash, 0, 1 - y);
-    //console.log("setSquash", squash);
+    squash = THREE.MathUtils.clamp(squash, y, 1);
+    console.log("setSquash", squash);
 
-    const height = 1 - squash;
+    const height = squash;
     const heightLerp = THREE.MathUtils.inverseLerp(1, y, height);
     const width = THREE.MathUtils.lerp(1, x, heightLerp);
     //console.log({ width, height });
@@ -579,6 +608,12 @@ AFRAME.registerComponent("power-pet", {
     //console.log("setShowSquashCenter", showSquashCenter);
     this.squashCenterEntity.object3D.visible = showSquashCenter;
     this._updateData("showSquashCenter", showSquashCenter);
+  },
+  setShowSquashControlPoint: function (showSquashControlPoint) {
+    //console.log("setShowSquashControlPoint", showSquashControlPoint);
+    this.squashControlPointEntity.object3D.visible =
+      this.data.showSquashControlPoint && this._hasSquashControlPoint;
+    this._updateData("showSquashControlPoint", showSquashControlPoint);
   },
   setTiltMin: function (tiltMin) {
     this._updateData("tiltMin", tiltMin);
@@ -661,9 +696,80 @@ AFRAME.registerComponent("power-pet", {
       this.squashColliderEntity.components["obb-collider"].tick();
     }
 
-    // FILL
     if (this._squashCollidedEntities.length > 0) {
+      this.squashCenterEntity.object3D.getWorldPosition(
+        this._squashCenterWorldPosition
+      );
+      let closestDistance = Infinity;
+      this._hasSquashControlPoint = this._squashCollidedEntities.some(
+        (entity) => {
+          entity.components["obb-collider"].obb.clampPoint(
+            this._squashCenterWorldPosition,
+            this._squashColliderTempPosition
+          );
+          this.squashCenterEntity.object3D.worldToLocal(
+            this._squashColliderTempPosition
+          );
+          //console.log(this._squashColliderTempPosition);
+
+          if (this._squashColliderTempPosition.y < 0) {
+            return false;
+          }
+
+          const distance = this._squashColliderTempPosition.distanceTo(
+            this._squashCenterWorldPosition
+          );
+          if (distance < closestDistance) {
+            this._squashColliderClosestPosition.copy(
+              this._squashColliderTempPosition
+            );
+            closestDistance = distance;
+          }
+
+          return true;
+        }
+      );
+    } else {
+      this._hasSquashControlPoint = false;
     }
+
+    if (this._hasSquashControlPoint) {
+      this._squashControlPoint.copy(this._squashColliderClosestPosition);
+      //console.log(this._squashControlPoint);
+
+      this.squashControlPointEntity.object3D.position.copy(
+        this._squashControlPoint
+      );
+
+      this._squashControlPoint2d.copy({
+        x: this._squashControlPoint.x,
+        y: -this._squashControlPoint.z,
+      });
+
+      const length = this._squashControlPoint.length();
+      const fullLength =
+        this.data.squashColliderSize / 2 - this.data.squashCenter.y;
+      const squash = length / fullLength;
+      const radius = this._squashControlPoint2d.length();
+      const angle = this._squashControlPoint2d.angle();
+
+      console.log({ squash, radius, angle });
+
+      const useSquash = radius < 0.05;
+      console.log({ useSquash });
+      if (useSquash) {
+      }
+
+      this.setSquash(squash);
+
+      // FILL - calculate squash/tilt
+      // FILL - figure animation
+    } else {
+      // FILL - return to default position
+    }
+
+    this.squashControlPointEntity.object3D.visible =
+      this.data.showSquashControlPoint && this._hasSquashControlPoint;
   },
   // SQUASH END
 });

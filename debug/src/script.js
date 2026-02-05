@@ -192,8 +192,8 @@ const squashContainer = document.getElementById("squashContainer");
 
 const tiltInput = document.getElementById("tilt");
 const mirrorTiltInput = {
-  x: true,
-  y: true,
+  x: false,
+  y: false,
   apply(tilt) {
     if (this.x || this.y) {
       tilt = structuredClone(tilt);
@@ -240,7 +240,7 @@ powerPetEntity.addEventListener("power-pet-squash", (event) => {
 });
 powerPetEntity.addEventListener("power-pet-squashMax", (event) => {
   const { squashMax } = event.detail;
-  squashInput.max = 1 - squashMax.y;
+  squashInput.min = squashMax.y;
 });
 
 const showSquashCenterInput = document.getElementById("showSquashCenter");
@@ -256,6 +256,23 @@ showSquashCenterInput.addEventListener("input", () => {
 powerPetEntity.addEventListener("power-pet-showSquashCenter", (event) => {
   const { showSquashCenter } = event.detail;
   showSquashCenterInput.checked = showSquashCenter;
+});
+
+const showSquashControlPointInput = document.getElementById(
+  "showSquashControlPoint"
+);
+showSquashControlPointInput.addEventListener("input", () => {
+  const showSquashControlPoint = showSquashControlPointInput.checked;
+  console.log({ showSquashControlPoint });
+  powerPetEntity.setAttribute(
+    "power-pet",
+    "showSquashControlPoint",
+    showSquashControlPoint
+  );
+});
+powerPetEntity.addEventListener("power-pet-showSquashControlPoint", (event) => {
+  const { showSquashControlPoint } = event.detail;
+  showSquashControlPointInput.checked = showSquashControlPoint;
 });
 
 const showSquashColliderInput = document.getElementById("showSquashCollider");

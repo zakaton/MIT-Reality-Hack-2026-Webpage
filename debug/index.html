@@ -121,8 +121,9 @@
 
           <a-entity
             id="powerPet"
-            power-pet="showSquashCollider: true; showSquashCenter: true;"
+            power-pet="showSquashCollider: true; showSquashCenter: true; showSquashControlPoint: true;"
             position="0 1.55 -0.2"
+            rotation="0 180 0"
           ></a-entity>
 
           <a-box
@@ -214,7 +215,7 @@
             min="0"
             max="1"
             step="0.01"
-            value="0"
+            value="1"
           />
         </label>
         <label>
@@ -234,6 +235,10 @@
             max="0.1"
             step="0.01"
           />
+        </label>
+        <label>
+          show squash control point
+          <input type="checkbox" id="showSquashControlPoint" />
         </label>
 
         <label>
