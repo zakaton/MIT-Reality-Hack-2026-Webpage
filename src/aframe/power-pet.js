@@ -697,7 +697,7 @@ AFRAME.registerComponent("power-pet", {
     }
 
     if (this._squashCollidedEntities.length > 0) {
-      this.squashCenterEntity.object3D.getWorldPosition(
+      this.squashEntity.object3D.getWorldPosition(
         this._squashCenterWorldPosition
       );
       let closestDistance = Infinity;
@@ -707,7 +707,7 @@ AFRAME.registerComponent("power-pet", {
             this._squashCenterWorldPosition,
             this._squashColliderTempPosition
           );
-          this.squashCenterEntity.object3D.worldToLocal(
+          this.squashEntity.object3D.worldToLocal(
             this._squashColliderTempPosition
           );
           //console.log(this._squashColliderTempPosition);
