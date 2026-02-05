@@ -310,9 +310,6 @@ if (true)
     if (!AFRAME.INSPECTOR?.opened) {
       return;
     }
-    powerPet.components["power-pet"].squashColliderEntity.components[
-      "obb-collider"
-    ].tick();
     colliderTestEntity.components["obb-collider"].tick();
   }, 100);
 // POWER PET COLLIDER END

@@ -2,8 +2,16 @@
 const THREE = window.THREE;
 
 AFRAME.registerSystem("power-pet", {
+  getIsInspectorOpen: function () {
+    return AFRAME.INSPECTOR?.opened;
+  },
+  getSelectedInspectorEntity: function () {
+    return this.getIsInspectorOpen() && AFRAME.INSPECTOR?.selectedEntity;
+  },
+
   schema: {
     models: { type: "array" },
+    tickInInspector: { type: "boolean", default: true },
   },
 
   init: function () {
@@ -20,6 +28,12 @@ AFRAME.registerSystem("power-pet", {
     );
   },
 
+  tick: function (time, timeDelta) {
+    if (this.data.tickInInspector && this.getIsInspectorOpen()) {
+      this.components.forEach((component) => component.tick(time, timeDelta));
+    }
+  },
+
   update: function (oldData) {
     const diff = AFRAME.utils.diff(oldData, this.data);
 
@@ -33,6 +47,8 @@ AFRAME.registerSystem("power-pet", {
           this.data.models.forEach((modelSrc) => {
             this.addModel(modelSrc.replaceAll("#", ""), modelSrc);
           });
+          break;
+        case "tickInInspector":
           break;
         default:
           console.warn(`uncaught diffKey "${diffKey}"`);
@@ -80,11 +96,9 @@ AFRAME.registerSystem("power-pet", {
     } else {
       this.models[name] = src;
       AFRAME.components["power-pet"].schema.model.oneOf.push(name);
-      if (AFRAME.INSPECTOR?.opened) {
-        const selected = AFRAME.INSPECTOR.selectedEntity;
-        if (selected?.components?.["power-pet"]) {
-          AFRAME.INSPECTOR.selectEntity(selected);
-        }
+      const selectedEntity = this.getSelectedInspectorEntity();
+      if (selectedEntity?.components?.["power-pet"]) {
+        AFRAME.INSPECTOR.selectEntity(selectedEntity);
       }
     }
     console.log("models", this.models);
@@ -123,9 +137,20 @@ AFRAME.registerComponent("power-pet", {
     this.system._remove(this);
   },
 
-  tick: function (time, timeDelta) {},
+  tick: function (time, timeDelta) {
+    this._tickSquash(time, timeDelta);
+  },
 
   // UTILS START
+  getIsInspectorOpen: function () {
+    return this.system?.getIsInspectorOpen();
+  },
+  getSelectedInspectorEntity: function () {
+    return this.system?.getSelectedInspectorEntity();
+  },
+  getIsSelectedInInspector: function () {
+    return this.el && this.getSelectedInspectorEntity() == this.el;
+  },
   _updateData: function (key, value, shouldFlushToDOM = true, detail) {
     this.data[key] = value;
     this.attrValue[key] = value;
@@ -139,11 +164,8 @@ AFRAME.registerComponent("power-pet", {
   },
   _flushToDOM: function () {
     this.el.flushToDOM();
-    if (AFRAME.INSPECTOR?.opened) {
-      const selected = AFRAME.INSPECTOR.selectedEntity;
-      if (selected === this.el) {
-        AFRAME.INSPECTOR.selectEntity(selected);
-      }
+    if (this.getIsSelectedInInspector()) {
+      AFRAME.INSPECTOR.selectEntity(selected);
     }
   },
   // UTILS END
@@ -491,10 +513,6 @@ AFRAME.registerComponent("power-pet", {
       "material",
       "depthTest: false; depthWrite: false;"
     );
-    this.squashCenterSphere.setAttribute(
-      "data-aframe-inspector-ignore",
-      "true"
-    );
     this.squashCenterEntity.appendChild(this.squashCenterSphere);
 
     const squashColliderSizeString = `${this.data.squashColliderSize} ${this.data.squashColliderSize} ${this.data.squashColliderSize};`;
@@ -524,6 +542,8 @@ AFRAME.registerComponent("power-pet", {
       "obbcollisionended",
       this.onObbCollisionEnded.bind(this)
     );
+
+    this._squashCollidedEntities = [];
   },
   setSquashMax: function (squashMax) {
     this._updateData("squashMax", squashMax);
@@ -620,12 +640,30 @@ AFRAME.registerComponent("power-pet", {
     this._updateData("squashColliderSize", squashColliderSize);
   },
   onObbcollisionStarted: function (event) {
-    console.log(event);
-    // FILL
+    const { withEl } = event.detail;
+    console.log(`started collision with "${withEl.id}"`);
+    if (!this._squashCollidedEntities.includes(withEl)) {
+      this._squashCollidedEntities.push(withEl);
+    }
   },
   onObbCollisionEnded: function (event) {
-    console.log(event);
+    const { withEl } = event.detail;
+    console.log(`ended collision with "${withEl.id}"`);
+    if (this._squashCollidedEntities.includes(withEl)) {
+      this._squashCollidedEntities.splice(
+        this._squashCollidedEntities.indexOf(withEl),
+        1
+      );
+    }
+  },
+  _tickSquash: function (time, timeDelta) {
+    if (this.getIsInspectorOpen()) {
+      this.squashColliderEntity.components["obb-collider"].tick();
+    }
+
     // FILL
+    if (this._squashCollidedEntities.length > 0) {
+    }
   },
   // SQUASH END
 });
