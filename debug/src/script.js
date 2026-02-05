@@ -191,14 +191,41 @@ powerPetEntity.addEventListener("power-pet-variant", (event) => {
 const squashContainer = document.getElementById("squashContainer");
 
 const tiltInput = document.getElementById("tilt");
+const mirrorTiltInput = {
+  x: true,
+  y: true,
+  apply(tilt) {
+    if (this.x || this.y) {
+      tilt = structuredClone(tilt);
+      if (this.x) {
+        tilt.x *= -1;
+      }
+      if (this.y) {
+        tilt.y *= -1;
+      }
+    }
+    return tilt;
+  },
+};
 tiltInput.addEventListener("input", (event) => {
   const tilt = event.detail;
-  //console.log("tilt", tilt);
   powerPetEntity.setAttribute("power-pet", "tilt", tilt);
 });
 powerPetEntity.addEventListener("power-pet-tilt", (event) => {
   const { tilt } = event.detail;
   tiltInput.value = tilt;
+});
+powerPetEntity.addEventListener("power-pet-tiltMin", (event) => {
+  let { tiltMin } = event.detail;
+  //console.log("tiltMin", tiltMin);
+  tiltMin = mirrorTiltInput.apply(tiltMin);
+  tiltInput.min = tiltMin;
+});
+powerPetEntity.addEventListener("power-pet-tiltMax", (event) => {
+  let { tiltMax } = event.detail;
+  //console.log("tiltMax", tiltMax);
+  tiltMax = mirrorTiltInput.apply(tiltMax);
+  tiltInput.max = tiltMax;
 });
 
 const squashInput = document.getElementById("squash");
@@ -210,6 +237,10 @@ squashInput.addEventListener("input", () => {
 powerPetEntity.addEventListener("power-pet-squash", (event) => {
   const { squash } = event.detail;
   squashInput.value = squash;
+});
+powerPetEntity.addEventListener("power-pet-squashMax", (event) => {
+  const { squashMax } = event.detail;
+  squashInput.max = 1 - squashMax.y;
 });
 
 const showSquashCenterInput = document.getElementById("showSquashCenter");

@@ -84,6 +84,7 @@
         <video id="sceneBackgroundVideo"></video>
         <video id="sceneBackgroundWebcam"></video>
         <a-scene
+          obb-collider="showColliders: true"
           id="scene"
           embedded
           power-pet="models: #dogModel,#jimmyModel,#mouthModel"
@@ -115,7 +116,7 @@
 
           <a-camera
             look-controls="enabled: true; magicWindowTrackingEnabled: false;"
-            wasd-controls="enabled: true; acceleration: 2;"
+            wasd-controls="enabled: true; acceleration: 1;"
           ></a-camera>
 
           <a-entity
@@ -211,13 +212,7 @@
         </label>
         <label>
           tilt
-          <canvas
-            id="tilt"
-            width="100"
-            height="100"
-            data-input
-            data-min="-1"
-          ></canvas>
+          <canvas id="tilt" width="100" height="100" data-input></canvas>
         </label>
         <label>
           show squash center

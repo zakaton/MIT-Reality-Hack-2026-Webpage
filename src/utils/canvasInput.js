@@ -2,7 +2,7 @@ window.addEventListener("load", () => {
   /** @type {import("three")} */
   const THREE = window.THREE;
 
-  const { lerp, inverseLerp } = THREE.MathUtils;
+  const { lerp, inverseLerp, clamp } = THREE.MathUtils;
 
   document.querySelectorAll("canvas").forEach((canvas) => {
     if (!("input" in canvas.dataset)) {
@@ -13,6 +13,10 @@ window.addEventListener("load", () => {
     canvas.style.border = "solid";
     canvas.style.boxSizing = "border-box";
 
+    if ("value" in canvas.dataset) {
+      canvas.dataset.valueX = canvas.dataset.valueY = canvas.dataset.value;
+      delete canvas.dataset.value;
+    }
     if ("min" in canvas.dataset) {
       canvas.dataset.minX = canvas.dataset.minY = canvas.dataset.min;
       delete canvas.dataset.min;
@@ -71,14 +75,19 @@ window.addEventListener("load", () => {
         return value;
       },
       set(newValue) {
-        value.x = Math.max(
-          canvas.dataset.minX,
-          Math.min(canvas.dataset.maxX, newValue.x)
-        );
-        value.y = Math.max(
-          canvas.dataset.minY,
-          Math.min(canvas.dataset.maxY, newValue.y)
-        );
+        if (!isNaN(newValue)) {
+          newValue = { x: newValue, y: newValue };
+        }
+
+        if (value.x == newValue.x && value.y == newValue.y) {
+          return;
+        }
+
+        const xRange = [canvas.dataset.minX, canvas.dataset.maxX];
+        value.x = clamp(newValue.x, Math.min(...xRange), Math.max(...xRange));
+
+        const yRange = [canvas.dataset.minY, canvas.dataset.maxY];
+        value.y = clamp(newValue.y, Math.min(...yRange), Math.max(...yRange));
 
         canvas.dataset.valueX = value.x;
         canvas.dataset.valueY = value.y;
@@ -86,6 +95,43 @@ window.addEventListener("load", () => {
         draw();
         dispatchEvent();
         //console.log(value);
+      },
+      configurable: true,
+      enumerable: true,
+    });
+
+    Object.defineProperty(canvas, "min", {
+      get() {
+        return {
+          x: +canvas.dataset.minX,
+          y: +canvas.dataset.minY,
+        };
+      },
+      set(newValue) {
+        if (!isNaN(newValue)) {
+          newValue = { x: newValue, y: newValue };
+        }
+        canvas.dataset.minX = newValue.x;
+        canvas.dataset.minY = newValue.y;
+        draw();
+      },
+      configurable: true,
+      enumerable: true,
+    });
+    Object.defineProperty(canvas, "max", {
+      get() {
+        return {
+          x: +canvas.dataset.maxX,
+          y: +canvas.dataset.maxY,
+        };
+      },
+      set(newValue) {
+        if (!isNaN(newValue)) {
+          newValue = { x: newValue, y: newValue };
+        }
+        canvas.dataset.maxX = newValue.x;
+        canvas.dataset.maxY = newValue.y;
+        draw();
       },
       configurable: true,
       enumerable: true,

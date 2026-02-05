@@ -110,6 +110,7 @@ AFRAME.registerComponent("power-pet", {
     showSquashCollider: { default: false },
 
     tilt: { type: "vec2", value: "0 0" },
+    tiltMin: { type: "vec2", default: "-0.3 -0.3" },
     tiltMax: { type: "vec2", default: "0.3 0.3" },
   },
 
@@ -176,7 +177,7 @@ AFRAME.registerComponent("power-pet", {
             this.setSquashCenter(this.data.squashCenter);
             break;
           case "squashMax":
-            this.setSquash(this.data.squash);
+            this.setSquashMax(this.data.squashMax);
             break;
           case "showSquashCenter":
             this.setShowSquashCenter(this.data.showSquashCenter);
@@ -184,8 +185,11 @@ AFRAME.registerComponent("power-pet", {
           case "tilt":
             this.setTilt(this.data.tilt);
             break;
+          case "tiltMin":
+            this.setTiltMin(this.data.tiltMin);
+            break;
           case "tiltMax":
-            this.setTilt(this.data.tilt);
+            this.setTiltMax(this.data.tiltMax);
             break;
           case "showSquashCollider":
             this.setShowSquashCollider(this.data.showSquashCollider);
@@ -510,14 +514,19 @@ AFRAME.registerComponent("power-pet", {
     );
     this.squashColliderEntity.appendChild(this.squashColliderSphere);
   },
+  setSquashMax: function (squashMax) {
+    this._updateData("squashMax", squashMax);
+    this.setSquash(this.data.squash);
+  },
   setSquash: function (squash) {
-    squash = THREE.MathUtils.clamp(squash, 0, 1);
+    const { x, y } = this.data.squashMax;
+
+    squash = THREE.MathUtils.clamp(squash, 0, 1 - y);
     //console.log("setSquash", squash);
 
-    const { x, y } = this.data.squashMax;
-    const width = THREE.MathUtils.lerp(1, x, squash);
-    const height = THREE.MathUtils.lerp(1, y, squash);
-
+    const height = 1 - squash;
+    const heightLerp = THREE.MathUtils.inverseLerp(1, y, height);
+    const width = THREE.MathUtils.lerp(1, x, heightLerp);
     //console.log({ width, height });
 
     const { scale } = this.squashEntity.object3D;
@@ -540,14 +549,23 @@ AFRAME.registerComponent("power-pet", {
     this.squashCenterEntity.object3D.visible = showSquashCenter;
     this._updateData("showSquashCenter", showSquashCenter);
   },
+  setTiltMin: function (tiltMin) {
+    this._updateData("tiltMin", tiltMin);
+    this.setTilt(this.data.tilt);
+  },
+  setTiltMax: function (tiltMax) {
+    this._updateData("tiltMax", tiltMax);
+    this.setTilt(this.data.tilt);
+  },
   setTilt: function (tilt) {
-    tilt.x = THREE.MathUtils.clamp(tilt.x, -1, 1);
-    tilt.y = THREE.MathUtils.clamp(tilt.y, -1, 1);
+    const { tiltMin, tiltMax } = this.data;
+
+    tilt.x = THREE.MathUtils.clamp(tilt.x, tiltMin.x, tiltMax.x);
+    tilt.y = THREE.MathUtils.clamp(tilt.y, tiltMin.y, tiltMax.y);
     //console.log("setTilt", tilt);
 
-    const { x, y } = this.data.tiltMax;
-    const roll = THREE.MathUtils.lerp(0, x, tilt.x);
-    const pitch = THREE.MathUtils.lerp(0, y, tilt.y);
+    const roll = tilt.x;
+    const pitch = tilt.y;
 
     //console.log({ pitch, roll });
 
