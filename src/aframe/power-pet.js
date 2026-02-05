@@ -1,4 +1,5 @@
-/** @typedef {import("three").Mesh} Mesh */
+/** @type {import("three")} */
+const THREE = window.THREE;
 
 AFRAME.registerSystem("power-pet", {
   schema: {
@@ -98,10 +99,23 @@ AFRAME.registerSystem("power-pet", {
 AFRAME.registerComponent("power-pet", {
   schema: {
     model: { oneOf: [] },
+
+    squashCenter: { type: "vec3", default: "0 0 0" },
+    squash: { type: "number", value: 0 },
+    squashMax: { type: "vec2", default: "1.15 0.85" },
+    showSquashCenter: { default: false },
+
+    squashColliderRadius: { type: "number", default: 0.1 },
+    squashColliderCenter: { type: "vec3", default: "0 0.040 0" },
+    showSquashCollider: { default: false },
+
+    tilt: { type: "vec2", value: "0 0" },
+    tiltMax: { type: "vec2", default: "0.3 0.3" },
   },
 
   init: function () {
-    this._modelInit();
+    this._initModel();
+    this._initSquash();
     this.system._add(this);
   },
   remove: function () {
@@ -111,12 +125,16 @@ AFRAME.registerComponent("power-pet", {
   tick: function (time, timeDelta) {},
 
   // UTILS START
-  _updateData: function (key, value, shouldFlushToDOM = true) {
+  _updateData: function (key, value, shouldFlushToDOM = true, detail) {
     this.data[key] = value;
     this.attrValue[key] = value;
+
     if (shouldFlushToDOM) {
       this._flushToDOM();
     }
+
+    detail = detail ?? { [key]: value };
+    this.el.emit(`power-pet-${key}`, detail);
   },
   _flushToDOM: function () {
     this.el.flushToDOM();
@@ -137,7 +155,7 @@ AFRAME.registerComponent("power-pet", {
     //console.log({ diffKeys });
 
     diffKeys.forEach((diffKey) => {
-      //console.log("update", { [diffKey]: this.data[diffKey] });
+      // console.log("update", { [diffKey]: this.data[diffKey] });
       if (diffKey.startsWith(this._variantPrefix)) {
         this.selectVariant(diffKey, this.data[diffKey]);
       } else {
@@ -151,6 +169,33 @@ AFRAME.registerComponent("power-pet", {
               this.selectModel(this.data.model);
             }
             break;
+          case "squash":
+            this.setSquash(this.data.squash);
+            break;
+          case "squashCenter":
+            this.setSquashCenter(this.data.squashCenter);
+            break;
+          case "squashMax":
+            this.setSquash(this.data.squash);
+            break;
+          case "showSquashCenter":
+            this.setShowSquashCenter(this.data.showSquashCenter);
+            break;
+          case "tilt":
+            this.setTilt(this.data.tilt);
+            break;
+          case "tiltMax":
+            this.setTilt(this.data.tilt);
+            break;
+          case "showSquashCollider":
+            this.setShowSquashCollider(this.data.showSquashCollider);
+            break;
+          case "squashColliderRadius":
+            this.setSquashColliderRadius(this.data.squashColliderRadius);
+            break;
+          case "squashColliderCenter":
+            this.setSquashColliderCenter(this.data.squashColliderCenter);
+            break;
           default:
             console.warn(`uncaught diffKey "${diffKey}"`);
             break;
@@ -160,10 +205,10 @@ AFRAME.registerComponent("power-pet", {
   },
 
   // MODEL START
-  _modelInit: function () {
+  _initModel: function () {
     this.models = {};
-    this.modelContainerEntity = document.createElement("a-entity");
-    this.el.appendChild(this.modelContainerEntity);
+    this.modelsEntity = document.createElement("a-entity");
+    this.modelsEntity.classList.add("models");
   },
   _loadModel: function (name) {
     console.log("loadModel", name);
@@ -285,41 +330,40 @@ AFRAME.registerComponent("power-pet", {
       });
       this.selectModel(name);
     });
-    this.modelContainerEntity.appendChild(modelEntity);
+    this.modelsEntity.appendChild(modelEntity);
   },
-  selectModel: function (name) {
-    if (!this.system.models[name]) {
-      console.log(`no model found with name "${name}"`);
+  selectModel: function (newName) {
+    if (!this.system.models[newName]) {
+      console.log(`no model found with name "${newName}"`);
       return;
     }
-    if (!this.models[name]) {
-      this._loadModel(name);
+    if (!this.models[newName]) {
+      this._loadModel(newName);
       return;
     }
-    if (this.models[name].src != this.system.models[name]) {
-      console.log(`reloading model "${name}"`);
-      this._loadModel(name);
+    if (this.models[newName].src != this.system.models[newName]) {
+      console.log(`reloading model "${newName}"`);
+      this._loadModel(newName);
       return;
     }
     //console.log("selectModel", { name });
 
-    const previousname = this.selectedName;
-    if (this.models[previousname]) {
-      const { entity } = this.models[previousname];
+    const previousName = this.selectedName;
+    if (this.models[previousName]) {
+      const { entity } = this.models[previousName];
       entity.object3D.visible = false;
     }
 
-    const { entity } = this.models[name];
+    const { entity } = this.models[newName];
     entity.object3D.visible = true;
 
-    this.selectedName = name;
+    this.selectedName = newName;
     this._updateVariants();
 
-    this.el.emit("power-pet-model", {
-      name,
-      model: this.models[name],
+    this._updateData("model", newName, true, {
+      name: newName,
+      model: this.models[newName],
     });
-    this._updateData("model", name);
   },
   // MODEL END
 
@@ -423,4 +467,121 @@ AFRAME.registerComponent("power-pet", {
     });
   },
   // VARIANT END
+
+  // SQUASH START
+  _initSquash: function () {
+    this.squashEntity = document.createElement("a-entity");
+    this.squashEntity.classList.add("squash");
+    this.squashEntity.appendChild(this.modelsEntity);
+    this.el.appendChild(this.squashEntity);
+
+    this.squashCenterEntity = document.createElement("a-entity");
+    this.squashCenterEntity.classList.add("squashCenter");
+    this.squashCenterEntity.setAttribute("visible", this.data.showSquashCenter);
+    this.squashEntity.appendChild(this.squashCenterEntity);
+
+    this.squashCenterSphere = document.createElement("a-sphere");
+    this.squashCenterSphere.setAttribute("color", "blue");
+    this.squashCenterSphere.setAttribute("radius", "0.005");
+    this.squashCenterSphere.setAttribute(
+      "material",
+      "depthTest: false; depthWrite: false;"
+    );
+    this.squashCenterSphere.setAttribute(
+      "data-aframe-inspector-ignore",
+      "true"
+    );
+    this.squashCenterEntity.appendChild(this.squashCenterSphere);
+
+    this.squashColliderEntity = document.createElement("a-entity");
+    this.squashColliderEntity.classList.add("squashCollider");
+    this.squashColliderEntity.setAttribute(
+      "visible",
+      this.data.showSquashCollider
+    );
+    this.el.appendChild(this.squashColliderEntity);
+
+    this.squashColliderSphere = document.createElement("a-sphere");
+    this.squashColliderSphere.setAttribute("opacity", "0.1");
+    this.squashColliderSphere.setAttribute("color", "red");
+    this.squashColliderSphere.setAttribute(
+      "radius",
+      this.data.squashColliderRadius
+    );
+    this.squashColliderEntity.appendChild(this.squashColliderSphere);
+  },
+  setSquash: function (squash) {
+    squash = THREE.MathUtils.clamp(squash, 0, 1);
+    //console.log("setSquash", squash);
+
+    const { x, y } = this.data.squashMax;
+    const width = THREE.MathUtils.lerp(1, x, squash);
+    const height = THREE.MathUtils.lerp(1, y, squash);
+
+    //console.log({ width, height });
+
+    const { scale } = this.squashEntity.object3D;
+    scale.y = height;
+    scale.x = scale.z = width;
+
+    this._updateData("squash", squash);
+  },
+  setSquashCenter: function (squashCenter) {
+    Object.assign({}, this.data.squashCenter, squashCenter);
+    //console.log("setSquashCenter", squashCenter);
+
+    this.squashEntity.object3D.position.copy(squashCenter);
+    this.modelsEntity.object3D.position.copy(squashCenter).negate();
+
+    this._updateData("squashCenter", squashCenter);
+  },
+  setShowSquashCenter: function (showSquashCenter) {
+    //console.log("setShowSquashCenter", showSquashCenter);
+    this.squashCenterEntity.object3D.visible = showSquashCenter;
+    this._updateData("showSquashCenter", showSquashCenter);
+  },
+  setTilt: function (tilt) {
+    tilt.x = THREE.MathUtils.clamp(tilt.x, -1, 1);
+    tilt.y = THREE.MathUtils.clamp(tilt.y, -1, 1);
+    //console.log("setTilt", tilt);
+
+    const { x, y } = this.data.tiltMax;
+    const roll = THREE.MathUtils.lerp(0, x, tilt.x);
+    const pitch = THREE.MathUtils.lerp(0, y, tilt.y);
+
+    //console.log({ pitch, roll });
+
+    const { rotation } = this.squashEntity.object3D;
+    rotation.x = pitch;
+    rotation.z = roll;
+
+    this._updateData("tilt", tilt);
+  },
+
+  setShowSquashCollider: function (showSquashCollider) {
+    //console.log("setShowSquashCollider", showSquashCollider);
+    this.squashColliderEntity.object3D.visible = showSquashCollider;
+    this._updateData("showSquashCollider", showSquashCollider);
+  },
+
+  setSquashColliderCenter: function (squashColliderCenter) {
+    Object.assign({}, this.data.squashColliderCenter, squashColliderCenter);
+    //console.log("setSquashColliderCenter", squashColliderCenter);
+
+    this.squashColliderEntity.object3D.position.copy(squashColliderCenter);
+
+    this._updateData("squashColliderCenter", squashColliderCenter);
+  },
+
+  setSquashColliderRadius: function (squashColliderRadius) {
+    squashColliderRadius = THREE.MathUtils.clamp(
+      squashColliderRadius,
+      0.05,
+      0.3
+    );
+    //console.log("setSquashColliderRadius", squashColliderRadius);
+    this.squashColliderSphere.setAttribute("radius", squashColliderRadius);
+    this._updateData("squashColliderRadius", squashColliderRadius);
+  },
+  // SQUASH END
 });
