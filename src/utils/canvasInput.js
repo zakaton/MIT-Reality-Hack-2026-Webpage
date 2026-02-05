@@ -70,31 +70,33 @@ window.addEventListener("load", () => {
     };
     draw();
 
+    const setValue = (newValue) => {
+      if (!isNaN(newValue)) {
+        newValue = { x: newValue, y: newValue };
+      }
+
+      if (value.x == newValue.x && value.y == newValue.y) {
+        return;
+      }
+
+      const xRange = [canvas.dataset.minX, canvas.dataset.maxX];
+      value.x = clamp(newValue.x, Math.min(...xRange), Math.max(...xRange));
+
+      const yRange = [canvas.dataset.minY, canvas.dataset.maxY];
+      value.y = clamp(newValue.y, Math.min(...yRange), Math.max(...yRange));
+
+      canvas.dataset.valueX = value.x;
+      canvas.dataset.valueY = value.y;
+
+      draw();
+    };
+
     Object.defineProperty(canvas, "value", {
       get() {
         return value;
       },
       set(newValue) {
-        if (!isNaN(newValue)) {
-          newValue = { x: newValue, y: newValue };
-        }
-
-        if (value.x == newValue.x && value.y == newValue.y) {
-          return;
-        }
-
-        const xRange = [canvas.dataset.minX, canvas.dataset.maxX];
-        value.x = clamp(newValue.x, Math.min(...xRange), Math.max(...xRange));
-
-        const yRange = [canvas.dataset.minY, canvas.dataset.maxY];
-        value.y = clamp(newValue.y, Math.min(...yRange), Math.max(...yRange));
-
-        canvas.dataset.valueX = value.x;
-        canvas.dataset.valueY = value.y;
-
-        draw();
-        dispatchEvent();
-        //console.log(value);
+        setValue(newValue);
       },
       configurable: true,
       enumerable: true,
@@ -146,7 +148,7 @@ window.addEventListener("load", () => {
       //console.log({ isMouseDown });
     };
     const dispatchEvent = () => {
-      canvas.dispatchEvent(new CustomEvent("input", { detail: value }));
+      canvas.dispatchEvent(new Event("input"));
     };
     document.addEventListener("mouseup", () => {
       setIsMouseDown(false);
@@ -158,6 +160,7 @@ window.addEventListener("load", () => {
       const y = 1 - offsetY / canvas.clientHeight;
       canvas.value = lerpValue({ x, y });
       setIsMouseDown(true);
+      dispatchEvent();
     });
     document.addEventListener("mousemove", (event) => {
       if (!isMouseDown) return;
@@ -170,6 +173,7 @@ window.addEventListener("load", () => {
       const y = 1 - offsetY / rect.height;
 
       canvas.value = lerpValue({ x, y });
+      dispatchEvent();
     });
   });
 });

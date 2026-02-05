@@ -84,7 +84,7 @@
         <video id="sceneBackgroundVideo"></video>
         <video id="sceneBackgroundWebcam"></video>
         <a-scene
-          obb-collider="showColliders: true"
+          obb-collider="showColliders: false"
           id="scene"
           embedded
           power-pet="models: #dogModel,#jimmyModel,#mouthModel"
@@ -121,9 +121,16 @@
 
           <a-entity
             id="powerPet"
-            power-pet="showSquashCollider: false; showSquashCenter: false;"
+            power-pet="showSquashCollider: true; showSquashCenter: true;"
             position="0 1.55 -0.2"
           ></a-entity>
+
+          <a-box
+            id="colliderTest"
+            obb-collider
+            position="0.2 1.55 -0.2"
+            scale="0.1 0.1 0.1"
+          ></a-box>
 
           <a-entity
             id="anchor"

@@ -105,7 +105,7 @@ AFRAME.registerComponent("power-pet", {
     squashMax: { type: "vec2", default: "1.15 0.85" },
     showSquashCenter: { default: false },
 
-    squashColliderRadius: { type: "number", default: 0.1 },
+    squashColliderSize: { type: "number", default: "0.2" },
     squashColliderCenter: { type: "vec3", default: "0 0.040 0" },
     showSquashCollider: { default: false },
 
@@ -194,8 +194,8 @@ AFRAME.registerComponent("power-pet", {
           case "showSquashCollider":
             this.setShowSquashCollider(this.data.showSquashCollider);
             break;
-          case "squashColliderRadius":
-            this.setSquashColliderRadius(this.data.squashColliderRadius);
+          case "squashColliderSize":
+            this.setSquashColliderSize(this.data.squashColliderSize);
             break;
           case "squashColliderCenter":
             this.setSquashColliderCenter(this.data.squashColliderCenter);
@@ -497,7 +497,12 @@ AFRAME.registerComponent("power-pet", {
     );
     this.squashCenterEntity.appendChild(this.squashCenterSphere);
 
+    const squashColliderSizeString = `${this.data.squashColliderSize} ${this.data.squashColliderSize} ${this.data.squashColliderSize};`;
     this.squashColliderEntity = document.createElement("a-entity");
+    this.squashColliderEntity.setAttribute(
+      "obb-collider",
+      `size: ${this.data.squashColliderSize};`
+    );
     this.squashColliderEntity.classList.add("squashCollider");
     this.squashColliderEntity.setAttribute(
       "visible",
@@ -505,14 +510,20 @@ AFRAME.registerComponent("power-pet", {
     );
     this.el.appendChild(this.squashColliderEntity);
 
-    this.squashColliderSphere = document.createElement("a-sphere");
-    this.squashColliderSphere.setAttribute("opacity", "0.1");
-    this.squashColliderSphere.setAttribute("color", "red");
-    this.squashColliderSphere.setAttribute(
-      "radius",
-      this.data.squashColliderRadius
+    this.squashColliderBox = document.createElement("a-box");
+    this.squashColliderBox.setAttribute("opacity", "0.1");
+    this.squashColliderBox.setAttribute("color", "red");
+    this.squashColliderBox.setAttribute("scale", squashColliderSizeString);
+    this.squashColliderEntity.appendChild(this.squashColliderBox);
+
+    this.el.addEventListener(
+      "obbcollisionstarted",
+      this.onObbcollisionStarted.bind(this)
     );
-    this.squashColliderEntity.appendChild(this.squashColliderSphere);
+    this.el.addEventListener(
+      "obbcollisionended",
+      this.onObbCollisionEnded.bind(this)
+    );
   },
   setSquashMax: function (squashMax) {
     this._updateData("squashMax", squashMax);
@@ -558,6 +569,7 @@ AFRAME.registerComponent("power-pet", {
     this.setTilt(this.data.tilt);
   },
   setTilt: function (tilt) {
+    tilt = Object.assign({}, this.data.tilt, tilt);
     const { tiltMin, tiltMax } = this.data;
 
     tilt.x = THREE.MathUtils.clamp(tilt.x, tiltMin.x, tiltMax.x);
@@ -591,15 +603,29 @@ AFRAME.registerComponent("power-pet", {
     this._updateData("squashColliderCenter", squashColliderCenter);
   },
 
-  setSquashColliderRadius: function (squashColliderRadius) {
-    squashColliderRadius = THREE.MathUtils.clamp(
-      squashColliderRadius,
-      0.05,
-      0.3
+  setSquashColliderSize: function (squashColliderSize) {
+    squashColliderSize = THREE.MathUtils.clamp(squashColliderSize, 0.1, 0.25);
+    //console.log("setSquashColliderSize", squashColliderSize);
+
+    const squashColliderSizeString = `${squashColliderSize} ${squashColliderSize} ${squashColliderSize};`;
+
+    this.squashColliderBox.setAttribute("scale", squashColliderSizeString);
+    this.squashColliderEntity.setAttribute(
+      "obb-collider",
+      `size: ${squashColliderSize};`
     );
-    //console.log("setSquashColliderRadius", squashColliderRadius);
-    this.squashColliderSphere.setAttribute("radius", squashColliderRadius);
-    this._updateData("squashColliderRadius", squashColliderRadius);
+    if (this.squashColliderEntity.hasLoaded) {
+      this.squashColliderEntity.components["obb-collider"].updateCollider();
+    }
+    this._updateData("squashColliderSize", squashColliderSize);
+  },
+  onObbcollisionStarted: function (event) {
+    console.log(event);
+    // FILL
+  },
+  onObbCollisionEnded: function (event) {
+    console.log(event);
+    // FILL
   },
   // SQUASH END
 });

@@ -207,8 +207,8 @@ const mirrorTiltInput = {
     return tilt;
   },
 };
-tiltInput.addEventListener("input", (event) => {
-  const tilt = event.detail;
+tiltInput.addEventListener("input", () => {
+  const tilt = tiltInput.value;
   powerPetEntity.setAttribute("power-pet", "tilt", tilt);
 });
 powerPetEntity.addEventListener("power-pet-tilt", (event) => {
@@ -302,3 +302,17 @@ powerPetEntity.addEventListener("power-pet-squashColliderCenter", (event) => {
   squashColliderCenterYInput.value = squashColliderCenter.y;
 });
 // POWER PET SQUASH END
+
+// POWER PET COLLIDER START
+const colliderTestEntity = document.getElementById("colliderTest");
+if (true)
+  setInterval(() => {
+    if (!AFRAME.INSPECTOR?.opened) {
+      return;
+    }
+    powerPet.components["power-pet"].squashColliderEntity.components[
+      "obb-collider"
+    ].tick();
+    colliderTestEntity.components["obb-collider"].tick();
+  }, 100);
+// POWER PET COLLIDER END
