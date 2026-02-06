@@ -18,6 +18,8 @@ AFRAME.registerSystem("power-pet", {
     this.components = [];
     this.models = {};
 
+    this.obbColliders;
+
     this.el.addEventListener(
       "power-pet-add-model-file",
       this._onAddModelFile.bind(this)
@@ -30,6 +32,9 @@ AFRAME.registerSystem("power-pet", {
 
   tick: function (time, timeDelta) {
     if (this.data.tickInInspector && this.getIsInspectorOpen()) {
+      this.sceneEl.systems["obb-collider"].colliderEls.forEach((entity) =>
+        entity.components["obb-collider"].tick(time, timeDelta)
+      );
       this.components.forEach((component) => component.tick(time, timeDelta));
     }
   },
@@ -124,8 +129,8 @@ AFRAME.registerComponent("power-pet", {
     squashColliderCenter: { type: "vec3", default: "0 0.040 0" },
     showSquashCollider: { default: false },
     showSquashControlPoint: { default: false },
-    squashRadiusThreshold: { type: "number", default: "0.03" },
-    squashRadiusBuffer: { type: "number", default: "0.01" },
+    squashRadiusThreshold: { type: "number", default: "0.05" },
+    squashRadiusBuffer: { type: "number", default: "0.02" },
 
     tilt: { type: "vec2", default: "0 0" },
     tiltMin: { type: "vec2", default: "-0.3 -0.3" },
@@ -149,6 +154,9 @@ AFRAME.registerComponent("power-pet", {
 
   // UTILS START
   clampFloatToZero: function (number) {
+    if (number == -0) {
+      return 0;
+    }
     return number.toString().includes("e") ? 0 : number;
   },
   getIsInspectorOpen: function () {
@@ -602,12 +610,14 @@ AFRAME.registerComponent("power-pet", {
     this._squashColliderTempPosition = new THREE.Vector3();
     this._squashColliderClosestPosition = new THREE.Vector3();
 
-    this._tickSquashInterval = 100;
-    this._tickSquash = AFRAME.utils.throttleTick(
-      this._tickSquash,
-      this._tickSquashInterval,
-      this
-    );
+    this._tickSquashInterval = 50;
+    if (this._tickSquashInterval > 0) {
+      this._tickSquash = AFRAME.utils.throttleTick(
+        this._tickSquash,
+        this._tickSquashInterval,
+        this
+      );
+    }
   },
   setSquashMax: function (squashMax) {
     this._updateData("squashMax", squashMax);
@@ -636,8 +646,8 @@ AFRAME.registerComponent("power-pet", {
       this.squashScaleEntity.setAttribute("animation__squash", {
         property: "scale",
         to: { x: width, y: height, z: width },
-        dur: dur * 0.9,
-        easing: "easeOutQuad",
+        dur: dur - 0,
+        easing: "linear",
       });
     } else {
       const { scale } = this.squashScaleEntity.object3D;
@@ -688,12 +698,15 @@ AFRAME.registerComponent("power-pet", {
     const roll = this.clampFloatToZero(tilt.x);
     const pitch = this.clampFloatToZero(tilt.y);
 
-    // console.log({ roll, pitch, dur });
+    //console.log({ roll, pitch, dur });
 
     if (dur > 0) {
-      const pitchDeg = THREE.MathUtils.radToDeg(pitch);
-      const rollDeg = THREE.MathUtils.radToDeg(roll);
-      // console.log({ pitchDeg, rollDeg });
+      const pitchDeg = this.clampFloatToZero(THREE.MathUtils.radToDeg(pitch));
+      const rollDeg = this.clampFloatToZero(THREE.MathUtils.radToDeg(roll));
+      // console.log(
+      //   { pitchDeg, rollDeg },
+      //   this.squashTiltEntity.object3D.rotation
+      // );
 
       this.squashTiltEntity.removeAttribute("animation__tilt");
       this.squashTiltEntity.addEventListener(
@@ -703,6 +716,12 @@ AFRAME.registerComponent("power-pet", {
         },
         { once: true }
       );
+
+      // fix for weird animation issue
+      const { rotation } = this.squashTiltEntity.object3D;
+      rotation.x = this.clampFloatToZero(rotation.x);
+      rotation.y = this.clampFloatToZero(rotation.y);
+      rotation.z = this.clampFloatToZero(rotation.z);
       this.squashTiltEntity.setAttribute("animation__tilt", {
         property: "rotation",
         to: {
@@ -710,8 +729,8 @@ AFRAME.registerComponent("power-pet", {
           y: 0,
           z: rollDeg,
         },
-        dur: dur * 0.9,
-        easing: "easeOutQuad",
+        dur: dur - 0,
+        easing: "linear",
       });
     } else {
       const { rotation } = this.squashTiltEntity.object3D;
@@ -767,14 +786,14 @@ AFRAME.registerComponent("power-pet", {
   },
   onObbcollisionStarted: function (event) {
     const { withEl } = event.detail;
-    console.log(`started collision with "${withEl.id}"`);
+    //console.log(`started collision with "${withEl.id}"`);
     if (!this._squashCollidedEntities.includes(withEl)) {
       this._squashCollidedEntities.push(withEl);
     }
   },
   onObbCollisionEnded: function (event) {
     const { withEl } = event.detail;
-    console.log(`ended collision with "${withEl.id}"`);
+    //console.log(`ended collision with "${withEl.id}"`);
     if (this._squashCollidedEntities.includes(withEl)) {
       this._squashCollidedEntities.splice(
         this._squashCollidedEntities.indexOf(withEl),
@@ -783,13 +802,6 @@ AFRAME.registerComponent("power-pet", {
     }
   },
   _tickSquash: function (time, timeDelta) {
-    if (this.getIsInspectorOpen()) {
-      this.squashColliderEntity.components["obb-collider"]?.tick(
-        time,
-        timeDelta
-      );
-    }
-
     let newHasSquashControlPoint = false;
     if (this._squashCollidedEntities.length > 0) {
       this.squashCenterEntity.object3D.getWorldPosition(
@@ -797,8 +809,8 @@ AFRAME.registerComponent("power-pet", {
       );
       let closestDistance = Infinity;
       newHasSquashControlPoint = this._squashCollidedEntities.some((entity) => {
-        if (entity.components["hand-tracking-controls"]) {
-          // FILL - optional skip if grabbing it
+        if (entity.components["hand-tracking-grab-controls"]) {
+          return;
         }
 
         const { obb } = entity.components["obb-collider"];
@@ -819,7 +831,7 @@ AFRAME.registerComponent("power-pet", {
         //console.log(this._squashColliderTempPosition);
 
         if (this._squashColliderTempPosition.y < 0) {
-          return false;
+          return;
         }
 
         const distance = this._squashColliderTempPosition.distanceTo(
@@ -871,7 +883,8 @@ AFRAME.registerComponent("power-pet", {
         squashTilt.y > this.data.tiltMax.y;
 
       if (true || squash <= 1) {
-        const useNudge = radius > this.data.squashRadiusThreshold;
+        let useNudge = radius > this.data.squashRadiusThreshold;
+        useNudge = useNudge || squash <= 0.6;
         //console.log({ squash, radius, angle2D, useSquash: useNudge });
 
         if (useNudge) {
@@ -880,7 +893,7 @@ AFRAME.registerComponent("power-pet", {
           const tiltDirection = angle2D;
           let radiusInterpolation = THREE.MathUtils.inverseLerp(
             this.data.squashColliderSize / 2 - this.data.squashRadiusBuffer,
-            this.data.squashRadiusThreshold,
+            0.04,
             radius
           );
           radiusInterpolation = THREE.MathUtils.clamp(
@@ -888,8 +901,9 @@ AFRAME.registerComponent("power-pet", {
             0,
             1
           );
+          // console.log({ radiusInterpolation });
           let nudgeInterpolation = lengthInterpolation;
-          nudgeInterpolation *= 1.5;
+          nudgeInterpolation *= 1;
           const nudgeTilt = {
             x:
               nudgeInterpolation *

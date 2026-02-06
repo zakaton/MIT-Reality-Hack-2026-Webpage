@@ -319,14 +319,3 @@ powerPetEntity.addEventListener("power-pet-squashColliderCenter", (event) => {
   squashColliderCenterYInput.value = squashColliderCenter.y;
 });
 // POWER PET SQUASH END
-
-// POWER PET COLLIDER START
-const colliderTestEntity = document.getElementById("colliderTest");
-if (true)
-  setInterval(() => {
-    if (!AFRAME.INSPECTOR?.opened) {
-      return;
-    }
-    colliderTestEntity.components["obb-collider"].tick();
-  }, 1);
-// POWER PET COLLIDER END
