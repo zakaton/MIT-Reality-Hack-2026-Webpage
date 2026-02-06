@@ -12,6 +12,11 @@ AFRAME.registerSystem("power-pet", {
   schema: {
     models: { type: "array" },
     tickInInspector: { type: "boolean", default: true },
+    handTrackingJoints: {
+      type: "array",
+      default: "8",
+    },
+    jointSize: { type: "number", default: "0.025" },
   },
 
   init: function () {
@@ -28,6 +33,29 @@ AFRAME.registerSystem("power-pet", {
       "power-pet-add-model",
       this._onAddModel.bind(this)
     );
+
+    this.handTrackingControls = {};
+    this.sceneEl.addEventListener("loaded", () => {
+      this.el.querySelectorAll("[hand-tracking-controls]").forEach((entity) => {
+        const component = entity.components["hand-tracking-controls"];
+        const { hand } = component.data;
+        this.handTrackingControls[hand] = component;
+        const joints = this.data.handTrackingJoints;
+        joints.map(Number).forEach((joint) => {
+          if (hand == "left") {
+            joint = 24 - joint;
+          }
+          console.log({ hand, joint });
+          const entity = document.createElement("a-entity");
+          entity.setAttribute(
+            "obb-collider",
+            `trackedObject3D: parentEl.components.hand-tracking-controls.bones.${joint}; size: ${this.data.jointSize};`
+          );
+          component.el.appendChild(entity);
+        });
+      });
+      console.log("handTrackingControls", this.handTrackingControls);
+    });
   },
 
   tick: function (time, timeDelta) {
@@ -54,6 +82,10 @@ AFRAME.registerSystem("power-pet", {
           });
           break;
         case "tickInInspector":
+          break;
+        case "handTrackingJoints":
+          break;
+        case "jointSize":
           break;
         default:
           console.warn(`uncaught diffKey "${diffKey}"`);
@@ -170,8 +202,9 @@ AFRAME.registerComponent("power-pet", {
     return this.el && this.getSelectedInspectorEntity() == this.el;
   },
   _updateData: function (key, value, shouldFlushToDOM = true, detail) {
-    this.data[key] = value;
-    this.attrValue[key] = value;
+    // this.data[key] = value;
+    //this.attrValue[key] = value;
+    this.attrValueProxy[key] = value;
 
     if (shouldFlushToDOM) {
       this._flushToDOM();
@@ -887,7 +920,7 @@ AFRAME.registerComponent("power-pet", {
         squashTilt.x > this.data.tiltMax.x ||
         squashTilt.y > this.data.tiltMax.y;
 
-      if (squash <= 1.01) {
+      if (squash <= 1.03) {
         let useNudge = radius > this.data.squashRadiusThreshold;
         useNudge = useNudge || squash <= 0.6;
         //console.log({ squash, radius, angle2D, useSquash: useNudge });
@@ -926,9 +959,13 @@ AFRAME.registerComponent("power-pet", {
       squash = THREE.MathUtils.clamp(squash, 0, 1);
     }
 
-    this.setSquash(squash, this._tickSquashInterval);
-    this.setTilt(tilt, this._tickSquashInterval);
-
+    if (
+      newHasSquashControlPoint ||
+      this._hasSquashControlPoint != newHasSquashControlPoint
+    ) {
+      this.setSquash(squash, this._tickSquashInterval);
+      this.setTilt(tilt, this._tickSquashInterval);
+    }
     this._hasSquashControlPoint = newHasSquashControlPoint;
 
     this.squashControlPointEntity.object3D.visible =
