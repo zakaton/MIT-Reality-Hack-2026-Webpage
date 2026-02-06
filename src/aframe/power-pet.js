@@ -130,7 +130,7 @@ AFRAME.registerComponent("power-pet", {
     showSquashCollider: { default: false },
     showSquashControlPoint: { default: false },
     squashRadiusThreshold: { type: "number", default: "0.05" },
-    squashRadiusBuffer: { type: "number", default: "0.02" },
+    squashRadiusBuffer: { type: "number", default: "0.01" },
 
     tilt: { type: "vec2", default: "0 0" },
     tiltMin: { type: "vec2", default: "-0.3 -0.3" },
@@ -141,6 +141,7 @@ AFRAME.registerComponent("power-pet", {
   init: function () {
     this._initModel();
     this._initSquash();
+    this._initPetting();
     this.system._add(this);
   },
   remove: function () {
@@ -803,6 +804,7 @@ AFRAME.registerComponent("power-pet", {
   },
   _tickSquash: function (time, timeDelta) {
     let newHasSquashControlPoint = false;
+    let controlPointColliderIndex;
     if (this._squashCollidedEntities.length > 0) {
       this.squashCenterEntity.object3D.getWorldPosition(
         this._squashCenterWorldPosition
@@ -836,17 +838,21 @@ AFRAME.registerComponent("power-pet", {
         }
 
         const distance = this._squashColliderTempPosition.length();
-        console.log({ distance, index });
+        // console.log({ distance, index });
         if (distance < closestDistance) {
           this._squashColliderClosestPosition.copy(
             this._squashColliderTempPosition
           );
           closestDistance = distance;
           newHasSquashControlPoint = true;
+          controlPointColliderIndex = index;
         }
       });
-      console.log({ closestDistance });
+      // console.log({ closestDistance });
     }
+
+    let squash = 1;
+    let tilt = { x: 0, y: 0 };
 
     // console.log({ newHasSquashControlPoint });
     if (newHasSquashControlPoint) {
@@ -871,8 +877,7 @@ AFRAME.registerComponent("power-pet", {
         this.data.squashColliderCenter.y +
         this.data.squashColliderBuffer;
       const lengthInterpolation = length / fullLength;
-      let squash = lengthInterpolation;
-      let tilt = { x: 0, y: 0 };
+      squash = lengthInterpolation;
 
       const squashTilt = {
         x: Math.atan2(-this._squashControlPoint.x, this._squashControlPoint.y),
@@ -882,7 +887,7 @@ AFRAME.registerComponent("power-pet", {
         squashTilt.x > this.data.tiltMax.x ||
         squashTilt.y > this.data.tiltMax.y;
 
-      if (true || squash <= 1) {
+      if (squash <= 1.01) {
         let useNudge = radius > this.data.squashRadiusThreshold;
         useNudge = useNudge || squash <= 0.6;
         //console.log({ squash, radius, angle2D, useSquash: useNudge });
@@ -893,17 +898,13 @@ AFRAME.registerComponent("power-pet", {
           const tiltDirection = angle2D;
           let radiusInterpolation = THREE.MathUtils.inverseLerp(
             this.data.squashColliderSize / 2 - this.data.squashRadiusBuffer,
-            0.04,
+            0.05,
             radius
           );
-          radiusInterpolation = THREE.MathUtils.clamp(
-            radiusInterpolation,
-            0,
-            1
-          );
-          // console.log({ radiusInterpolation });
+          radiusInterpolation = Math.max(0, radiusInterpolation);
           let nudgeInterpolation = lengthInterpolation;
           nudgeInterpolation *= 1;
+          // console.log({ radiusInterpolation, lengthInterpolation });
           const nudgeTilt = {
             x:
               nudgeInterpolation *
@@ -916,22 +917,25 @@ AFRAME.registerComponent("power-pet", {
               radiusInterpolation *
               Math.sin(tiltDirection),
           };
+          // console.log(nudgeTilt);
           tilt = nudgeTilt;
         } else {
           tilt = squashTilt;
         }
       }
-
-      this.setSquash(squash, this._tickSquashInterval);
-      this.setTilt(tilt, this._tickSquashInterval);
-    } else if (this._hasSquashControlPoint) {
-      this.setSquash(1, this._tickSquashInterval);
-      this.setTilt({ x: 0, y: 0 }, this._tickSquashInterval);
+      squash = THREE.MathUtils.clamp(squash, 0, 1);
     }
+
+    this.setSquash(squash, this._tickSquashInterval);
+    this.setTilt(tilt, this._tickSquashInterval);
+
     this._hasSquashControlPoint = newHasSquashControlPoint;
 
     this.squashControlPointEntity.object3D.visible =
       this.data.showSquashControlPoint && this._hasSquashControlPoint;
+
+    const isBeingPet = squash != 1 || tilt.x != 0 || tilt.y != 0;
+    this._setIsBeingPet(isBeingPet);
   },
 
   _tickSquashAnimation: function (time, timeDelta) {
@@ -947,4 +951,18 @@ AFRAME.registerComponent("power-pet", {
     }
   },
   // SQUASH END
+
+  // PETTING START
+  _initPetting: function () {
+    this._isBeingPet = false;
+  },
+  _setIsBeingPet: function (newIsBeingPet) {
+    if (this._isBeingPet == newIsBeingPet) {
+      return;
+    }
+    this._isBeingPet = newIsBeingPet;
+    console.log("isBeingPet", newIsBeingPet);
+    this.el.emit("power-pet-isBeingPet", { isBeingPet: this._isBeingPet });
+  },
+  // PETTING END
 });
