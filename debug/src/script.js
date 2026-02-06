@@ -328,5 +328,5 @@ if (true)
       return;
     }
     colliderTestEntity.components["obb-collider"].tick();
-  }, 100);
+  }, 1);
 // POWER PET COLLIDER END

@@ -120,13 +120,17 @@ AFRAME.registerComponent("power-pet", {
     showSquashCenter: { default: false },
 
     squashColliderSize: { type: "number", default: "0.2" },
+    squashColliderBuffer: { type: "number", default: "-0.02" },
     squashColliderCenter: { type: "vec3", default: "0 0.040 0" },
     showSquashCollider: { default: false },
     showSquashControlPoint: { default: false },
+    squashRadiusThreshold: { type: "number", default: "0.03" },
+    squashRadiusBuffer: { type: "number", default: "0.01" },
 
-    tilt: { type: "vec2", value: "0 0" },
+    tilt: { type: "vec2", default: "0 0" },
     tiltMin: { type: "vec2", default: "-0.3 -0.3" },
     tiltMax: { type: "vec2", default: "0.3 0.3" },
+    squashTiltMax: { type: "vec2", default: "0.3 0.3" },
   },
 
   init: function () {
@@ -140,9 +144,13 @@ AFRAME.registerComponent("power-pet", {
 
   tick: function (time, timeDelta) {
     this._tickSquash(time, timeDelta);
+    this._tickSquashAnimation(time, timeDelta);
   },
 
   // UTILS START
+  clampFloatToZero: function (number) {
+    return number.toString().includes("e") ? 0 : number;
+  },
   getIsInspectorOpen: function () {
     return this.system?.getIsInspectorOpen();
   },
@@ -196,6 +204,15 @@ AFRAME.registerComponent("power-pet", {
           case "squash":
             this.setSquash(this.data.squash);
             break;
+          case "squashRadiusThreshold":
+            this.setSquashRadiusThreshold(this.data.squashRadiusThreshold);
+            break;
+          case "squashColliderBuffer":
+            this.setSquashColliderBuffer(this.data.squashColliderBuffer);
+            break;
+          case "squashRadiusBuffer":
+            this.setSquashRadiusBuffer(this.data.squashRadiusBuffer);
+            break;
           case "squashCenter":
             this.setSquashCenter(this.data.squashCenter);
             break;
@@ -216,6 +233,9 @@ AFRAME.registerComponent("power-pet", {
             break;
           case "tiltMax":
             this.setTiltMax(this.data.tiltMax);
+            break;
+          case "squashTiltMax":
+            this.setSquashTiltMax(this.data.squashTiltMax);
             break;
           case "showSquashCollider":
             this.setShowSquashCollider(this.data.showSquashCollider);
@@ -501,15 +521,23 @@ AFRAME.registerComponent("power-pet", {
 
   // SQUASH START
   _initSquash: function () {
-    this.squashEntity = document.createElement("a-entity");
-    this.squashEntity.classList.add("squash");
-    this.squashEntity.appendChild(this.modelsEntity);
-    this.el.appendChild(this.squashEntity);
+    this.squashPositionEntity = document.createElement("a-entity");
+    this.squashPositionEntity.classList.add("squashPosition");
+    this.el.appendChild(this.squashPositionEntity);
+
+    this.squashTiltEntity = document.createElement("a-entity");
+    this.squashTiltEntity.classList.add("squashTilt");
+    this.squashPositionEntity.appendChild(this.squashTiltEntity);
+
+    this.squashScaleEntity = document.createElement("a-entity");
+    this.squashScaleEntity.classList.add("squashScale");
+    this.squashScaleEntity.appendChild(this.modelsEntity);
+    this.squashTiltEntity.appendChild(this.squashScaleEntity);
 
     this.squashCenterEntity = document.createElement("a-entity");
     this.squashCenterEntity.classList.add("squashCenter");
     this.squashCenterEntity.setAttribute("visible", this.data.showSquashCenter);
-    this.squashEntity.appendChild(this.squashCenterEntity);
+    this.squashPositionEntity.appendChild(this.squashCenterEntity);
 
     this.squashCenterSphere = document.createElement("a-sphere");
     this.squashCenterSphere.setAttribute("color", "blue");
@@ -573,33 +601,56 @@ AFRAME.registerComponent("power-pet", {
     this._hasSquashControlPoint = false;
     this._squashColliderTempPosition = new THREE.Vector3();
     this._squashColliderClosestPosition = new THREE.Vector3();
+
+    this._tickSquashInterval = 100;
+    this._tickSquash = AFRAME.utils.throttleTick(
+      this._tickSquash,
+      this._tickSquashInterval,
+      this
+    );
   },
   setSquashMax: function (squashMax) {
     this._updateData("squashMax", squashMax);
     this.setSquash(this.data.squash);
   },
-  setSquash: function (squash) {
+  setSquash: function (squash, dur = 0) {
     const { x, y } = this.data.squashMax;
 
     squash = THREE.MathUtils.clamp(squash, y, 1);
-    console.log("setSquash", squash);
+    //console.log("setSquash", squash);
 
     const height = squash;
     const heightLerp = THREE.MathUtils.inverseLerp(1, y, height);
     const width = THREE.MathUtils.lerp(1, x, heightLerp);
-    //console.log({ width, height });
+    //console.log({ width, height, dur });
 
-    const { scale } = this.squashEntity.object3D;
-    scale.y = height;
-    scale.x = scale.z = width;
-
-    this._updateData("squash", squash);
+    if (dur > 0) {
+      this.squashScaleEntity.removeAttribute("animation__squash");
+      this.squashScaleEntity.addEventListener(
+        "animationcomplete__squash",
+        () => {
+          this._updateData("squash", squash);
+        },
+        { once: true }
+      );
+      this.squashScaleEntity.setAttribute("animation__squash", {
+        property: "scale",
+        to: { x: width, y: height, z: width },
+        dur: dur * 0.9,
+        easing: "easeOutQuad",
+      });
+    } else {
+      const { scale } = this.squashScaleEntity.object3D;
+      scale.y = height;
+      scale.x = scale.z = width;
+      this._updateData("squash", squash);
+    }
   },
   setSquashCenter: function (squashCenter) {
     Object.assign({}, this.data.squashCenter, squashCenter);
     //console.log("setSquashCenter", squashCenter);
 
-    this.squashEntity.object3D.position.copy(squashCenter);
+    this.squashPositionEntity.object3D.position.copy(squashCenter);
     this.modelsEntity.object3D.position.copy(squashCenter).negate();
 
     this._updateData("squashCenter", squashCenter);
@@ -623,7 +674,10 @@ AFRAME.registerComponent("power-pet", {
     this._updateData("tiltMax", tiltMax);
     this.setTilt(this.data.tilt);
   },
-  setTilt: function (tilt) {
+  setSquashTiltMax: function (squashTiltMax) {
+    this._updateData("squashTiltMax", squashTiltMax);
+  },
+  setTilt: function (tilt, dur = 0) {
     tilt = Object.assign({}, this.data.tilt, tilt);
     const { tiltMin, tiltMax } = this.data;
 
@@ -631,22 +685,59 @@ AFRAME.registerComponent("power-pet", {
     tilt.y = THREE.MathUtils.clamp(tilt.y, tiltMin.y, tiltMax.y);
     //console.log("setTilt", tilt);
 
-    const roll = tilt.x;
-    const pitch = tilt.y;
+    const roll = this.clampFloatToZero(tilt.x);
+    const pitch = this.clampFloatToZero(tilt.y);
 
-    //console.log({ pitch, roll });
+    // console.log({ roll, pitch, dur });
 
-    const { rotation } = this.squashEntity.object3D;
-    rotation.x = pitch;
-    rotation.z = roll;
+    if (dur > 0) {
+      const pitchDeg = THREE.MathUtils.radToDeg(pitch);
+      const rollDeg = THREE.MathUtils.radToDeg(roll);
+      // console.log({ pitchDeg, rollDeg });
 
-    this._updateData("tilt", tilt);
+      this.squashTiltEntity.removeAttribute("animation__tilt");
+      this.squashTiltEntity.addEventListener(
+        "animationcomplete__tilt",
+        () => {
+          this._updateData("tilt", tilt);
+        },
+        { once: true }
+      );
+      this.squashTiltEntity.setAttribute("animation__tilt", {
+        property: "rotation",
+        to: {
+          x: pitchDeg,
+          y: 0,
+          z: rollDeg,
+        },
+        dur: dur * 0.9,
+        easing: "easeOutQuad",
+      });
+    } else {
+      const { rotation } = this.squashTiltEntity.object3D;
+      rotation.x = pitch;
+      rotation.z = roll;
+      this._updateData("tilt", tilt);
+    }
   },
 
   setShowSquashCollider: function (showSquashCollider) {
     //console.log("setShowSquashCollider", showSquashCollider);
     this.squashColliderEntity.object3D.visible = showSquashCollider;
     this._updateData("showSquashCollider", showSquashCollider);
+  },
+
+  setSquashColliderBuffer: function (squashColliderBuffer) {
+    //console.log("setSquashColliderBuffer", squashColliderBuffer);
+    this._updateData("squashColliderBuffer", squashColliderBuffer);
+  },
+  setSquashRadiusBuffer: function (squashRadiusBuffer) {
+    //console.log("setSquashRadiusBuffer", squashColliderBuffer);
+    this._updateData("squashRadiusBuffer", squashRadiusBuffer);
+  },
+  setSquashRadiusThreshold: function (squashRadiusThreshold) {
+    //console.log("setSquashRadiusThreshold", squashRadiusThreshold);
+    this._updateData("squashRadiusThreshold", squashRadiusThreshold);
   },
 
   setSquashColliderCenter: function (squashColliderCenter) {
@@ -693,47 +784,60 @@ AFRAME.registerComponent("power-pet", {
   },
   _tickSquash: function (time, timeDelta) {
     if (this.getIsInspectorOpen()) {
-      this.squashColliderEntity.components["obb-collider"].tick();
+      this.squashColliderEntity.components["obb-collider"]?.tick(
+        time,
+        timeDelta
+      );
     }
 
+    let newHasSquashControlPoint = false;
     if (this._squashCollidedEntities.length > 0) {
-      this.squashEntity.object3D.getWorldPosition(
+      this.squashCenterEntity.object3D.getWorldPosition(
         this._squashCenterWorldPosition
       );
       let closestDistance = Infinity;
-      this._hasSquashControlPoint = this._squashCollidedEntities.some(
-        (entity) => {
-          entity.components["obb-collider"].obb.clampPoint(
-            this._squashCenterWorldPosition,
-            this._squashColliderTempPosition
-          );
-          this.squashEntity.object3D.worldToLocal(
-            this._squashColliderTempPosition
-          );
-          //console.log(this._squashColliderTempPosition);
-
-          if (this._squashColliderTempPosition.y < 0) {
-            return false;
-          }
-
-          const distance = this._squashColliderTempPosition.distanceTo(
-            this._squashCenterWorldPosition
-          );
-          if (distance < closestDistance) {
-            this._squashColliderClosestPosition.copy(
-              this._squashColliderTempPosition
-            );
-            closestDistance = distance;
-          }
-
-          return true;
+      newHasSquashControlPoint = this._squashCollidedEntities.some((entity) => {
+        if (entity.components["hand-tracking-controls"]) {
+          // FILL - optional skip if grabbing it
         }
-      );
-    } else {
-      this._hasSquashControlPoint = false;
+
+        const { obb } = entity.components["obb-collider"];
+        obb.clampPoint(
+          this._squashCenterWorldPosition,
+          this._squashColliderTempPosition
+        );
+        this._squashColliderTempPosition.addVectors(
+          obb.center,
+          this._squashColliderTempPosition
+            .subVectors(this._squashColliderTempPosition, obb.center)
+            .setLength(obb.halfSize.x)
+        );
+
+        this.squashCenterEntity.object3D.worldToLocal(
+          this._squashColliderTempPosition
+        );
+        //console.log(this._squashColliderTempPosition);
+
+        if (this._squashColliderTempPosition.y < 0) {
+          return false;
+        }
+
+        const distance = this._squashColliderTempPosition.distanceTo(
+          this._squashCenterWorldPosition
+        );
+        if (distance < closestDistance) {
+          this._squashColliderClosestPosition.copy(
+            this._squashColliderTempPosition
+          );
+          closestDistance = distance;
+        }
+
+        return true;
+      });
     }
 
-    if (this._hasSquashControlPoint) {
+    // console.log({ newHasSquashControlPoint });
+    if (newHasSquashControlPoint) {
       this._squashControlPoint.copy(this._squashColliderClosestPosition);
       //console.log(this._squashControlPoint);
 
@@ -745,31 +849,88 @@ AFRAME.registerComponent("power-pet", {
         x: this._squashControlPoint.x,
         y: -this._squashControlPoint.z,
       });
+      const radius = this._squashControlPoint2d.length();
+      const angle2D = this._squashControlPoint2d.angle();
 
       const length = this._squashControlPoint.length();
       const fullLength =
-        this.data.squashColliderSize / 2 - this.data.squashCenter.y;
-      const squash = length / fullLength;
-      const radius = this._squashControlPoint2d.length();
-      const angle = this._squashControlPoint2d.angle();
+        this.data.squashColliderSize / 2 -
+        this.data.squashCenter.y +
+        this.data.squashColliderCenter.y +
+        this.data.squashColliderBuffer;
+      const lengthInterpolation = length / fullLength;
+      let squash = lengthInterpolation;
+      let tilt = { x: 0, y: 0 };
 
-      console.log({ squash, radius, angle });
+      const squashTilt = {
+        x: Math.atan2(-this._squashControlPoint.x, this._squashControlPoint.y),
+        y: Math.atan2(this._squashControlPoint.z, this._squashControlPoint.y),
+      };
+      const overshotTilt =
+        squashTilt.x > this.data.tiltMax.x ||
+        squashTilt.y > this.data.tiltMax.y;
 
-      const useSquash = radius < 0.05;
-      console.log({ useSquash });
-      if (useSquash) {
+      if (true || squash <= 1) {
+        const useNudge = radius > this.data.squashRadiusThreshold;
+        //console.log({ squash, radius, angle2D, useSquash: useNudge });
+
+        if (useNudge) {
+          squash = 1;
+
+          const tiltDirection = angle2D;
+          let radiusInterpolation = THREE.MathUtils.inverseLerp(
+            this.data.squashColliderSize / 2 - this.data.squashRadiusBuffer,
+            this.data.squashRadiusThreshold,
+            radius
+          );
+          radiusInterpolation = THREE.MathUtils.clamp(
+            radiusInterpolation,
+            0,
+            1
+          );
+          let nudgeInterpolation = lengthInterpolation;
+          nudgeInterpolation *= 1.5;
+          const nudgeTilt = {
+            x:
+              nudgeInterpolation *
+              this.data.squashTiltMax.x *
+              radiusInterpolation *
+              Math.cos(tiltDirection),
+            y:
+              nudgeInterpolation *
+              this.data.squashTiltMax.y *
+              radiusInterpolation *
+              Math.sin(tiltDirection),
+          };
+          tilt = nudgeTilt;
+        } else {
+          tilt = squashTilt;
+        }
       }
 
-      this.setSquash(squash);
-
-      // FILL - calculate squash/tilt
-      // FILL - figure animation
-    } else {
-      // FILL - return to default position
+      this.setSquash(squash, this._tickSquashInterval);
+      this.setTilt(tilt, this._tickSquashInterval);
+    } else if (this._hasSquashControlPoint) {
+      this.setSquash(1, this._tickSquashInterval);
+      this.setTilt({ x: 0, y: 0 }, this._tickSquashInterval);
     }
+    this._hasSquashControlPoint = newHasSquashControlPoint;
 
     this.squashControlPointEntity.object3D.visible =
       this.data.showSquashControlPoint && this._hasSquashControlPoint;
+  },
+
+  _tickSquashAnimation: function (time, timeDelta) {
+    if (this.getIsInspectorOpen()) {
+      this.squashScaleEntity.components["animation__squash"]?.tick(
+        time,
+        timeDelta
+      );
+      this.squashTiltEntity.components["animation__tilt"]?.tick(
+        time,
+        timeDelta
+      );
+    }
   },
   // SQUASH END
 });
