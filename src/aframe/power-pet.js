@@ -610,7 +610,7 @@ AFRAME.registerComponent("power-pet", {
     this._squashColliderTempPosition = new THREE.Vector3();
     this._squashColliderClosestPosition = new THREE.Vector3();
 
-    this._tickSquashInterval = 50;
+    this._tickSquashInterval = 40;
     if (this._tickSquashInterval > 0) {
       this._tickSquash = AFRAME.utils.throttleTick(
         this._tickSquash,
@@ -807,8 +807,9 @@ AFRAME.registerComponent("power-pet", {
       this.squashCenterEntity.object3D.getWorldPosition(
         this._squashCenterWorldPosition
       );
+      // console.log(this._squashCenterWorldPosition);
       let closestDistance = Infinity;
-      newHasSquashControlPoint = this._squashCollidedEntities.some((entity) => {
+      this._squashCollidedEntities.forEach((entity, index) => {
         if (entity.components["hand-tracking-grab-controls"]) {
           return;
         }
@@ -828,24 +829,23 @@ AFRAME.registerComponent("power-pet", {
         this.squashCenterEntity.object3D.worldToLocal(
           this._squashColliderTempPosition
         );
-        //console.log(this._squashColliderTempPosition);
+        // console.log(this._squashColliderTempPosition);
 
         if (this._squashColliderTempPosition.y < 0) {
           return;
         }
 
-        const distance = this._squashColliderTempPosition.distanceTo(
-          this._squashCenterWorldPosition
-        );
+        const distance = this._squashColliderTempPosition.length();
+        console.log({ distance, index });
         if (distance < closestDistance) {
           this._squashColliderClosestPosition.copy(
             this._squashColliderTempPosition
           );
           closestDistance = distance;
+          newHasSquashControlPoint = true;
         }
-
-        return true;
       });
+      console.log({ closestDistance });
     }
 
     // console.log({ newHasSquashControlPoint });
