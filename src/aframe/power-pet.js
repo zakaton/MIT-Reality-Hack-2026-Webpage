@@ -45,7 +45,7 @@ AFRAME.registerSystem("power-pet", {
           if (hand == "left") {
             joint = 24 - joint;
           }
-          console.log({ hand, joint });
+          //console.log({ hand, joint });
           const entity = document.createElement("a-entity");
           entity.setAttribute(
             "obb-collider",
@@ -54,7 +54,7 @@ AFRAME.registerSystem("power-pet", {
           component.el.appendChild(entity);
         });
       });
-      console.log("handTrackingControls", this.handTrackingControls);
+      //console.log("handTrackingControls", this.handTrackingControls);
     });
   },
 
@@ -96,12 +96,12 @@ AFRAME.registerSystem("power-pet", {
 
   // COMPONENT START
   _add: function (component) {
-    console.log("_add", component);
+    //console.log("_add", component);
     this.components.push(component);
   },
   _remove: function (component) {
     if (this.components.includes(component)) {
-      console.log("_remove", component);
+      //console.log("_remove", component);
       this.component.splice(this.components.indexOf(component), 1);
     }
   },
@@ -838,6 +838,7 @@ AFRAME.registerComponent("power-pet", {
   _tickSquash: function (time, timeDelta) {
     let newHasSquashControlPoint = false;
     let controlPointColliderIndex;
+    let isNudging = false;
     if (this._squashCollidedEntities.length > 0) {
       this.squashCenterEntity.object3D.getWorldPosition(
         this._squashCenterWorldPosition
@@ -921,11 +922,11 @@ AFRAME.registerComponent("power-pet", {
         squashTilt.y > this.data.tiltMax.y;
 
       if (squash <= 1.03) {
-        let useNudge = radius > this.data.squashRadiusThreshold;
-        useNudge = useNudge || squash <= 0.6;
-        //console.log({ squash, radius, angle2D, useSquash: useNudge });
+        isNudging = radius > this.data.squashRadiusThreshold;
+        isNudging = isNudging || squash <= 0.6;
+        //console.log({ squash, radius, angle2D, useSquash: isNudging });
 
-        if (useNudge) {
+        if (isNudging) {
           squash = 1;
 
           const tiltDirection = angle2D;
@@ -959,12 +960,18 @@ AFRAME.registerComponent("power-pet", {
       squash = THREE.MathUtils.clamp(squash, 0, 1);
     }
 
+    const wasNudging = this._isNudging;
+    this._isNudging = isNudging;
+
     if (
       newHasSquashControlPoint ||
       this._hasSquashControlPoint != newHasSquashControlPoint
     ) {
-      this.setSquash(squash, this._tickSquashInterval);
-      this.setTilt(tilt, this._tickSquashInterval);
+      const interval = newHasSquashControlPoint
+        ? this._tickSquashInterval
+        : 100;
+      this.setSquash(squash, interval);
+      this.setTilt(tilt, interval);
     }
     this._hasSquashControlPoint = newHasSquashControlPoint;
 
@@ -998,7 +1005,7 @@ AFRAME.registerComponent("power-pet", {
       return;
     }
     this._isBeingPet = newIsBeingPet;
-    console.log("isBeingPet", newIsBeingPet);
+    //console.log("isBeingPet", newIsBeingPet);
     this.el.emit("power-pet-isBeingPet", { isBeingPet: this._isBeingPet });
   },
   // PETTING END
