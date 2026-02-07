@@ -121,7 +121,7 @@ AFRAME.registerSystem("power-pet", {
     this.addModel(name, src);
   },
   addModel: function (name, src) {
-    console.log("addModel", name, src);
+    //console.log("addModel", name, src);
     if (this.models[name]) {
       URL.revokeObjectURL(this.models[name]);
       this.models[name] = src;
@@ -138,7 +138,7 @@ AFRAME.registerSystem("power-pet", {
         AFRAME.INSPECTOR.selectEntity(selectedEntity);
       }
     }
-    console.log("models", this.models);
+    //console.log("models", this.models);
     this.el.emit("power-pet-model-added", {
       models: this.models,
       name,
@@ -176,6 +176,7 @@ AFRAME.registerComponent("power-pet", {
     this._initModel();
     this._initSquash();
     this._initPetting();
+    this._initEyes();
     this.system._add(this);
   },
   remove: function () {
@@ -183,8 +184,9 @@ AFRAME.registerComponent("power-pet", {
   },
 
   tick: function (time, timeDelta) {
-    this._tickSquash(time, timeDelta);
-    this._tickSquashAnimation(time, timeDelta);
+    this._tickSquash(...arguments);
+    this._tickSquashAnimation(...arguments);
+    this._tickEyes(...arguments);
   },
 
   // UTILS START
@@ -309,7 +311,7 @@ AFRAME.registerComponent("power-pet", {
     this.modelsEntity.classList.add("models");
   },
   _loadModel: function (name) {
-    console.log("loadModel", name);
+    //console.log("loadModel", name);
     if (!this.system.models[name]) {
       console.log(`no model found for name "${name}"`);
       return;
@@ -1045,4 +1047,13 @@ AFRAME.registerComponent("power-pet", {
     }
   },
   // TURN END
+
+  // EYES START
+  _initEyes: function () {
+    // FILL
+  },
+  _tickEyes: function () {
+    // FILL
+  },
+  // EYES END
 });

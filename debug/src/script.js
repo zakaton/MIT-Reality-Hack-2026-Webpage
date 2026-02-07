@@ -1,7 +1,7 @@
-// AFRAME START
+// SCENE START
 const sceneEntity = document.querySelector("a-scene");
-console.log("sceneEntity", sceneEntity);
-// AFRAME END
+//console.log("sceneEntity", sceneEntity);
+// SCENE END
 
 // INSPECTOR START
 const getIsInspectorOpen = () => {
@@ -166,7 +166,7 @@ powerPetEntity.addEventListener("power-pet-model-loaded", (event) => {
 powerPetEntity.addEventListener("power-pet-model", (event) => {
   const { name, model } = event.detail;
   const { selectedVariants } = model;
-  console.log(event.type, selectedVariants);
+  //console.log("selectedVariants", selectedVariants);
 
   Object.entries(allVariantsContainers).forEach(([_name, container]) => {
     if (_name == name) {
