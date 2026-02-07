@@ -482,10 +482,19 @@ AFRAME.registerComponent("power-pet", {
     );
     const variantSchema = {};
 
+    Object.keys(this.data)
+      .filter((key) => key.startsWith(this._variantPrefix))
+      .forEach((key) => {
+        delete this.data[key];
+        delete this.attrValueProxy[key];
+      });
+
     variantsArray.forEach(([key, oneOf]) => {
       variantSchema[key] = { oneOf };
     });
     this.extendSchema(variantSchema);
+
+    //console.log(this.data);
 
     variantsArray.forEach(([key, oneOf]) => {
       this.selectVariant(key, selectedVariants[key]);
@@ -493,6 +502,9 @@ AFRAME.registerComponent("power-pet", {
     this._flushToDOM();
   },
   selectVariant: function (path, value) {
+    if (value == undefined) {
+      return;
+    }
     //console.log("selectVariant", { path, value });
     if (!this.models[this.selectedName]) {
       console.log("no model selected");
