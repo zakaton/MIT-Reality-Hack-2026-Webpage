@@ -4,12 +4,20 @@ AFRAME.registerComponent("anchorable", {
     this.el.addEventListener("loaded", () => {
       this.el.sceneEl.emit("anchorableEntity", this.el);
     });
+    this.el.addEventListener("grabstarted", this.onGrabStarted.bind(this));
+    this.el.addEventListener("grabended", this.onGrabEnded.bind(this));
+  },
+
+  onGrabStarted: function () {},
+  onGrabEnded: function () {
+    this.el.sceneEl.emit("saveAnchorableTransforms", this.component);
   },
 });
 
 AFRAME.registerComponent("grabbable-anchor", {
   schema: {
     localStorageKey: { type: "string", default: "anchorableTransforms" },
+    autoUpdate: { type: "boolean", default: true },
   },
   dependencies: ["anchored", "grabbable"],
 
@@ -40,6 +48,10 @@ AFRAME.registerComponent("grabbable-anchor", {
       this._updateAnchorableEntity(event.detail);
     });
 
+    this.el.sceneEl.addEventListener("recenter", () => {
+      this._loadRelativeTransforms();
+    });
+
     this.el.sceneEl.addEventListener(
       "enter-vr",
       async () => {
@@ -47,10 +59,20 @@ AFRAME.registerComponent("grabbable-anchor", {
         console.log({ anchorFound });
         if (anchorFound) {
           this._loadRelativeTransforms();
+          this.el.emit("anchorLoaded", {
+            anchor: this.el,
+            relativeTransforms: this._relativeTransforms,
+          });
         }
       },
-      { once: true }
+      { once: !this.data.autoUpdate }
     );
+    this.el.sceneEl.addEventListener("exit-vr", () => {
+      if (this.data.autoUpdate) {
+        this._saveRelativeTransforms();
+      }
+    });
+
     this.el.sceneEl.addEventListener("enter-vr", async () => {
       anchor.setAttribute("visible", "true");
     });
@@ -67,7 +89,14 @@ AFRAME.registerComponent("grabbable-anchor", {
       this.shouldCreateAnchor = true;
     });
 
-    window.addEventListener("beforeunload", this._onBeforeUnload.bind(this));
+    window.addEventListener(
+      "beforeunload",
+      this._saveRelativeTransforms.bind(this)
+    );
+    this.el.sceneEl.addEventListener(
+      "saveAnchorableTransforms",
+      this._saveRelativeTransforms.bind(this)
+    );
   },
 
   deleteAnchor: async function () {
@@ -235,26 +264,28 @@ AFRAME.registerComponent("grabbable-anchor", {
       this._relativeTransforms = this._parseRelativeTransforms(
         relativeTransformsString
       );
-      this._getAnchorableEntities().forEach((entity) => {
-        this._updateAnchorableEntity(entity);
-      });
+      this._updateAnchorableEntities();
     } catch (error) {
       console.error("error parsing petTransform", error);
     }
   },
-  _onBeforeUnload: function () {
-    this._saveRelativeTransforms();
+  _updateAnchorableEntities: function () {
+    this._getAnchorableEntities().forEach((entity) => {
+      this._updateAnchorableEntity(entity);
+    });
   },
   _updateAnchorableEntity: function (entity) {
     if (!this._relativeTransforms?.[entity.id]) {
       //console.log(`no relativeTransform found for anchorableEntity "${entity.id}"`);
       return;
     }
-    const { position, euler, quaternion } = this._relativeTransforms[entity.id];
+    const relativeTransform = this._relativeTransforms[entity.id];
+    const { position, euler, quaternion } = relativeTransform;
     //console.log(`_updateAnchorableEntity "${entity.id}"`, position, euler);
     const { object3D } = entity;
     object3D.position.copy(position);
     object3D.rotation.copy(euler);
+    entity.emit("anchored", { relativeTransform });
   },
   clear: function () {
     localStorage.removeItem(this.data.localStorageKey);

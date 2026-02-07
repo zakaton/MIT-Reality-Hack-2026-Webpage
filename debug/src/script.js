@@ -319,3 +319,17 @@ powerPetEntity.addEventListener("power-pet-squashColliderCenter", (event) => {
   squashColliderCenterYInput.value = squashColliderCenter.y;
 });
 // POWER PET SQUASH END
+
+// POWER PET TURN START
+const turnInput = document.getElementById("turn");
+turnInput.addEventListener("input", () => {
+  const turn = +turnInput.value;
+  // console.log({ turn });
+  powerPetEntity.setAttribute("power-pet", "turn", turn);
+});
+powerPetEntity.addEventListener("power-pet-turn", (event) => {
+  const { turn } = event.detail;
+  //console.log("turn", turn);
+  turnInput.value = turn;
+});
+// POWER PET TURN END

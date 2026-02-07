@@ -168,6 +168,8 @@ AFRAME.registerComponent("power-pet", {
     tiltMin: { type: "vec2", default: "-0.3 -0.3" },
     tiltMax: { type: "vec2", default: "0.3 0.3" },
     squashTiltMax: { type: "vec2", default: "0.3 0.3" },
+
+    turn: { type: "number", default: "0" },
   },
 
   init: function () {
@@ -287,6 +289,9 @@ AFRAME.registerComponent("power-pet", {
             break;
           case "squashColliderCenter":
             this.setSquashColliderCenter(this.data.squashColliderCenter);
+            break;
+          case "turn":
+            this.setTurn(this.data.turn);
             break;
           default:
             console.warn(`uncaught diffKey "${diffKey}"`);
@@ -1009,4 +1014,35 @@ AFRAME.registerComponent("power-pet", {
     this.el.emit("power-pet-isBeingPet", { isBeingPet: this._isBeingPet });
   },
   // PETTING END
+
+  // TURN START
+  setTurn: function (turn, dur = 0) {
+    //turn = THREE.MathUtils.clamp(turn, 0, 1);
+    // console.log("setTurn", turn);
+
+    const yaw = turn;
+
+    if (dur > 0) {
+      this.squashScaleEntity.removeAttribute("animation__turn");
+      this.squashScaleEntity.addEventListener(
+        "animationcomplete__turn",
+        () => {
+          this._updateData("turn", turn);
+        },
+        { once: true }
+      );
+      this.squashScaleEntity.setAttribute("animation__turn", {
+        property: "rotation",
+        to: { x: 0, y: yaw, z: 0 },
+        dur: dur - 0,
+        easing: "linear",
+      });
+    } else {
+      const yawRadians = THREE.MathUtils.degToRad(yaw);
+      const { rotation } = this.squashScaleEntity.object3D;
+      rotation.y = yawRadians;
+      this._updateData("turn", turn);
+    }
+  },
+  // TURN END
 });
