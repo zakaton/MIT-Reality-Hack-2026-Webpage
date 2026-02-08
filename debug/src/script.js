@@ -13,6 +13,14 @@ const toggleInspector = () => {
   } else {
     AFRAME.scenes[0].components.inspector.openInspector();
   }
+  setTimeout(() => {
+    const localTransformCheckbox = document.querySelector(
+      ".local-transform input"
+    );
+    if (getIsInspectorOpen() && !localTransformCheckbox.checked) {
+      localTransformCheckbox.click();
+    }
+  }, 50);
 };
 const openInspectorButton = document.getElementById("openInspector");
 openInspectorButton.addEventListener("click", () => {
@@ -118,7 +126,8 @@ const allVariantsContainers = {};
 
 powerPetEntity.addEventListener("power-pet-model-loaded", (event) => {
   const { name, model } = event.detail;
-  const { variants } = model;
+  const { variantsArray } = model;
+  //console.log("variantsArray", variantsArray);
 
   const variantContainers = {};
 
@@ -128,36 +137,36 @@ powerPetEntity.addEventListener("power-pet-model-loaded", (event) => {
   _variantsContainer.classList.add("variantContainers");
   variantsContainer.appendChild(_variantsContainer);
 
-  Object.entries(variants)
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .forEach(([path, oneOf]) => {
-      /** @type {HTMLElement} */
-      const variantContainer = variantTemplate.content
-        .cloneNode(true)
-        .querySelector(".variant");
+  variantsArray.forEach(([path, oneOf]) => {
+    /** @type {HTMLElement} */
+    const variantContainer = variantTemplate.content
+      .cloneNode(true)
+      .querySelector(".variant");
 
-      variantContainer.dataset.variant = path;
+    variantContainer.dataset.variant = path;
 
-      const pathSpan = variantContainer.querySelector("span.path");
-      pathSpan.innerText = path;
+    const pathSpan = variantContainer.querySelector("span.path");
+    pathSpan.innerText = path;
 
-      const select = variantContainer.querySelector("select");
-      const optgroup = variantContainer.querySelector("optgroup");
+    const select = variantContainer.querySelector("select");
+    const optgroup = variantContainer.querySelector("optgroup");
 
-      variantContainer.select = select;
+    variantContainer.select = select;
 
-      optgroup.label = `select ${path}`;
-      oneOf.forEach((variant) => {
-        optgroup.appendChild(new Option(variant));
-      });
-
-      select.addEventListener("input", () => {
-        powerPetEntity.setAttribute("power-pet", path, select.value);
-      });
-
-      _variantsContainer.appendChild(variantContainer);
-      variantContainers[path] = variantContainer;
+    optgroup.label = `select ${path}`;
+    oneOf.forEach((variant) => {
+      optgroup.appendChild(new Option(variant));
     });
+
+    select.addEventListener("input", () => {
+      const { value } = select;
+      //console.log({ path, value });
+      powerPetEntity.setAttribute("power-pet", `variant-${path}`, value);
+    });
+
+    _variantsContainer.appendChild(variantContainer);
+    variantContainers[path] = variantContainer;
+  });
 
   allVariantContainers[name] = variantContainers;
   allVariantsContainers[name] = _variantsContainer;

@@ -1,1071 +1,1327 @@
-/** @type {import("three")} */
-const THREE = window.THREE;
+{
+  /** @type {import("three")} */
+  const THREE = window.THREE;
 
-AFRAME.registerSystem("power-pet", {
-  getIsInspectorOpen: function () {
-    return AFRAME.INSPECTOR?.opened;
-  },
-  getSelectedInspectorEntity: function () {
-    return this.getIsInspectorOpen() && AFRAME.INSPECTOR?.selectedEntity;
-  },
+  /** @typedef {import("three").Mesh} Mesh */
+  /** @typedef {import("three").Texture} Texture */
 
-  schema: {
-    models: { type: "array" },
-    tickInInspector: { type: "boolean", default: true },
-    handTrackingJoints: {
-      type: "array",
-      default: "8",
+  AFRAME.registerSystem("power-pet", {
+    getIsInspectorOpen: function () {
+      return AFRAME.INSPECTOR?.opened;
     },
-    jointSize: { type: "number", default: "0.025" },
-  },
+    getSelectedInspectorEntity: function () {
+      return this.getIsInspectorOpen() && AFRAME.INSPECTOR?.selectedEntity;
+    },
 
-  init: function () {
-    this.components = [];
-    this.models = {};
+    schema: {
+      models: { type: "array" },
+      tickInInspector: { type: "boolean", default: true },
+      handTrackingJoints: {
+        type: "array",
+        default: "8",
+      },
+      jointSize: { type: "number", default: "0.025" },
+    },
 
-    this.obbColliders;
+    init: function () {
+      this.components = [];
+      this.models = {};
 
-    this.el.addEventListener(
-      "power-pet-add-model-file",
-      this._onAddModelFile.bind(this)
-    );
-    this.el.addEventListener(
-      "power-pet-add-model",
-      this._onAddModel.bind(this)
-    );
+      this.obbColliders;
 
-    this.handTrackingControls = {};
-    this.sceneEl.addEventListener("loaded", () => {
-      this.el.querySelectorAll("[hand-tracking-controls]").forEach((entity) => {
-        const component = entity.components["hand-tracking-controls"];
-        const { hand } = component.data;
-        this.handTrackingControls[hand] = component;
-        const joints = this.data.handTrackingJoints;
-        joints.map(Number).forEach((joint) => {
-          if (hand == "left") {
-            joint = 24 - joint;
-          }
-          //console.log({ hand, joint });
-          const entity = document.createElement("a-entity");
-          entity.setAttribute(
-            "obb-collider",
-            `trackedObject3D: parentEl.components.hand-tracking-controls.bones.${joint}; size: ${this.data.jointSize};`
-          );
-          component.el.appendChild(entity);
-        });
-      });
-      //console.log("handTrackingControls", this.handTrackingControls);
-    });
-  },
-
-  tick: function (time, timeDelta) {
-    if (this.data.tickInInspector && this.getIsInspectorOpen()) {
-      this.sceneEl.systems["obb-collider"].colliderEls.forEach((entity) =>
-        entity.components["obb-collider"].tick(time, timeDelta)
+      this.el.addEventListener(
+        "power-pet-add-model-file",
+        this._onAddModelFile.bind(this)
       );
-      this.components.forEach((component) => component.tick(time, timeDelta));
-    }
-  },
+      this.el.addEventListener(
+        "power-pet-add-model",
+        this._onAddModel.bind(this)
+      );
 
-  update: function (oldData) {
-    const diff = AFRAME.utils.diff(oldData, this.data);
-
-    const diffKeys = Object.keys(diff);
-    //console.log({ diffKeys });
-
-    diffKeys.forEach((diffKey) => {
-      //console.log("update", { [diffKey]: this.data[diffKey] });
-      switch (diffKey) {
-        case "models":
-          this.data.models.forEach((modelSrc) => {
-            this.addModel(modelSrc.replaceAll("#", ""), modelSrc);
+      this.handTrackingControls = {};
+      this.sceneEl.addEventListener("loaded", () => {
+        this.el
+          .querySelectorAll("[hand-tracking-controls]")
+          .forEach((entity) => {
+            const component = entity.components["hand-tracking-controls"];
+            const { hand } = component.data;
+            this.handTrackingControls[hand] = component;
+            const joints = this.data.handTrackingJoints;
+            joints.map(Number).forEach((joint) => {
+              if (hand == "left") {
+                joint = 24 - joint;
+              }
+              //console.log({ hand, joint });
+              const entity = document.createElement("a-entity");
+              entity.setAttribute(
+                "obb-collider",
+                `trackedObject3D: parentEl.components.hand-tracking-controls.bones.${joint}; size: ${this.data.jointSize};`
+              );
+              component.el.appendChild(entity);
+            });
           });
-          break;
-        case "tickInInspector":
-          break;
-        case "handTrackingJoints":
-          break;
-        case "jointSize":
-          break;
-        default:
-          console.warn(`uncaught diffKey "${diffKey}"`);
-          break;
-      }
-    });
-  },
-
-  // COMPONENT START
-  _add: function (component) {
-    //console.log("_add", component);
-    this.components.push(component);
-  },
-  _remove: function (component) {
-    if (this.components.includes(component)) {
-      //console.log("_remove", component);
-      this.component.splice(this.components.indexOf(component), 1);
-    }
-  },
-  // COMPONENT END
-
-  // MODEL START
-  _onAddModelFile: function (event) {
-    const { file } = event.detail;
-    this.addModelFile(file);
-  },
-  addModelFile: function (file) {
-    this.addModel(file.name.split(".")[0], URL.createObjectURL(file));
-  },
-
-  _onAddModel: function (event) {
-    const { name, src } = event.detail;
-    this.addModel(name, src);
-  },
-  addModel: function (name, src) {
-    //console.log("addModel", name, src);
-    if (this.models[name]) {
-      URL.revokeObjectURL(this.models[name]);
-      this.models[name] = src;
-      this.components.forEach((component) => {
-        if (component.data.model == name) {
-          component.selectModel(name);
-        }
+        //console.log("handTrackingControls", this.handTrackingControls);
       });
-    } else {
-      this.models[name] = src;
-      AFRAME.components["power-pet"].schema.model.oneOf.push(name);
-      const selectedEntity = this.getSelectedInspectorEntity();
-      if (selectedEntity?.components?.["power-pet"]) {
-        AFRAME.INSPECTOR.selectEntity(selectedEntity);
+    },
+
+    tick: function (time, timeDelta) {
+      if (this.data.tickInInspector && this.getIsInspectorOpen()) {
+        this.sceneEl.systems["obb-collider"].colliderEls.forEach((entity) =>
+          entity.components["obb-collider"].tick(time, timeDelta)
+        );
+        this.components.forEach((component) => component.tick(time, timeDelta));
       }
-    }
-    //console.log("models", this.models);
-    this.el.emit("power-pet-model-added", {
-      models: this.models,
-      name,
-    });
-  },
-  // MODEL END
-});
+    },
 
-AFRAME.registerComponent("power-pet", {
-  schema: {
-    model: { oneOf: [] },
+    update: function (oldData) {
+      const diff = AFRAME.utils.diff(oldData, this.data);
 
-    squashCenter: { type: "vec3", default: "0 0 0" },
-    squash: { type: "number", default: 1 },
-    squashMax: { type: "vec2", default: "1.15 0.85" },
-    showSquashCenter: { default: false },
+      const diffKeys = Object.keys(diff);
+      //console.log({ diffKeys });
 
-    squashColliderSize: { type: "number", default: "0.2" },
-    squashColliderBuffer: { type: "number", default: "-0.02" },
-    squashColliderCenter: { type: "vec3", default: "0 0.040 0" },
-    showSquashCollider: { default: false },
-    showSquashControlPoint: { default: false },
-    squashRadiusThreshold: { type: "number", default: "0.05" },
-    squashRadiusBuffer: { type: "number", default: "0.01" },
-
-    tilt: { type: "vec2", default: "0 0" },
-    tiltMin: { type: "vec2", default: "-0.3 -0.3" },
-    tiltMax: { type: "vec2", default: "0.3 0.3" },
-    squashTiltMax: { type: "vec2", default: "0.3 0.3" },
-
-    turn: { type: "number", default: "0" },
-  },
-
-  init: function () {
-    this._initModel();
-    this._initSquash();
-    this._initPetting();
-    this._initEyes();
-    this.system._add(this);
-  },
-  remove: function () {
-    this.system._remove(this);
-  },
-
-  tick: function (time, timeDelta) {
-    this._tickSquash(...arguments);
-    this._tickSquashAnimation(...arguments);
-    this._tickEyes(...arguments);
-  },
-
-  // UTILS START
-  clampFloatToZero: function (number) {
-    if (number == -0) {
-      return 0;
-    }
-    return number.toString().includes("e") ? 0 : number;
-  },
-  getIsInspectorOpen: function () {
-    return this.system?.getIsInspectorOpen();
-  },
-  getSelectedInspectorEntity: function () {
-    return this.system?.getSelectedInspectorEntity();
-  },
-  getIsSelectedInInspector: function () {
-    return this.el && this.getSelectedInspectorEntity() == this.el;
-  },
-  _updateData: function (key, value, shouldFlushToDOM = true, detail) {
-    // this.data[key] = value;
-    //this.attrValue[key] = value;
-    this.attrValueProxy[key] = value;
-
-    if (shouldFlushToDOM) {
-      this._flushToDOM();
-    }
-
-    detail = detail ?? { [key]: value };
-    this.el.emit(`power-pet-${key}`, detail);
-  },
-  _flushToDOM: function () {
-    this.el.flushToDOM();
-    if (this.getIsSelectedInInspector()) {
-      AFRAME.INSPECTOR.selectEntity(this.el);
-    }
-  },
-  // UTILS END
-
-  update: function (oldData) {
-    const diff = AFRAME.utils.diff(oldData, this.data);
-
-    const diffKeys = Object.keys(diff);
-
-    //console.log({ diffKeys });
-
-    diffKeys.forEach((diffKey) => {
-      // console.log("update", { [diffKey]: this.data[diffKey] });
-      if (diffKey.startsWith(this._variantPrefix)) {
-        this.selectVariant(diffKey, this.data[diffKey]);
-      } else {
+      diffKeys.forEach((diffKey) => {
+        //console.log("update", { [diffKey]: this.data[diffKey] });
         switch (diffKey) {
-          case "model":
-            if (this.data.model.startsWith("#")) {
-              const model = this.data.model.replaceAll("#", "");
-              this._updateData("model", model);
-              this.system.addModel(model, this.data.model);
-            } else {
-              this.selectModel(this.data.model);
-            }
+          case "models":
+            this.data.models.forEach((modelSrc) => {
+              this.addModel(modelSrc.replaceAll("#", ""), modelSrc);
+            });
             break;
-          case "squash":
-            this.setSquash(this.data.squash);
+          case "tickInInspector":
             break;
-          case "squashRadiusThreshold":
-            this.setSquashRadiusThreshold(this.data.squashRadiusThreshold);
+          case "handTrackingJoints":
             break;
-          case "squashColliderBuffer":
-            this.setSquashColliderBuffer(this.data.squashColliderBuffer);
-            break;
-          case "squashRadiusBuffer":
-            this.setSquashRadiusBuffer(this.data.squashRadiusBuffer);
-            break;
-          case "squashCenter":
-            this.setSquashCenter(this.data.squashCenter);
-            break;
-          case "squashMax":
-            this.setSquashMax(this.data.squashMax);
-            break;
-          case "showSquashCenter":
-            this.setShowSquashCenter(this.data.showSquashCenter);
-            break;
-          case "showSquashControlPoint":
-            this.setShowSquashControlPoint(this.data.showSquashControlPoint);
-            break;
-          case "tilt":
-            this.setTilt(this.data.tilt);
-            break;
-          case "tiltMin":
-            this.setTiltMin(this.data.tiltMin);
-            break;
-          case "tiltMax":
-            this.setTiltMax(this.data.tiltMax);
-            break;
-          case "squashTiltMax":
-            this.setSquashTiltMax(this.data.squashTiltMax);
-            break;
-          case "showSquashCollider":
-            this.setShowSquashCollider(this.data.showSquashCollider);
-            break;
-          case "squashColliderSize":
-            this.setSquashColliderSize(this.data.squashColliderSize);
-            break;
-          case "squashColliderCenter":
-            this.setSquashColliderCenter(this.data.squashColliderCenter);
-            break;
-          case "turn":
-            this.setTurn(this.data.turn);
+          case "jointSize":
             break;
           default:
             console.warn(`uncaught diffKey "${diffKey}"`);
             break;
         }
+      });
+    },
+
+    // COMPONENT START
+    _add: function (component) {
+      //console.log("_add", component);
+      this.components.push(component);
+    },
+    _remove: function (component) {
+      if (this.components.includes(component)) {
+        //console.log("_remove", component);
+        this.component.splice(this.components.indexOf(component), 1);
       }
-    });
-  },
+    },
+    // COMPONENT END
 
-  // MODEL START
-  _initModel: function () {
-    this.models = {};
-    this.modelsEntity = document.createElement("a-entity");
-    this.modelsEntity.setAttribute("rotation", "0 180 0");
-    this.modelsEntity.classList.add("models");
-  },
-  _loadModel: function (name) {
-    //console.log("loadModel", name);
-    if (!this.system.models[name]) {
-      console.log(`no model found for name "${name}"`);
-      return;
-    }
-    if (this.models[name]) {
-      this.models[name].entity.remove();
-      delete this.models[name];
-    }
+    // MODEL START
+    _onAddModelFile: function (event) {
+      const { file } = event.detail;
+      this.addModelFile(file);
+    },
+    addModelFile: function (file) {
+      this.addModel(file.name.split(".")[0], URL.createObjectURL(file));
+    },
 
-    const modelSrc = this.system.models[name];
+    _onAddModel: function (event) {
+      const { name, src } = event.detail;
+      this.addModel(name, src);
+    },
+    addModel: function (name, src) {
+      //console.log("addModel", name, src);
+      if (this.models[name]) {
+        URL.revokeObjectURL(this.models[name]);
+        this.models[name] = src;
+        this.components.forEach((component) => {
+          if (component.data.model == name) {
+            component.selectModel(name);
+          }
+        });
+      } else {
+        this.models[name] = src;
+        AFRAME.components["power-pet"].schema.model.oneOf.push(name);
+        const selectedEntity = this.getSelectedInspectorEntity();
+        if (selectedEntity?.components?.["power-pet"]) {
+          AFRAME.INSPECTOR.selectEntity(selectedEntity);
+        }
+      }
+      //console.log("models", this.models);
+      this.el.emit("power-pet-model-added", {
+        models: this.models,
+        name,
+      });
+    },
+    // MODEL END
+  });
 
-    //console.log("creating new entity");
-    const modelEntity = document.createElement("a-entity");
-    modelEntity.setAttribute("gltf-model", modelSrc);
-    modelEntity.setAttribute("visible", "false");
-    modelEntity.addEventListener("model-loaded", () => {
-      // console.log("model-loaded", modelEntity);
+  AFRAME.registerComponent("power-pet", {
+    schema: {
+      model: { oneOf: [] },
 
-      const root = modelEntity.getObject3D("mesh");
-      if (!root) {
-        console.error("no mesh found in modelEntity");
+      squashCenter: { type: "vec3", default: "0 0 0" },
+      squash: { type: "number", default: 1 },
+      squashMax: { type: "vec2", default: "1.15 0.85" },
+      showSquashCenter: { default: false },
+
+      squashColliderSize: { type: "number", default: "0.2" },
+      squashColliderBuffer: { type: "number", default: "-0.02" },
+      squashColliderCenter: { type: "vec3", default: "0 0.040 0" },
+      showSquashCollider: { default: false },
+      showSquashControlPoint: { default: false },
+      squashRadiusThreshold: { type: "number", default: "0.05" },
+      squashRadiusBuffer: { type: "number", default: "0.01" },
+
+      tilt: { type: "vec2", default: "0 0" },
+      tiltMin: { type: "vec2", default: "-0.3 -0.3" },
+      tiltMax: { type: "vec2", default: "0.3 0.3" },
+      squashTiltMax: { type: "vec2", default: "0.3 0.3" },
+
+      turn: { type: "number", default: "0" },
+
+      pupilName: { type: "string", default: "pupil" },
+      showPupil: { type: "boolean", default: "false" },
+    },
+
+    init: function () {
+      this._initModel();
+      this._initSquash();
+      this._initPetting();
+      this._initPupils();
+      this.system._add(this);
+    },
+    remove: function () {
+      this.system._remove(this);
+    },
+
+    tick: function (time, timeDelta) {
+      this._tickSquash(...arguments);
+      this._tickSquashAnimation(...arguments);
+      this._tickPupils(...arguments);
+    },
+
+    // UTILS START
+    clampFloatToZero: function (number) {
+      if (number == -0) {
+        return 0;
+      }
+      return number.toString().includes("e") ? 0 : number;
+    },
+    getIsInspectorOpen: function () {
+      return this.system?.getIsInspectorOpen();
+    },
+    getSelectedInspectorEntity: function () {
+      return this.system?.getSelectedInspectorEntity();
+    },
+    getIsSelectedInInspector: function () {
+      return this.el && this.getSelectedInspectorEntity() == this.el;
+    },
+    _updateData: function (key, value, shouldFlushToDOM = true, detail) {
+      //this.data[key] = value;
+      //this.attrValue[key] = value;
+      this.attrValueProxy[key] = value;
+
+      if (shouldFlushToDOM) {
+        this._flushToDOM();
+      }
+
+      detail = detail ?? { [key]: value };
+      this.el.emit(`power-pet-${key}`, detail);
+    },
+    _flushToDOM: function () {
+      this.el.flushToDOM();
+      if (this.getIsSelectedInInspector()) {
+        AFRAME.INSPECTOR.selectEntity(this.el);
+      }
+    },
+
+    _walkTree: function (path, tree, filterCallback) {
+      let treeWalker = tree;
+      const segments = path.split(".");
+      const isValid = segments.every((segment) => {
+        if (!treeWalker[segment]) {
+          console.error(
+            `invalid path "${path}" - no segment "${segment}" found`,
+            treeWalker,
+            "in",
+            tree
+          );
+          return false;
+        }
+        if (filterCallback) {
+          if (!filterCallback(treeWalker[segment], treeWalker, segment)) {
+            return false;
+          }
+        }
+        treeWalker = treeWalker[segment];
+        return true;
+      });
+      //console.log("meshTreeWalker", { isValid }, meshTreeWalker);
+      if (isValid) {
+        return treeWalker;
+      }
+    },
+    _traverseTree: function (tree, callback, segments = []) {
+      //console.log("_traverseTree", tree, segments);
+      Object.entries(tree).forEach(([segment, subTree]) => {
+        const _segments = [...segments, segment];
+        const path = _segments.join(".");
+        callback(subTree, path, true);
+        if (!subTree.isLast) {
+          this._traverseTree(subTree, callback, _segments);
+          callback(subTree, path, false);
+        }
+      });
+    },
+    // UTILS END
+
+    update: function (oldData) {
+      const diff = AFRAME.utils.diff(oldData, this.data);
+
+      const diffKeys = Object.keys(diff);
+
+      //console.log({ diffKeys });
+
+      diffKeys.forEach((diffKey) => {
+        //console.log("update", { [diffKey]: this.data[diffKey] });
+        if (diffKey.startsWith(this._variantPrefix)) {
+          this.selectVariant(diffKey, this.data[diffKey]);
+        } else if (diffKey.startsWith(this._pupilOffsetPrefix)) {
+          this.setPupilOffset(diffKey, this.data[diffKey]);
+        } else {
+          switch (diffKey) {
+            case "model":
+              if (this.data.model.startsWith("#")) {
+                const model = this.data.model.replaceAll("#", "");
+                this._updateData("model", model);
+                this.system.addModel(model, this.data.model);
+              } else {
+                this.selectModel(this.data.model);
+              }
+              break;
+            case "squash":
+              this.setSquash(this.data.squash);
+              break;
+            case "squashRadiusThreshold":
+              this.setSquashRadiusThreshold(this.data.squashRadiusThreshold);
+              break;
+            case "squashColliderBuffer":
+              this.setSquashColliderBuffer(this.data.squashColliderBuffer);
+              break;
+            case "squashRadiusBuffer":
+              this.setSquashRadiusBuffer(this.data.squashRadiusBuffer);
+              break;
+            case "squashCenter":
+              this.setSquashCenter(this.data.squashCenter);
+              break;
+            case "squashMax":
+              this.setSquashMax(this.data.squashMax);
+              break;
+            case "showSquashCenter":
+              this.setShowSquashCenter(this.data.showSquashCenter);
+              break;
+            case "showSquashControlPoint":
+              this.setShowSquashControlPoint(this.data.showSquashControlPoint);
+              break;
+            case "tilt":
+              this.setTilt(this.data.tilt);
+              break;
+            case "tiltMin":
+              this.setTiltMin(this.data.tiltMin);
+              break;
+            case "tiltMax":
+              this.setTiltMax(this.data.tiltMax);
+              break;
+            case "squashTiltMax":
+              this.setSquashTiltMax(this.data.squashTiltMax);
+              break;
+            case "showSquashCollider":
+              this.setShowSquashCollider(this.data.showSquashCollider);
+              break;
+            case "squashColliderSize":
+              this.setSquashColliderSize(this.data.squashColliderSize);
+              break;
+            case "squashColliderCenter":
+              this.setSquashColliderCenter(this.data.squashColliderCenter);
+              break;
+            case "turn":
+              this.setTurn(this.data.turn);
+              break;
+            case "pupilName":
+              break;
+            case "showPupil":
+              break;
+            default:
+              console.warn(`uncaught diffKey "${diffKey}"`);
+              break;
+          }
+        }
+      });
+    },
+
+    // MODEL START
+    _initModel: function () {
+      this.models = {};
+      this.modelsEntity = document.createElement("a-entity");
+      this.modelsEntity.setAttribute("rotation", "0 180 0");
+      this.modelsEntity.classList.add("models");
+    },
+    _loadModel: function (name) {
+      //console.log("loadModel", name);
+      if (!this.system.models[name]) {
+        console.log(`no model found for name "${name}"`);
+        return;
+      }
+      if (this.models[name]) {
+        this.models[name].entity.remove();
+        delete this.models[name];
+      }
+
+      const modelSrc = this.system.models[name];
+
+      //console.log("creating new entity");
+      const modelEntity = document.createElement("a-entity");
+      modelEntity.classList.add(name);
+      modelEntity.classList.add("model");
+      modelEntity.setAttribute("gltf-model", modelSrc);
+      modelEntity.setAttribute("visible", "false");
+      modelEntity.addEventListener("model-loaded", () => {
+        // console.log("model-loaded", modelEntity);
+
+        const root = modelEntity.getObject3D("mesh");
+        if (!root) {
+          console.error("no mesh found in modelEntity");
+          return;
+        }
+
+        const meshTree = {};
+        const variants = {}; // "path.to.mesh": ["each", "possible", "variant"]
+        const textures = [];
+        root.traverse((object3D) => {
+          if (!object3D.isMesh) return;
+
+          /** @type {Mesh} */
+          const mesh = object3D;
+
+          const meshPath = mesh.name.split("_");
+          const uvCount = Object.keys(mesh.geometry.attributes).filter((name) =>
+            name.startsWith("uv")
+          ).length;
+          const uvMap = {};
+          const hasMultipleUv = uvCount > 1;
+
+          const path = meshPath.join(".");
+          variants[path] = [];
+          if (hasMultipleUv) {
+            variants[path] = new Array(uvCount).fill(0).map((_, index) => {
+              const uvName =
+                mesh.material.userData[`uv${index == 0 ? "" : index}`];
+              if (uvName) {
+                uvMap[uvName] = index;
+                return uvName;
+              }
+              return index;
+            });
+          }
+
+          //console.log("mesh", meshPath, { uvCount });
+
+          const isPupil = mesh.name.startsWith(this.data.pupilName);
+
+          const onMeshSegment = (meshTree, index = 0) => {
+            const _path = meshPath.slice(0, index + 1).join(".");
+            const segment = meshPath[index];
+            const isLast = index == meshPath.length - 1;
+            if (isLast) {
+              /** @type {Texture} */
+              let texture = mesh.material.map;
+              const meshTreeNode = {
+                mesh,
+                uvCount,
+                hasMultipleUv,
+                uvMap,
+                isLast,
+                isPupil,
+                texture,
+                modelEntity,
+              };
+              meshTree[segment] = meshTreeNode;
+              if (isPupil) {
+                if (textures.includes(texture)) {
+                  //console.log(`duplicate texture found in "${mesh.name}" mesh`);
+                  mesh.material = mesh.material.clone();
+                  mesh.material.map = mesh.material.map.clone();
+                  texture = mesh.material.map;
+                  meshTreeNode.texture = texture;
+                }
+                textures.push(texture);
+                Object.assign(texture.center, { x: 0.5, y: 0.5 });
+                texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+                texture.flipY = true;
+                texture.needsUpdate = true;
+
+                const pupilEntity = document.createElement("a-entity");
+                pupilEntity.setAttribute("visible", this.data.showPupil);
+                const { x, y, z } = mesh.position;
+                pupilEntity.setAttribute("position", [x, y, z].join(" "));
+                pupilEntity.classList.add("pupil");
+                pupilEntity.setAttribute("rotation", "90 0 0");
+
+                const pupilDebugCone = document.createElement("a-cone");
+                pupilDebugCone.setAttribute("color", "yellow");
+                pupilDebugCone.setAttribute("height", "0.01");
+                pupilDebugCone.setAttribute("radius-top", "0");
+                pupilDebugCone.setAttribute("radius-bottom", "0.005");
+                pupilDebugCone.setAttribute("position", "0 0.005 0");
+                pupilEntity.appendChild(pupilDebugCone);
+                modelEntity.appendChild(pupilEntity);
+
+                meshTreeNode.pupilEntity = pupilEntity;
+              }
+            } else {
+              if (!meshTree[segment]) {
+                meshTree[segment] = {};
+              }
+            }
+
+            meshTree = meshTree[segment];
+
+            if (!isLast) {
+              onMeshSegment(meshTree, index + 1);
+
+              const hasMeshChildren =
+                Object.values(meshTree).filter((node) => node.isLast).length >
+                1;
+              if (hasMeshChildren) {
+                variants[_path] = Object.keys(meshTree).sort();
+              }
+            }
+
+            if (index > 0) {
+              const parentPath = meshPath.slice(0, index).join(".");
+              //console.log({ path, _path, parentPath });
+              variants[parentPath] = variants[_path].slice().sort();
+            }
+          };
+          onMeshSegment(meshTree);
+        });
+        //console.log("meshTree", meshTree);
+
+        const pupils = meshTree[this.data.pupilName] ?? {};
+        //console.log("pupils", pupils);
+
+        Object.entries(variants).forEach(([key, oneOf]) => {
+          if (oneOf.length < 2) {
+            delete variants[key];
+          }
+        });
+        //console.log("variants", variants);
+
+        const selectedVariants = {};
+        Object.entries(variants).forEach(([key, oneOf]) => {
+          selectedVariants[key] = oneOf.includes("default")
+            ? "default"
+            : oneOf[0];
+        });
+
+        const pupilOffsets = {};
+        this._traverseTree(pupils, (subtree, path, isHead) => {
+          if (!isHead) {
+            return;
+          }
+          pupilOffsets[path] = { x: 0, y: 0 };
+        });
+        //console.log("pupilOffsets", pupilOffsets);
+
+        const variantsArray = Object.entries(variants).sort((a, b) =>
+          a[0].localeCompare(b[0])
+        );
+        //.map(([key, value]) => [this._variantPrefix + key, value]);
+
+        const pupilOffsetsArray = Object.entries(pupilOffsets).sort((a, b) =>
+          a[0].localeCompare(b[0])
+        );
+        //console.log("pupilOffsetsArray", pupilOffsetsArray);
+
+        const model = {
+          src: modelSrc,
+          entity: modelEntity,
+          meshTree,
+          variants,
+          variantsArray,
+          selectedVariants,
+          pupils,
+          pupilOffsets,
+          pupilOffsetsArray,
+        };
+        // console.log("model", model);
+        this.models[name] = model;
+        this.el.emit("power-pet-model-loaded", {
+          name,
+          model,
+        });
+        this.selectModel(name);
+      });
+      this.modelsEntity.appendChild(modelEntity);
+    },
+    getIsModelSelected: function () {
+      return this.models[this.selectedName];
+    },
+    selectModel: function (newName) {
+      if (!this.system.models[newName]) {
+        console.log(`no model found with name "${newName}"`);
+        return;
+      }
+      if (!this.models[newName]) {
+        this._loadModel(newName);
+        return;
+      }
+      if (this.models[newName].src != this.system.models[newName]) {
+        console.log(`reloading model "${newName}"`);
+        this._loadModel(newName);
+        return;
+      }
+      //console.log("selectModel", { name });
+
+      const previousName = this.selectedName;
+      if (this.models[previousName]) {
+        const { entity } = this.models[previousName];
+        entity.object3D.visible = false;
+      }
+
+      const { entity } = this.models[newName];
+      entity.object3D.visible = true;
+
+      this.selectedName = newName;
+
+      this._updateSchema();
+
+      this._updateData("model", newName, true, {
+        name: newName,
+        model: this.models[newName],
+      });
+    },
+    // MODEL END
+
+    // SCHEMA START
+    _updateSchema: function () {
+      const variantSchema = this._getVariantSchema();
+      const pupilOffsetSchema = this._getPupilOffsetSchema();
+      const extensionSchema = { ...variantSchema, ...pupilOffsetSchema };
+      //console.log("extensionSchema", extensionSchema);
+      this.extendSchema(extensionSchema);
+      this._selectVariants();
+      this._setPupilOffsets();
+      this._flushToDOM();
+    },
+    // SCHEMA END
+
+    // VARIANT START
+    _variantPrefix: "variant-",
+    _getVariants: function () {
+      return this.models[this.selectedName]?.variants ?? {};
+    },
+    _getSelectedVariants: function () {
+      return this.models[this.selectedName]?.selectedVariants ?? {};
+    },
+    _getVariantsArray: function () {
+      return this.models[this.selectedName]?.variantsArray ?? [];
+    },
+    _selectVariants: function () {
+      const selectedVariants = this._getSelectedVariants();
+      const variantsArray = this._getVariantsArray();
+      variantsArray.forEach(([key, oneOf]) => {
+        this.selectVariant(key, selectedVariants[key]);
+      });
+    },
+    _getVariantSchema: function () {
+      // console.log("_getVariantSchema");
+
+      const variantSchema = {};
+      const variantsArray = this._getVariantsArray();
+
+      Object.keys(this.data)
+        .filter((key) => key.startsWith(this._variantPrefix))
+        .forEach((key) => {
+          delete this.data[key];
+          delete this.attrValueProxy[key];
+        });
+
+      variantsArray.forEach(([key, oneOf]) => {
+        variantSchema[this._variantPrefix + key] = { oneOf };
+      });
+
+      return variantSchema;
+    },
+    selectVariant: function (path, value) {
+      if (path.startsWith(this._variantPrefix)) {
+        path = path.replace(this._variantPrefix, "");
+      }
+      if (value == undefined) {
+        return;
+      }
+      // console.log("selectVariant", { path, value });
+      if (!this.getIsModelSelected()) {
+        console.log("no model selected");
         return;
       }
 
-      const meshTree = {};
-      const variants = {}; // "path.to.mesh": ["each", "possible", "variant"]
-      root.traverse((object3D) => {
-        if (!object3D.isMesh) return;
+      const { selectedVariants, meshTree, pupilOffsets } =
+        this.models[this.selectedName];
 
-        /** @type {Mesh} */
-        const mesh = object3D;
+      const node = this._walkTree(
+        path,
+        meshTree,
+        (node, treeWalker, segment) => {
+          if (node.isLast && !node.hasMultipleUv) {
+            console.error(
+              `invalid path "${path}" - no segment "${segment}" found and only 1 uvCount`,
+              treeWalker,
+              "in",
+              meshTree
+            );
+            return false;
+          }
+          return true;
+        }
+      );
+      if (!node) {
+        return;
+      }
+      //console.log("node", node);
 
-        mesh.name = this._variantPrefix + mesh.name;
-
-        const meshPath = mesh.name.split("_");
-        const uvCount = Object.keys(mesh.geometry.attributes).filter((name) =>
-          name.startsWith("uv")
-        ).length;
-        const uvMap = {};
-
-        const variantPath = meshPath.join(".");
-        variants[variantPath] = [];
-        if (uvCount > 1) {
-          variants[variantPath] = new Array(uvCount).fill(0).map((_, index) => {
-            const uvName =
-              mesh.material.userData[`uv${index == 0 ? "" : index}`];
-            if (uvName) {
-              uvMap[uvName] = index;
-              return uvName;
+      if (node.isLast) {
+        let channel = 0;
+        if (isNaN(value)) {
+          channel = node.uvMap[value];
+        } else {
+          channel = +value;
+          Object.entries(node.uvMap).some(([key, _channel]) => {
+            if (_channel == channel) {
+              value = key;
+              return true;
             }
-            return index;
           });
         }
-
-        //console.log("mesh", meshPath, { uvCount });
-
-        const onMeshSegment = (meshTree, index = 0) => {
-          const variantPath = meshPath.slice(0, index + 1).join(".");
-          const segment = meshPath[index];
-          const isLast = index == meshPath.length - 1;
-          if (isLast) {
-            meshTree[segment] = { mesh, uvCount, uvMap, isLast };
-          } else {
-            if (!meshTree[segment]) {
-              meshTree[segment] = {};
-            }
-          }
-
-          meshTree = meshTree[segment];
-
-          if (!isLast) {
-            onMeshSegment(meshTree, index + 1);
-            const hasMeshChildren =
-              Object.values(meshTree).filter((node) => node.isLast).length > 1;
-            if (hasMeshChildren) {
-              variants[variantPath] = Object.keys(meshTree).sort();
-            }
-          }
-
-          if (index > 0) {
-            const parentVariantPath = meshPath.slice(0, index).join(".");
-            //console.log({ variantPath, parentVariantPath });
-            variants[parentVariantPath] = variants[variantPath].slice().sort();
-          }
-        };
-        onMeshSegment(meshTree);
-      });
-      console.log("meshTree", meshTree);
-
-      Object.entries(variants).forEach(([key, oneOf]) => {
-        if (oneOf.length < 2) {
-          delete variants[key];
+        if (channel >= node.uvCount) {
+          console.error(`invalid uv index ${channel}, max ${node.uvCount - 1}`);
+          return;
         }
-      });
-
-      console.log("variants", variants);
-
-      const selectedVariants = {};
-      Object.entries(variants).forEach(([key, oneOf]) => {
-        selectedVariants[key] = oneOf.includes("default")
-          ? "default"
-          : oneOf[0];
-      });
-
-      const model = {
-        src: modelSrc,
-        entity: modelEntity,
-        meshTree,
-        variants,
-        selectedVariants,
-      };
-      this.models[name] = model;
-      this.el.emit("power-pet-model-loaded", {
-        name,
-        model,
-      });
-      this.selectModel(name);
-    });
-    this.modelsEntity.appendChild(modelEntity);
-  },
-  selectModel: function (newName) {
-    if (!this.system.models[newName]) {
-      console.log(`no model found with name "${newName}"`);
-      return;
-    }
-    if (!this.models[newName]) {
-      this._loadModel(newName);
-      return;
-    }
-    if (this.models[newName].src != this.system.models[newName]) {
-      console.log(`reloading model "${newName}"`);
-      this._loadModel(newName);
-      return;
-    }
-    //console.log("selectModel", { name });
-
-    const previousName = this.selectedName;
-    if (this.models[previousName]) {
-      const { entity } = this.models[previousName];
-      entity.object3D.visible = false;
-    }
-
-    const { entity } = this.models[newName];
-    entity.object3D.visible = true;
-
-    this.selectedName = newName;
-    this._updateVariants();
-
-    this._updateData("model", newName, true, {
-      name: newName,
-      model: this.models[newName],
-    });
-  },
-  // MODEL END
-
-  // VARIANT START
-  _variantPrefix: "~",
-  _updateVariants: function () {
-    // console.log("_updateVariants");
-
-    const variants = this.models[this.selectedName]?.variants ?? {};
-    let selectedVariants =
-      this.models[this.selectedName]?.selectedVariants ?? {};
-    selectedVariants = structuredClone(selectedVariants);
-
-    const variantsArray = Object.entries(variants).sort((a, b) =>
-      a[0].localeCompare(b[0])
-    );
-    const variantSchema = {};
-
-    Object.keys(this.data)
-      .filter((key) => key.startsWith(this._variantPrefix))
-      .forEach((key) => {
-        delete this.data[key];
-        delete this.attrValueProxy[key];
-      });
-
-    variantsArray.forEach(([key, oneOf]) => {
-      variantSchema[key] = { oneOf };
-    });
-    this.extendSchema(variantSchema);
-
-    //console.log(this.data);
-
-    variantsArray.forEach(([key, oneOf]) => {
-      this.selectVariant(key, selectedVariants[key]);
-    });
-    this._flushToDOM();
-  },
-  selectVariant: function (path, value) {
-    if (value == undefined) {
-      return;
-    }
-    //console.log("selectVariant", { path, value });
-    if (!this.models[this.selectedName]) {
-      console.log("no model selected");
-      return;
-    }
-    const { meshTree, selectedVariants, uvCount, uvMap } =
-      this.models[this.selectedName];
-
-    let meshTreeWalker = meshTree;
-    const segments = path.split(".");
-    const isValid = !segments.some((segment) => {
-      if (!meshTreeWalker[segment]) {
-        console.error(
-          `invalid path "${path}" - no segment "${segment}" found`,
-          meshTreeWalker,
-          "in",
-          meshTree
-        );
-        return true;
-      }
-      if (
-        meshTreeWalker[segment].isLast &&
-        meshTreeWalker[segment].uvCount == 1
-      ) {
-        console.error(
-          `invalid path "${path}" - segment "${segment}" goes past last segment and has single uv`,
-          meshTreeWalker,
-          "in",
-          meshTree
-        );
-        return true;
-      }
-      meshTreeWalker = meshTreeWalker[segment];
-    });
-    if (!isValid) {
-      return;
-    }
-
-    //console.log("meshTreeWalker", meshTreeWalker);
-
-    if (meshTreeWalker.isLast) {
-      const node = meshTreeWalker;
-      let channel = 0;
-      if (isNaN(value)) {
-        channel = node.uvMap[value];
+        //console.log(`setting uv index to ${channel}`);
+        node.texture.channel = channel;
       } else {
-        channel = +value;
+        const children = Object.entries(node);
+        children.forEach(([name, child]) => {
+          if (child.isLast && isNaN(value)) {
+            const visible = name == value;
+            child.mesh.visible = visible;
+            if (
+              !this._setPupilOffsetWhenInvisible &&
+              visible &&
+              child.isPupil
+            ) {
+              Object.assign(
+                child.texture.offset,
+                pupilOffsets[
+                  [path, name].join(".").replace(this.data.pupilName + ".", "")
+                ]
+              );
+            }
+          } else {
+            this.selectVariant([path, name].join("."), value);
+          }
+        });
       }
-      if (channel >= node.uvCount) {
-        console.error(`invalid uv index ${channel}, max ${node.uvCount - 1}`);
-        return;
+
+      selectedVariants[path] = value;
+      this._updateData(this._variantPrefix + path, value, true);
+      this.el.emit("power-pet-variant", {
+        name: this.selectedName,
+        path,
+        value,
+      });
+    },
+    // VARIANT END
+
+    // SQUASH START
+    _initSquash: function () {
+      this.squashPositionEntity = document.createElement("a-entity");
+      this.squashPositionEntity.classList.add("squashPosition");
+      this.el.appendChild(this.squashPositionEntity);
+
+      this.squashTiltEntity = document.createElement("a-entity");
+      this.squashTiltEntity.classList.add("squashTilt");
+      this.squashPositionEntity.appendChild(this.squashTiltEntity);
+
+      this.squashScaleEntity = document.createElement("a-entity");
+      this.squashScaleEntity.classList.add("squashScale");
+      this.squashScaleEntity.appendChild(this.modelsEntity);
+      this.squashTiltEntity.appendChild(this.squashScaleEntity);
+
+      this.squashCenterEntity = document.createElement("a-entity");
+      this.squashCenterEntity.classList.add("squashCenter");
+      this.squashCenterEntity.setAttribute(
+        "visible",
+        this.data.showSquashCenter
+      );
+      this.squashPositionEntity.appendChild(this.squashCenterEntity);
+
+      this.squashCenterSphere = document.createElement("a-sphere");
+      this.squashCenterSphere.setAttribute("color", "blue");
+      this.squashCenterSphere.setAttribute("radius", "0.005");
+      this.squashCenterSphere.setAttribute(
+        "material",
+        "depthTest: false; depthWrite: false; transparent: true; renderOrder: 999"
+      );
+      this.squashCenterEntity.appendChild(this.squashCenterSphere);
+
+      this.squashControlPointEntity = document.createElement("a-entity");
+      this.squashControlPointEntity.classList.add("squashControlPoint");
+      this.squashControlPointEntity.setAttribute(
+        "visible",
+        this.data.showSquashControlPoint
+      );
+      this.squashCenterEntity.appendChild(this.squashControlPointEntity);
+
+      this.squashControlPointSphere = document.createElement("a-sphere");
+      this.squashControlPointSphere.setAttribute("color", "green");
+      this.squashControlPointSphere.setAttribute("radius", "0.005");
+      this.squashControlPointSphere.setAttribute(
+        "material",
+        "depthTest: false; depthWrite: false; transparent: true; renderOrder: 999"
+      );
+      this.squashControlPointEntity.appendChild(this.squashControlPointSphere);
+
+      const squashColliderSizeString = `${this.data.squashColliderSize} ${this.data.squashColliderSize} ${this.data.squashColliderSize};`;
+      this.squashColliderEntity = document.createElement("a-entity");
+      this.squashColliderEntity.setAttribute(
+        "obb-collider",
+        `size: ${this.data.squashColliderSize};`
+      );
+      this.squashColliderEntity.classList.add("squashCollider");
+      this.squashColliderEntity.setAttribute(
+        "visible",
+        this.data.showSquashCollider
+      );
+      this.el.appendChild(this.squashColliderEntity);
+
+      this.squashColliderBox = document.createElement("a-box");
+      this.squashColliderBox.setAttribute("opacity", "0.1");
+      this.squashColliderBox.setAttribute("color", "red");
+      this.squashColliderBox.setAttribute("scale", squashColliderSizeString);
+      this.squashColliderEntity.appendChild(this.squashColliderBox);
+
+      this.el.addEventListener(
+        "obbcollisionstarted",
+        this.onObbcollisionStarted.bind(this)
+      );
+      this.el.addEventListener(
+        "obbcollisionended",
+        this.onObbCollisionEnded.bind(this)
+      );
+
+      this._squashCollidedEntities = [];
+
+      this._squashCenterWorldPosition = new THREE.Vector3();
+      this._squashControlPoint = new THREE.Vector3();
+      this._squashControlPoint2d = new THREE.Vector2();
+      this._hasSquashControlPoint = false;
+      this._squashColliderTempPosition = new THREE.Vector3();
+      this._squashColliderClosestPosition = new THREE.Vector3();
+
+      this._tickSquashInterval = 40;
+      if (this._tickSquashInterval > 0) {
+        this._tickSquash = AFRAME.utils.throttleTick(
+          this._tickSquash,
+          this._tickSquashInterval,
+          this
+        );
       }
-      console.log(`setting uv index to ${channel}`);
-      node.mesh.material.map.channel = channel;
-    } else {
-      const children = Object.entries(meshTreeWalker);
-      children.forEach(([name, child]) => {
-        if (child.isLast && isNaN(value)) {
-          const visible = name == value;
-          child.mesh.visible = visible;
-        } else {
-          this.selectVariant([segments, name].join("."), value);
-        }
-      });
-    }
-    selectedVariants[path] = value;
-    this._updateData(path, value, false);
-    this.el.emit("power-pet-variant", {
-      name: this.selectedName,
-      path,
-      value,
-    });
-  },
-  // VARIANT END
+    },
+    setSquashMax: function (squashMax) {
+      this._updateData("squashMax", squashMax);
+      this.setSquash(this.data.squash);
+    },
+    setSquash: function (squash, dur = 0) {
+      const { x, y } = this.data.squashMax;
 
-  // SQUASH START
-  _initSquash: function () {
-    this.squashPositionEntity = document.createElement("a-entity");
-    this.squashPositionEntity.classList.add("squashPosition");
-    this.el.appendChild(this.squashPositionEntity);
+      squash = THREE.MathUtils.clamp(squash, y, 1);
+      //console.log("setSquash", squash);
 
-    this.squashTiltEntity = document.createElement("a-entity");
-    this.squashTiltEntity.classList.add("squashTilt");
-    this.squashPositionEntity.appendChild(this.squashTiltEntity);
+      const height = squash;
+      const heightLerp = THREE.MathUtils.inverseLerp(1, y, height);
+      const width = THREE.MathUtils.lerp(1, x, heightLerp);
+      //console.log({ width, height, dur });
 
-    this.squashScaleEntity = document.createElement("a-entity");
-    this.squashScaleEntity.classList.add("squashScale");
-    this.squashScaleEntity.appendChild(this.modelsEntity);
-    this.squashTiltEntity.appendChild(this.squashScaleEntity);
-
-    this.squashCenterEntity = document.createElement("a-entity");
-    this.squashCenterEntity.classList.add("squashCenter");
-    this.squashCenterEntity.setAttribute("visible", this.data.showSquashCenter);
-    this.squashPositionEntity.appendChild(this.squashCenterEntity);
-
-    this.squashCenterSphere = document.createElement("a-sphere");
-    this.squashCenterSphere.setAttribute("color", "blue");
-    this.squashCenterSphere.setAttribute("radius", "0.005");
-    this.squashCenterSphere.setAttribute(
-      "material",
-      "depthTest: false; depthWrite: false; transparent: true; renderOrder: 999"
-    );
-    this.squashCenterEntity.appendChild(this.squashCenterSphere);
-
-    this.squashControlPointEntity = document.createElement("a-entity");
-    this.squashControlPointEntity.classList.add("squashControlPoint");
-    this.squashControlPointEntity.setAttribute(
-      "visible",
-      this.data.showSquashControlPoint
-    );
-    this.squashCenterEntity.appendChild(this.squashControlPointEntity);
-
-    this.squashControlPointSphere = document.createElement("a-sphere");
-    this.squashControlPointSphere.setAttribute("color", "green");
-    this.squashControlPointSphere.setAttribute("radius", "0.005");
-    this.squashControlPointSphere.setAttribute(
-      "material",
-      "depthTest: false; depthWrite: false; transparent: true; renderOrder: 999"
-    );
-    this.squashControlPointEntity.appendChild(this.squashControlPointSphere);
-
-    const squashColliderSizeString = `${this.data.squashColliderSize} ${this.data.squashColliderSize} ${this.data.squashColliderSize};`;
-    this.squashColliderEntity = document.createElement("a-entity");
-    this.squashColliderEntity.setAttribute(
-      "obb-collider",
-      `size: ${this.data.squashColliderSize};`
-    );
-    this.squashColliderEntity.classList.add("squashCollider");
-    this.squashColliderEntity.setAttribute(
-      "visible",
-      this.data.showSquashCollider
-    );
-    this.el.appendChild(this.squashColliderEntity);
-
-    this.squashColliderBox = document.createElement("a-box");
-    this.squashColliderBox.setAttribute("opacity", "0.1");
-    this.squashColliderBox.setAttribute("color", "red");
-    this.squashColliderBox.setAttribute("scale", squashColliderSizeString);
-    this.squashColliderEntity.appendChild(this.squashColliderBox);
-
-    this.el.addEventListener(
-      "obbcollisionstarted",
-      this.onObbcollisionStarted.bind(this)
-    );
-    this.el.addEventListener(
-      "obbcollisionended",
-      this.onObbCollisionEnded.bind(this)
-    );
-
-    this._squashCollidedEntities = [];
-
-    this._squashCenterWorldPosition = new THREE.Vector3();
-    this._squashControlPoint = new THREE.Vector3();
-    this._squashControlPoint2d = new THREE.Vector2();
-    this._hasSquashControlPoint = false;
-    this._squashColliderTempPosition = new THREE.Vector3();
-    this._squashColliderClosestPosition = new THREE.Vector3();
-
-    this._tickSquashInterval = 40;
-    if (this._tickSquashInterval > 0) {
-      this._tickSquash = AFRAME.utils.throttleTick(
-        this._tickSquash,
-        this._tickSquashInterval,
-        this
-      );
-    }
-  },
-  setSquashMax: function (squashMax) {
-    this._updateData("squashMax", squashMax);
-    this.setSquash(this.data.squash);
-  },
-  setSquash: function (squash, dur = 0) {
-    const { x, y } = this.data.squashMax;
-
-    squash = THREE.MathUtils.clamp(squash, y, 1);
-    //console.log("setSquash", squash);
-
-    const height = squash;
-    const heightLerp = THREE.MathUtils.inverseLerp(1, y, height);
-    const width = THREE.MathUtils.lerp(1, x, heightLerp);
-    //console.log({ width, height, dur });
-
-    if (dur > 0) {
-      this.squashScaleEntity.removeAttribute("animation__squash");
-      this.squashScaleEntity.addEventListener(
-        "animationcomplete__squash",
-        () => {
-          this._updateData("squash", squash);
-        },
-        { once: true }
-      );
-      this.squashScaleEntity.setAttribute("animation__squash", {
-        property: "scale",
-        to: { x: width, y: height, z: width },
-        dur: dur - 0,
-        easing: "linear",
-      });
-    } else {
-      const { scale } = this.squashScaleEntity.object3D;
-      scale.y = height;
-      scale.x = scale.z = width;
-      this._updateData("squash", squash);
-    }
-  },
-  setSquashCenter: function (squashCenter) {
-    Object.assign({}, this.data.squashCenter, squashCenter);
-    //console.log("setSquashCenter", squashCenter);
-
-    this.squashPositionEntity.object3D.position.copy(squashCenter);
-    this.modelsEntity.object3D.position.copy(squashCenter).negate();
-
-    this._updateData("squashCenter", squashCenter);
-  },
-  setShowSquashCenter: function (showSquashCenter) {
-    //console.log("setShowSquashCenter", showSquashCenter);
-    this.squashCenterEntity.object3D.visible = showSquashCenter;
-    this._updateData("showSquashCenter", showSquashCenter);
-  },
-  setShowSquashControlPoint: function (showSquashControlPoint) {
-    //console.log("setShowSquashControlPoint", showSquashControlPoint);
-    this.squashControlPointEntity.object3D.visible =
-      this.data.showSquashControlPoint && this._hasSquashControlPoint;
-    this._updateData("showSquashControlPoint", showSquashControlPoint);
-  },
-  setTiltMin: function (tiltMin) {
-    this._updateData("tiltMin", tiltMin);
-    this.setTilt(this.data.tilt);
-  },
-  setTiltMax: function (tiltMax) {
-    this._updateData("tiltMax", tiltMax);
-    this.setTilt(this.data.tilt);
-  },
-  setSquashTiltMax: function (squashTiltMax) {
-    this._updateData("squashTiltMax", squashTiltMax);
-  },
-  setTilt: function (tilt, dur = 0) {
-    tilt = Object.assign({}, this.data.tilt, tilt);
-    const { tiltMin, tiltMax } = this.data;
-
-    tilt.x = THREE.MathUtils.clamp(tilt.x, tiltMin.x, tiltMax.x);
-    tilt.y = THREE.MathUtils.clamp(tilt.y, tiltMin.y, tiltMax.y);
-    //console.log("setTilt", tilt);
-
-    const roll = this.clampFloatToZero(tilt.x);
-    const pitch = this.clampFloatToZero(tilt.y);
-
-    //console.log({ roll, pitch, dur });
-
-    if (dur > 0) {
-      const pitchDeg = this.clampFloatToZero(THREE.MathUtils.radToDeg(pitch));
-      const rollDeg = this.clampFloatToZero(THREE.MathUtils.radToDeg(roll));
-      // console.log(
-      //   { pitchDeg, rollDeg },
-      //   this.squashTiltEntity.object3D.rotation
-      // );
-
-      this.squashTiltEntity.removeAttribute("animation__tilt");
-      this.squashTiltEntity.addEventListener(
-        "animationcomplete__tilt",
-        () => {
-          this._updateData("tilt", tilt);
-        },
-        { once: true }
-      );
-
-      // fix for weird animation issue
-      const { rotation } = this.squashTiltEntity.object3D;
-      rotation.x = this.clampFloatToZero(rotation.x);
-      rotation.y = this.clampFloatToZero(rotation.y);
-      rotation.z = this.clampFloatToZero(rotation.z);
-      this.squashTiltEntity.setAttribute("animation__tilt", {
-        property: "rotation",
-        to: {
-          x: pitchDeg,
-          y: 0,
-          z: rollDeg,
-        },
-        dur: dur - 0,
-        easing: "linear",
-      });
-    } else {
-      const { rotation } = this.squashTiltEntity.object3D;
-      rotation.x = pitch;
-      rotation.z = roll;
-      this._updateData("tilt", tilt);
-    }
-  },
-
-  setShowSquashCollider: function (showSquashCollider) {
-    //console.log("setShowSquashCollider", showSquashCollider);
-    this.squashColliderEntity.object3D.visible = showSquashCollider;
-    this._updateData("showSquashCollider", showSquashCollider);
-  },
-
-  setSquashColliderBuffer: function (squashColliderBuffer) {
-    //console.log("setSquashColliderBuffer", squashColliderBuffer);
-    this._updateData("squashColliderBuffer", squashColliderBuffer);
-  },
-  setSquashRadiusBuffer: function (squashRadiusBuffer) {
-    //console.log("setSquashRadiusBuffer", squashColliderBuffer);
-    this._updateData("squashRadiusBuffer", squashRadiusBuffer);
-  },
-  setSquashRadiusThreshold: function (squashRadiusThreshold) {
-    //console.log("setSquashRadiusThreshold", squashRadiusThreshold);
-    this._updateData("squashRadiusThreshold", squashRadiusThreshold);
-  },
-
-  setSquashColliderCenter: function (squashColliderCenter) {
-    Object.assign({}, this.data.squashColliderCenter, squashColliderCenter);
-    //console.log("setSquashColliderCenter", squashColliderCenter);
-
-    this.squashColliderEntity.object3D.position.copy(squashColliderCenter);
-
-    this._updateData("squashColliderCenter", squashColliderCenter);
-  },
-
-  setSquashColliderSize: function (squashColliderSize) {
-    squashColliderSize = THREE.MathUtils.clamp(squashColliderSize, 0.1, 0.25);
-    //console.log("setSquashColliderSize", squashColliderSize);
-
-    const squashColliderSizeString = `${squashColliderSize} ${squashColliderSize} ${squashColliderSize};`;
-
-    this.squashColliderBox.setAttribute("scale", squashColliderSizeString);
-    this.squashColliderEntity.setAttribute(
-      "obb-collider",
-      `size: ${squashColliderSize};`
-    );
-    if (this.squashColliderEntity.hasLoaded) {
-      this.squashColliderEntity.components["obb-collider"].updateCollider();
-    }
-    this._updateData("squashColliderSize", squashColliderSize);
-  },
-  onObbcollisionStarted: function (event) {
-    const { withEl } = event.detail;
-    //console.log(`started collision with "${withEl.id}"`);
-    if (!this._squashCollidedEntities.includes(withEl)) {
-      this._squashCollidedEntities.push(withEl);
-    }
-  },
-  onObbCollisionEnded: function (event) {
-    const { withEl } = event.detail;
-    //console.log(`ended collision with "${withEl.id}"`);
-    if (this._squashCollidedEntities.includes(withEl)) {
-      this._squashCollidedEntities.splice(
-        this._squashCollidedEntities.indexOf(withEl),
-        1
-      );
-    }
-  },
-  _tickSquash: function (time, timeDelta) {
-    let newHasSquashControlPoint = false;
-    let controlPointColliderIndex;
-    let isNudging = false;
-    if (this._squashCollidedEntities.length > 0) {
-      this.squashCenterEntity.object3D.getWorldPosition(
-        this._squashCenterWorldPosition
-      );
-      // console.log(this._squashCenterWorldPosition);
-      let closestDistance = Infinity;
-      this._squashCollidedEntities.forEach((entity, index) => {
-        if (entity.components["hand-tracking-grab-controls"]) {
-          return;
-        }
-
-        const { obb } = entity.components["obb-collider"];
-        obb.clampPoint(
-          this._squashCenterWorldPosition,
-          this._squashColliderTempPosition
+      if (dur > 0) {
+        this.squashScaleEntity.removeAttribute("animation__squash");
+        this.squashScaleEntity.addEventListener(
+          "animationcomplete__squash",
+          () => {
+            this._updateData("squash", squash);
+          },
+          { once: true }
         );
-        this._squashColliderTempPosition.addVectors(
-          obb.center,
-          this._squashColliderTempPosition
-            .subVectors(this._squashColliderTempPosition, obb.center)
-            .setLength(obb.halfSize.x)
+        this.squashScaleEntity.setAttribute("animation__squash", {
+          property: "scale",
+          to: { x: width, y: height, z: width },
+          dur: dur - 0,
+          easing: "linear",
+        });
+      } else {
+        const { scale } = this.squashScaleEntity.object3D;
+        scale.y = height;
+        scale.x = scale.z = width;
+        this._updateData("squash", squash);
+      }
+    },
+    setSquashCenter: function (squashCenter) {
+      value = Object.assign({}, this.data.squashCenter, squashCenter);
+      //console.log("setSquashCenter", squashCenter);
+
+      this.squashPositionEntity.object3D.position.copy(squashCenter);
+      this.modelsEntity.object3D.position.copy(squashCenter).negate();
+
+      this._updateData("squashCenter", squashCenter);
+    },
+    setShowSquashCenter: function (showSquashCenter) {
+      //console.log("setShowSquashCenter", showSquashCenter);
+      this.squashCenterEntity.object3D.visible = showSquashCenter;
+      this._updateData("showSquashCenter", showSquashCenter);
+    },
+    setShowSquashControlPoint: function (showSquashControlPoint) {
+      //console.log("setShowSquashControlPoint", showSquashControlPoint);
+      this.squashControlPointEntity.object3D.visible =
+        this.data.showSquashControlPoint && this._hasSquashControlPoint;
+      this._updateData("showSquashControlPoint", showSquashControlPoint);
+    },
+    setTiltMin: function (tiltMin) {
+      this._updateData("tiltMin", tiltMin);
+      this.setTilt(this.data.tilt);
+    },
+    setTiltMax: function (tiltMax) {
+      this._updateData("tiltMax", tiltMax);
+      this.setTilt(this.data.tilt);
+    },
+    setSquashTiltMax: function (squashTiltMax) {
+      this._updateData("squashTiltMax", squashTiltMax);
+    },
+    setTilt: function (tilt, dur = 0) {
+      tilt = Object.assign({}, this.data.tilt, tilt);
+      const { tiltMin, tiltMax } = this.data;
+
+      tilt.x = THREE.MathUtils.clamp(tilt.x, tiltMin.x, tiltMax.x);
+      tilt.y = THREE.MathUtils.clamp(tilt.y, tiltMin.y, tiltMax.y);
+      //console.log("setTilt", tilt);
+
+      const roll = this.clampFloatToZero(tilt.x);
+      const pitch = this.clampFloatToZero(tilt.y);
+
+      //console.log({ roll, pitch, dur });
+
+      if (dur > 0) {
+        const pitchDeg = this.clampFloatToZero(THREE.MathUtils.radToDeg(pitch));
+        const rollDeg = this.clampFloatToZero(THREE.MathUtils.radToDeg(roll));
+        // console.log(
+        //   { pitchDeg, rollDeg },
+        //   this.squashTiltEntity.object3D.rotation
+        // );
+
+        this.squashTiltEntity.removeAttribute("animation__tilt");
+        this.squashTiltEntity.addEventListener(
+          "animationcomplete__tilt",
+          () => {
+            this._updateData("tilt", tilt);
+          },
+          { once: true }
         );
 
-        this.squashCenterEntity.object3D.worldToLocal(
-          this._squashColliderTempPosition
+        // fix for weird animation issue
+        const { rotation } = this.squashTiltEntity.object3D;
+        rotation.x = this.clampFloatToZero(rotation.x);
+        rotation.y = this.clampFloatToZero(rotation.y);
+        rotation.z = this.clampFloatToZero(rotation.z);
+        this.squashTiltEntity.setAttribute("animation__tilt", {
+          property: "rotation",
+          to: {
+            x: pitchDeg,
+            y: 0,
+            z: rollDeg,
+          },
+          dur: dur - 0,
+          easing: "linear",
+        });
+      } else {
+        const { rotation } = this.squashTiltEntity.object3D;
+        rotation.x = pitch;
+        rotation.z = roll;
+        this._updateData("tilt", tilt);
+      }
+    },
+
+    setShowSquashCollider: function (showSquashCollider) {
+      //console.log("setShowSquashCollider", showSquashCollider);
+      this.squashColliderEntity.object3D.visible = showSquashCollider;
+      this._updateData("showSquashCollider", showSquashCollider);
+    },
+
+    setSquashColliderBuffer: function (squashColliderBuffer) {
+      //console.log("setSquashColliderBuffer", squashColliderBuffer);
+      this._updateData("squashColliderBuffer", squashColliderBuffer);
+    },
+    setSquashRadiusBuffer: function (squashRadiusBuffer) {
+      //console.log("setSquashRadiusBuffer", squashColliderBuffer);
+      this._updateData("squashRadiusBuffer", squashRadiusBuffer);
+    },
+    setSquashRadiusThreshold: function (squashRadiusThreshold) {
+      //console.log("setSquashRadiusThreshold", squashRadiusThreshold);
+      this._updateData("squashRadiusThreshold", squashRadiusThreshold);
+    },
+
+    setSquashColliderCenter: function (squashColliderCenter) {
+      squashColliderCenter = Object.assign(
+        {},
+        this.data.squashColliderCenter,
+        squashColliderCenter
+      );
+      //console.log("setSquashColliderCenter", squashColliderCenter);
+
+      this.squashColliderEntity.object3D.position.copy(squashColliderCenter);
+
+      this._updateData("squashColliderCenter", squashColliderCenter);
+    },
+
+    setSquashColliderSize: function (squashColliderSize) {
+      squashColliderSize = THREE.MathUtils.clamp(squashColliderSize, 0.1, 0.25);
+      //console.log("setSquashColliderSize", squashColliderSize);
+
+      const squashColliderSizeString = `${squashColliderSize} ${squashColliderSize} ${squashColliderSize};`;
+
+      this.squashColliderBox.setAttribute("scale", squashColliderSizeString);
+      this.squashColliderEntity.setAttribute(
+        "obb-collider",
+        `size: ${squashColliderSize};`
+      );
+      if (this.squashColliderEntity.hasLoaded) {
+        this.squashColliderEntity.components["obb-collider"].updateCollider();
+      }
+      this._updateData("squashColliderSize", squashColliderSize);
+    },
+    onObbcollisionStarted: function (event) {
+      const { withEl } = event.detail;
+      //console.log(`started collision with "${withEl.id}"`);
+      if (!this._squashCollidedEntities.includes(withEl)) {
+        this._squashCollidedEntities.push(withEl);
+      }
+    },
+    onObbCollisionEnded: function (event) {
+      const { withEl } = event.detail;
+      //console.log(`ended collision with "${withEl.id}"`);
+      if (this._squashCollidedEntities.includes(withEl)) {
+        this._squashCollidedEntities.splice(
+          this._squashCollidedEntities.indexOf(withEl),
+          1
         );
-        // console.log(this._squashColliderTempPosition);
+      }
+    },
+    _tickSquash: function (time, timeDelta) {
+      let newHasSquashControlPoint = false;
+      let controlPointColliderIndex;
+      let isNudging = false;
+      if (this._squashCollidedEntities.length > 0) {
+        this.squashCenterEntity.object3D.getWorldPosition(
+          this._squashCenterWorldPosition
+        );
+        // console.log(this._squashCenterWorldPosition);
+        let closestDistance = Infinity;
+        this._squashCollidedEntities.forEach((entity, index) => {
+          if (entity.components["hand-tracking-grab-controls"]) {
+            return;
+          }
 
-        if (this._squashColliderTempPosition.y < 0) {
-          return;
-        }
-
-        const distance = this._squashColliderTempPosition.length();
-        // console.log({ distance, index });
-        if (distance < closestDistance) {
-          this._squashColliderClosestPosition.copy(
+          const { obb } = entity.components["obb-collider"];
+          obb.clampPoint(
+            this._squashCenterWorldPosition,
             this._squashColliderTempPosition
           );
-          closestDistance = distance;
-          newHasSquashControlPoint = true;
-          controlPointColliderIndex = index;
-        }
-      });
-      // console.log({ closestDistance });
-    }
-
-    let squash = 1;
-    let tilt = { x: 0, y: 0 };
-
-    // console.log({ newHasSquashControlPoint });
-    if (newHasSquashControlPoint) {
-      this._squashControlPoint.copy(this._squashColliderClosestPosition);
-      //console.log(this._squashControlPoint);
-
-      this.squashControlPointEntity.object3D.position.copy(
-        this._squashControlPoint
-      );
-
-      this._squashControlPoint2d.copy({
-        x: this._squashControlPoint.x,
-        y: -this._squashControlPoint.z,
-      });
-      const radius = this._squashControlPoint2d.length();
-      const angle2D = this._squashControlPoint2d.angle();
-
-      const length = this._squashControlPoint.length();
-      const fullLength =
-        this.data.squashColliderSize / 2 -
-        this.data.squashCenter.y +
-        this.data.squashColliderCenter.y +
-        this.data.squashColliderBuffer;
-      const lengthInterpolation = length / fullLength;
-      squash = lengthInterpolation;
-
-      const squashTilt = {
-        x: Math.atan2(-this._squashControlPoint.x, this._squashControlPoint.y),
-        y: Math.atan2(this._squashControlPoint.z, this._squashControlPoint.y),
-      };
-      const overshotTilt =
-        squashTilt.x > this.data.tiltMax.x ||
-        squashTilt.y > this.data.tiltMax.y;
-
-      if (squash <= 1.03) {
-        isNudging = radius > this.data.squashRadiusThreshold;
-        isNudging = isNudging || squash <= 0.6;
-        //console.log({ squash, radius, angle2D, useSquash: isNudging });
-
-        if (isNudging) {
-          squash = 1;
-
-          const tiltDirection = angle2D;
-          let radiusInterpolation = THREE.MathUtils.inverseLerp(
-            this.data.squashColliderSize / 2 - this.data.squashRadiusBuffer,
-            0.05,
-            radius
+          this._squashColliderTempPosition.addVectors(
+            obb.center,
+            this._squashColliderTempPosition
+              .subVectors(this._squashColliderTempPosition, obb.center)
+              .setLength(obb.halfSize.x)
           );
-          radiusInterpolation = Math.max(0, radiusInterpolation);
-          let nudgeInterpolation = lengthInterpolation;
-          nudgeInterpolation *= 1;
-          // console.log({ radiusInterpolation, lengthInterpolation });
-          const nudgeTilt = {
-            x:
-              nudgeInterpolation *
-              this.data.squashTiltMax.x *
-              radiusInterpolation *
-              Math.cos(tiltDirection),
-            y:
-              nudgeInterpolation *
-              this.data.squashTiltMax.y *
-              radiusInterpolation *
-              Math.sin(tiltDirection),
-          };
-          // console.log(nudgeTilt);
-          tilt = nudgeTilt;
-        } else {
-          tilt = squashTilt;
-        }
+
+          this.squashCenterEntity.object3D.worldToLocal(
+            this._squashColliderTempPosition
+          );
+          // console.log(this._squashColliderTempPosition);
+
+          if (this._squashColliderTempPosition.y < 0) {
+            return;
+          }
+
+          const distance = this._squashColliderTempPosition.length();
+          // console.log({ distance, index });
+          if (distance < closestDistance) {
+            this._squashColliderClosestPosition.copy(
+              this._squashColliderTempPosition
+            );
+            closestDistance = distance;
+            newHasSquashControlPoint = true;
+            controlPointColliderIndex = index;
+          }
+        });
+        // console.log({ closestDistance });
       }
-      squash = THREE.MathUtils.clamp(squash, 0, 1);
-    }
 
-    const wasNudging = this._isNudging;
-    this._isNudging = isNudging;
+      let squash = 1;
+      let tilt = { x: 0, y: 0 };
 
-    if (
-      newHasSquashControlPoint ||
-      this._hasSquashControlPoint != newHasSquashControlPoint
-    ) {
-      const interval = newHasSquashControlPoint
-        ? this._tickSquashInterval
-        : 100;
-      this.setSquash(squash, interval);
-      this.setTilt(tilt, interval);
-    }
-    this._hasSquashControlPoint = newHasSquashControlPoint;
+      // console.log({ newHasSquashControlPoint });
+      if (newHasSquashControlPoint) {
+        this._squashControlPoint.copy(this._squashColliderClosestPosition);
+        //console.log(this._squashControlPoint);
 
-    this.squashControlPointEntity.object3D.visible =
-      this.data.showSquashControlPoint && this._hasSquashControlPoint;
+        this.squashControlPointEntity.object3D.position.copy(
+          this._squashControlPoint
+        );
 
-    const isBeingPet = squash != 1 || tilt.x != 0 || tilt.y != 0;
-    this._setIsBeingPet(isBeingPet);
-  },
+        this._squashControlPoint2d.copy({
+          x: this._squashControlPoint.x,
+          y: -this._squashControlPoint.z,
+        });
+        const radius = this._squashControlPoint2d.length();
+        const angle2D = this._squashControlPoint2d.angle();
 
-  _tickSquashAnimation: function (time, timeDelta) {
-    if (this.getIsInspectorOpen()) {
-      this.squashScaleEntity.components["animation__squash"]?.tick(
-        time,
-        timeDelta
-      );
-      this.squashTiltEntity.components["animation__tilt"]?.tick(
-        time,
-        timeDelta
-      );
-    }
-  },
-  // SQUASH END
+        const length = this._squashControlPoint.length();
+        const fullLength =
+          this.data.squashColliderSize / 2 -
+          this.data.squashCenter.y +
+          this.data.squashColliderCenter.y +
+          this.data.squashColliderBuffer;
+        const lengthInterpolation = length / fullLength;
+        squash = lengthInterpolation;
 
-  // PETTING START
-  _initPetting: function () {
-    this._isBeingPet = false;
-  },
-  _setIsBeingPet: function (newIsBeingPet) {
-    if (this._isBeingPet == newIsBeingPet) {
-      return;
-    }
-    this._isBeingPet = newIsBeingPet;
-    //console.log("isBeingPet", newIsBeingPet);
-    this.el.emit("power-pet-isBeingPet", { isBeingPet: this._isBeingPet });
-  },
-  // PETTING END
+        const squashTilt = {
+          x: Math.atan2(
+            -this._squashControlPoint.x,
+            this._squashControlPoint.y
+          ),
+          y: Math.atan2(this._squashControlPoint.z, this._squashControlPoint.y),
+        };
+        const overshotTilt =
+          squashTilt.x > this.data.tiltMax.x ||
+          squashTilt.y > this.data.tiltMax.y;
 
-  // TURN START
-  setTurn: function (turn, dur = 0) {
-    //turn = THREE.MathUtils.clamp(turn, 0, 1);
-    // console.log("setTurn", turn);
+        if (squash <= 1.03) {
+          isNudging = radius > this.data.squashRadiusThreshold;
+          isNudging = isNudging || squash <= 0.6;
+          //console.log({ squash, radius, angle2D, useSquash: isNudging });
 
-    const yaw = turn;
+          if (isNudging) {
+            squash = 1;
 
-    if (dur > 0) {
-      this.squashScaleEntity.removeAttribute("animation__turn");
-      this.squashScaleEntity.addEventListener(
-        "animationcomplete__turn",
-        () => {
-          this._updateData("turn", turn);
-        },
-        { once: true }
-      );
-      this.squashScaleEntity.setAttribute("animation__turn", {
-        property: "rotation",
-        to: { x: 0, y: yaw, z: 0 },
-        dur: dur - 0,
-        easing: "linear",
+            const tiltDirection = angle2D;
+            let radiusInterpolation = THREE.MathUtils.inverseLerp(
+              this.data.squashColliderSize / 2 - this.data.squashRadiusBuffer,
+              0.05,
+              radius
+            );
+            radiusInterpolation = Math.max(0, radiusInterpolation);
+            let nudgeInterpolation = lengthInterpolation;
+            nudgeInterpolation *= 1;
+            // console.log({ radiusInterpolation, lengthInterpolation });
+            const nudgeTilt = {
+              x:
+                nudgeInterpolation *
+                this.data.squashTiltMax.x *
+                radiusInterpolation *
+                Math.cos(tiltDirection),
+              y:
+                nudgeInterpolation *
+                this.data.squashTiltMax.y *
+                radiusInterpolation *
+                Math.sin(tiltDirection),
+            };
+            // console.log(nudgeTilt);
+            tilt = nudgeTilt;
+          } else {
+            tilt = squashTilt;
+          }
+        }
+        squash = THREE.MathUtils.clamp(squash, 0, 1);
+      }
+
+      const wasNudging = this._isNudging;
+      this._isNudging = isNudging;
+
+      if (
+        newHasSquashControlPoint ||
+        this._hasSquashControlPoint != newHasSquashControlPoint
+      ) {
+        const interval = newHasSquashControlPoint
+          ? this._tickSquashInterval
+          : 100;
+        this.setSquash(squash, interval);
+        this.setTilt(tilt, interval);
+      }
+      this._hasSquashControlPoint = newHasSquashControlPoint;
+
+      this.squashControlPointEntity.object3D.visible =
+        this.data.showSquashControlPoint && this._hasSquashControlPoint;
+
+      const isBeingPet = squash != 1 || tilt.x != 0 || tilt.y != 0;
+      this._setIsBeingPet(isBeingPet);
+    },
+
+    _tickSquashAnimation: function (time, timeDelta) {
+      if (this.getIsInspectorOpen()) {
+        this.squashScaleEntity.components["animation__squash"]?.tick(
+          time,
+          timeDelta
+        );
+        this.squashTiltEntity.components["animation__tilt"]?.tick(
+          time,
+          timeDelta
+        );
+      }
+    },
+    // SQUASH END
+
+    // PETTING START
+    _initPetting: function () {
+      this._isBeingPet = false;
+    },
+    _setIsBeingPet: function (newIsBeingPet) {
+      if (this._isBeingPet == newIsBeingPet) {
+        return;
+      }
+      this._isBeingPet = newIsBeingPet;
+      //console.log("isBeingPet", newIsBeingPet);
+      this.el.emit("power-pet-isBeingPet", { isBeingPet: this._isBeingPet });
+    },
+    // PETTING END
+
+    // TURN START
+    setTurn: function (turn, dur = 0) {
+      turn = THREE.MathUtils.clamp(turn, -180, 180);
+      // console.log("setTurn", turn);
+
+      const yaw = turn;
+
+      if (dur > 0) {
+        this.squashScaleEntity.removeAttribute("animation__turn");
+        this.squashScaleEntity.addEventListener(
+          "animationcomplete__turn",
+          () => {
+            this._updateData("turn", turn);
+          },
+          { once: true }
+        );
+        this.squashScaleEntity.setAttribute("animation__turn", {
+          property: "rotation",
+          to: { x: 0, y: yaw, z: 0 },
+          dur: dur - 0,
+          easing: "linear",
+        });
+      } else {
+        const yawRadians = THREE.MathUtils.degToRad(yaw);
+        const { rotation } = this.squashScaleEntity.object3D;
+        rotation.y = yawRadians;
+        this._updateData("turn", turn);
+      }
+    },
+    // TURN END
+
+    // PUPILS START
+    _pupilOffsetPrefix: "pupil-",
+    _getPupils: function () {
+      return this.models[this.selectedName]?.pupils ?? {};
+    },
+    _getPupilOffsets: function () {
+      return this.models[this.selectedName]?.pupilOffsets ?? {};
+    },
+    _getPupilOffsetsArray: function () {
+      return this.models[this.selectedName]?.pupilOffsetsArray ?? [];
+    },
+    _setPupilOffsets: function () {
+      const pupilOffsetsArray = structuredClone(this._getPupilOffsetsArray());
+      pupilOffsetsArray.forEach(([key, offset]) => {
+        this.setPupilOffset(key, offset);
       });
-    } else {
-      const yawRadians = THREE.MathUtils.degToRad(yaw);
-      const { rotation } = this.squashScaleEntity.object3D;
-      rotation.y = yawRadians;
-      this._updateData("turn", turn);
-    }
-  },
-  // TURN END
+    },
+    _getPupilOffsetSchema: function () {
+      // console.log("_getPupilOffsetSchema");
 
-  // EYES START
-  _initEyes: function () {
-    // FILL
-  },
-  _tickEyes: function () {
-    // FILL
-  },
-  // EYES END
-});
+      const pupilOffsetSchema = {};
+      const pupilOffsetsArray = this._getPupilOffsetsArray();
+
+      Object.keys(this.data)
+        .filter((key) => key.startsWith(this._pupilOffsetPrefix))
+        .forEach((key) => {
+          delete this.data[key];
+          delete this.attrValueProxy[key];
+        });
+
+      pupilOffsetsArray.forEach(([key, offset]) => {
+        pupilOffsetSchema[this._pupilOffsetPrefix + key] = {
+          type: "vec2",
+          default: { x: 0, y: 0 },
+        };
+      });
+
+      return pupilOffsetSchema;
+    },
+    _setPupilOffsetWhenInvisible: false,
+    setPupilOffset: function (path, value) {
+      if (path.startsWith(this._pupilOffsetPrefix)) {
+        path = path.replace(this._pupilOffsetPrefix, "");
+      }
+      if (path.startsWith(this.data.pupilName)) {
+        path = path.replace(this.data.pupilName + ".", "");
+      }
+      if (value == undefined) {
+        return;
+      }
+      value = Object.assign(
+        {},
+        this.data[this._pupilOffsetPrefix + path],
+        value
+      );
+      //console.log("setPupilOffset", path, value);
+      if (!this.getIsModelSelected()) {
+        console.log("no model selected");
+        return;
+      }
+
+      const { pupils, pupilOffsets } = this.models[this.selectedName];
+
+      const node = this._walkTree(path, pupils);
+      if (!node) {
+        return;
+      }
+      //console.log("node", node);
+
+      if (node.isLast && node.isPupil) {
+        if (this._setPupilOffsetWhenInvisible || node.mesh.visible) {
+          //console.log("setting pupilOffset", node.mesh.name, value);
+          Object.assign(node.texture.offset, value);
+        }
+      } else {
+        const children = Object.entries(node);
+        children.forEach(([name, childNode]) => {
+          this.setPupilOffset([path, name].join("."), value);
+        });
+      }
+
+      Object.assign(pupilOffsets[path], value);
+      this._updateData(this._pupilOffsetPrefix + path, value, true);
+      this.el.emit("power-pet-pupilOffset", {
+        name: this.selectedName,
+        path,
+        value,
+      });
+    },
+    _initPupils: function () {},
+    _tickPupils: function (time, timeDelta) {},
+    // PUPILS END
+  });
+}
