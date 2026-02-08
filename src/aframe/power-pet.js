@@ -18,9 +18,9 @@
       tickInInspector: { type: "boolean", default: true },
       handTrackingJoints: {
         type: "array",
-        default: "8",
+        default: [8],
       },
-      jointSize: { type: "number", default: "0.025" },
+      jointSize: { type: "number", default: 0.025 },
     },
 
     init: function () {
@@ -157,28 +157,28 @@
     schema: {
       model: { oneOf: [] },
 
-      squashCenter: { type: "vec3", default: "0 0 0" },
+      squashCenter: { type: "vec3", default: { x: 0, y: 0, z: 0 } },
       squash: { type: "number", default: 1 },
-      squashMax: { type: "vec2", default: "1.15 0.85" },
+      squashMax: { type: "vec2", default: { x: 1.15, y: 0.85 } },
       showSquashCenter: { default: false },
 
-      squashColliderSize: { type: "number", default: "0.2" },
-      squashColliderBuffer: { type: "number", default: "-0.02" },
-      squashColliderCenter: { type: "vec3", default: "0 0.040 0" },
+      squashColliderSize: { type: "number", default: 0.2 },
+      squashColliderBuffer: { type: "number", default: -0.02 },
+      squashColliderCenter: { type: "vec3", default: { x: 0, y: 0.04, z: 0 } },
       showSquashCollider: { default: false },
       showSquashControlPoint: { default: false },
-      squashRadiusThreshold: { type: "number", default: "0.05" },
-      squashRadiusBuffer: { type: "number", default: "0.01" },
+      squashRadiusThreshold: { type: "number", default: 0.05 },
+      squashRadiusBuffer: { type: "number", default: 0.01 },
 
-      tilt: { type: "vec2", default: "0 0" },
-      tiltMin: { type: "vec2", default: "-0.3 -0.3" },
-      tiltMax: { type: "vec2", default: "0.3 0.3" },
-      squashTiltMax: { type: "vec2", default: "0.3 0.3" },
+      tilt: { type: "vec2", default: { x: 0, y: 0 } },
+      tiltMin: { type: "vec2", default: { x: -0.3, y: -0.3 } },
+      tiltMax: { type: "vec2", default: { x: 0.3, y: 0.3 } },
+      squashTiltMax: { type: "vec2", default: { x: 0.3, y: 0.3 } },
 
-      turn: { type: "number", default: "0" },
+      turn: { type: "number", default: 0 },
 
       pupilName: { type: "string", default: "pupil" },
-      showPupil: { type: "boolean", default: "false" },
+      showPupil: { type: "boolean", default: false },
     },
 
     init: function () {
@@ -264,8 +264,8 @@
       Object.entries(tree).forEach(([segment, subTree]) => {
         const _segments = [...segments, segment];
         const path = _segments.join(".");
-        callback(subTree, path, true);
-        if (!subTree.isLast) {
+        const _continue = callback(subTree, path, true);
+        if (_continue && !subTree.isLast) {
           this._traverseTree(subTree, callback, _segments);
           callback(subTree, path, false);
         }
@@ -455,7 +455,9 @@
                 textures.push(texture);
                 Object.assign(texture.center, { x: 0.5, y: 0.5 });
                 texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-                texture.flipY = true;
+                const isUVMirrored = texture.userData.isUVMirrored;
+                // console.log({ isUVMirrored });
+                meshTreeNode.isUVMirrored = isUVMirrored;
                 texture.needsUpdate = true;
 
                 const pupilEntity = document.createElement("a-entity");
@@ -528,6 +530,8 @@
             return;
           }
           pupilOffsets[path] = { x: 0, y: 0 };
+          const children = Object.values(subtree);
+          return true;
         });
         //console.log("pupilOffsets", pupilOffsets);
 
@@ -615,7 +619,7 @@
     // SCHEMA END
 
     // VARIANT START
-    _variantPrefix: "variant-",
+    _variantPrefix: "variant_",
     _getVariants: function () {
       return this.models[this.selectedName]?.variants ?? {};
     },
@@ -642,6 +646,7 @@
         .filter((key) => key.startsWith(this._variantPrefix))
         .forEach((key) => {
           delete this.data[key];
+          delete this.attrValue[key];
           delete this.attrValueProxy[key];
         });
 
@@ -718,12 +723,15 @@
               visible &&
               child.isPupil
             ) {
-              Object.assign(
-                child.texture.offset,
+              const { texture, isUVMirrored } = child;
+              texture.offset.copy(
                 pupilOffsets[
                   [path, name].join(".").replace(this.data.pupilName + ".", "")
                 ]
               );
+              if (isUVMirrored) {
+                texture.offset.x *= -1;
+              }
             }
           } else {
             this.selectVariant([path, name].join("."), value);
@@ -732,7 +740,7 @@
       }
 
       selectedVariants[path] = value;
-      this._updateData(this._variantPrefix + path, value, true);
+      this._updateData(this._variantPrefix + path, value, false);
       this.el.emit("power-pet-variant", {
         name: this.selectedName,
         path,
@@ -769,7 +777,7 @@
       this.squashCenterSphere.setAttribute("radius", "0.005");
       this.squashCenterSphere.setAttribute(
         "material",
-        "depthTest: false; depthWrite: false; transparent: true; renderOrder: 999"
+        "depthTest: false; depthWrite: false; transparent: true;"
       );
       this.squashCenterEntity.appendChild(this.squashCenterSphere);
 
@@ -786,7 +794,7 @@
       this.squashControlPointSphere.setAttribute("radius", "0.005");
       this.squashControlPointSphere.setAttribute(
         "material",
-        "depthTest: false; depthWrite: false; transparent: true; renderOrder: 999"
+        "depthTest: false; depthWrite: false; transparent: true;"
       );
       this.squashControlPointEntity.appendChild(this.squashControlPointSphere);
 
@@ -1232,7 +1240,7 @@
     // TURN END
 
     // PUPILS START
-    _pupilOffsetPrefix: "pupil-",
+    _pupilOffsetPrefix: "pupil_",
     _getPupils: function () {
       return this.models[this.selectedName]?.pupils ?? {};
     },
@@ -1258,10 +1266,21 @@
         .filter((key) => key.startsWith(this._pupilOffsetPrefix))
         .forEach((key) => {
           delete this.data[key];
+          delete this.attrValue[key];
           delete this.attrValueProxy[key];
         });
 
       pupilOffsetsArray.forEach(([key, offset]) => {
+        const segments = key.split(".");
+        if (segments.length > 1) {
+          const parentPath = segments.slice(0, -1).join(".");
+          const siblingCount =
+            pupilOffsetsArray.filter(([key, _]) => key.startsWith(parentPath))
+              .length - 1;
+          if (siblingCount == 1) {
+            return;
+          }
+        }
         pupilOffsetSchema[this._pupilOffsetPrefix + key] = {
           type: "vec2",
           default: { x: 0, y: 0 },
@@ -1302,8 +1321,12 @@
 
       if (node.isLast && node.isPupil) {
         if (this._setPupilOffsetWhenInvisible || node.mesh.visible) {
+          const { texture, isUVMirrored } = node;
           //console.log("setting pupilOffset", node.mesh.name, value);
-          Object.assign(node.texture.offset, value);
+          texture.offset.copy(value);
+          if (isUVMirrored) {
+            texture.offset.x *= -1;
+          }
         }
       } else {
         const children = Object.entries(node);
@@ -1313,12 +1336,15 @@
       }
 
       Object.assign(pupilOffsets[path], value);
-      this._updateData(this._pupilOffsetPrefix + path, value, true);
-      this.el.emit("power-pet-pupilOffset", {
-        name: this.selectedName,
-        path,
-        value,
-      });
+      const dataPath = this._pupilOffsetPrefix + path;
+      if (dataPath in this.schema) {
+        this._updateData(dataPath, value, false);
+        this.el.emit("power-pet-pupilOffset", {
+          name: this.selectedName,
+          path,
+          value,
+        });
+      }
     },
     _initPupils: function () {},
     _tickPupils: function (time, timeDelta) {},

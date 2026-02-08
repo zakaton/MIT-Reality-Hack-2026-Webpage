@@ -161,7 +161,7 @@ powerPetEntity.addEventListener("power-pet-model-loaded", (event) => {
     select.addEventListener("input", () => {
       const { value } = select;
       //console.log({ path, value });
-      powerPetEntity.setAttribute("power-pet", `variant-${path}`, value);
+      powerPetEntity.setAttribute("power-pet", `variant_${path}`, value);
     });
 
     _variantsContainer.appendChild(variantContainer);
@@ -174,7 +174,7 @@ powerPetEntity.addEventListener("power-pet-model-loaded", (event) => {
 
 powerPetEntity.addEventListener("power-pet-model", (event) => {
   const { name, model } = event.detail;
-  const { selectedVariants } = model;
+  const { variantsArray, selectedVariants } = model;
   //console.log("selectedVariants", selectedVariants);
 
   Object.entries(allVariantsContainers).forEach(([_name, container]) => {
@@ -188,6 +188,12 @@ powerPetEntity.addEventListener("power-pet-model", (event) => {
   Object.entries(selectedVariants).forEach(([path, value]) => {
     allVariantContainers[name][path].select.value = value;
   });
+
+  if (variantsArray.length > 0) {
+    variantsContainer.classList.remove("hidden");
+  } else {
+    variantsContainer.classList.add("hidden");
+  }
 });
 powerPetEntity.addEventListener("power-pet-variant", (event) => {
   const { name, path, value } = event.detail;
