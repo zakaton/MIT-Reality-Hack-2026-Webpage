@@ -455,8 +455,8 @@
                 textures.push(texture);
                 Object.assign(texture.center, { x: 0.5, y: 0.5 });
                 texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-                const isUVMirrored = texture.userData.isUVMirrored;
-                // console.log({ isUVMirrored });
+                const isUVMirrored = mesh.material.userData.isUVMirrored;
+                //console.log({ isUVMirrored });
                 meshTreeNode.isUVMirrored = isUVMirrored;
                 texture.needsUpdate = true;
 
