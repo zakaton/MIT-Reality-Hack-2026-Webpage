@@ -1347,6 +1347,66 @@
     _getPupils: function () {
       return this.models[this.selectedName]?.pupils ?? {};
     },
+    _setPupilPropertyWhenInvisible: true,
+    _setPupilProperty: function (path, value, callback, options) {
+      const { prefix, values, eventName, defaultValue, clamp } = options;
+      path = path ?? "";
+      if (path.startsWith(prefix)) {
+        path = path.replace(prefix, "");
+      }
+      if (path.startsWith(this.data.pupilName)) {
+        path = path.replace(this.data.pupilName + ".", "");
+      }
+      if (path.startsWith(".")) {
+        path = path.replace(".", "");
+      }
+      value = value ?? defaultValue;
+      if (clamp) {
+        value = clamp(value);
+      }
+      //console.log("_setPupilProperty", path, value, { prefix });
+      if (!this.getIsModelSelected()) {
+        console.log("no model selected");
+        return;
+      }
+
+      const { pupils } = this.models[this.selectedName];
+
+      const node = this._walkTree(path, pupils);
+      if (!node) {
+        return;
+      }
+      //console.log("node", node);
+
+      if (node.isLast && node.isPupil) {
+        if (this._setPupilPropertyWhenInvisible || node.mesh.visible) {
+          callback(node);
+        }
+      } else {
+        const children = Object.entries(node);
+        children.forEach(([name, childNode]) => {
+          this._setPupilProperty(
+            [path, name].join("."),
+            value,
+            callback,
+            options
+          );
+        });
+      }
+
+      if (path in values) {
+        Object.assign(values[path], value);
+      }
+      const dataPath = prefix + path;
+      if (dataPath in this.schema) {
+        this._updateData(dataPath, value, false);
+        this.el.emit(`power-pet-${eventName}`, {
+          name: this.selectedName,
+          path,
+          value,
+        });
+      }
+    },
     _initPupils: function () {},
     _tickPupils: function (time, timeDelta) {},
     // PUPILS END
@@ -1392,70 +1452,24 @@
     },
     _setPupilOffsetWhenInvisible: false,
     setPupilOffset: function (path, value) {
-      if (path.startsWith(this._pupilOffsetPrefix)) {
-        path = path.replace(this._pupilOffsetPrefix, "");
-      }
-      if (path.startsWith(this.data.pupilName)) {
-        path = path.replace(this.data.pupilName + ".", "");
-      }
-      if (path.startsWith(".")) {
-        path = path.replace(".", "");
-      }
-      if (value == undefined) {
-        return;
-      }
-      value = Object.assign(
-        {},
-        this.data[this._pupilOffsetPrefix + path],
-        value
-      );
-      value.x = THREE.MathUtils.clamp(value.x, -1, 1);
-      value.y = THREE.MathUtils.clamp(value.y, -1, 1);
-      //console.log("setPupilOffset", path, value);
-      if (!this.getIsModelSelected()) {
-        console.log("no model selected");
-        return;
-      }
-
-      const { pupils, pupilOffsets } = this.models[this.selectedName];
-
-      if (!this._includeNullPathInPupilSchema && path == "") {
-        return;
-      }
-      const node = this._walkTree(path, pupils);
-      if (!node) {
-        return;
-      }
-      //console.log("node", node);
-
-      if (node.isLast && node.isPupil) {
-        if (this._setPupilOffsetWhenInvisible || node.mesh.visible) {
+      this._setPupilProperty(
+        path,
+        value,
+        (node) => {
           const { texture, isUVMirrored } = node;
           //console.log("setting pupilOffset", node.mesh.name, value);
           texture.offset.copy(value);
           if (isUVMirrored) {
             texture.offset.x *= -1;
           }
+        },
+        {
+          prefix: this._pupilOffsetPrefix,
+          eventName: "pupilOffset",
+          values: this._getPupilOffsets(),
+          defaultValue: { x: 0, y: 0 },
         }
-      } else {
-        const children = Object.entries(node);
-        children.forEach(([name, childNode]) => {
-          this.setPupilOffset([path, name].join("."), value);
-        });
-      }
-
-      if (path in pupilOffsets) {
-        Object.assign(pupilOffsets[path], value);
-      }
-      const dataPath = this._pupilOffsetPrefix + path;
-      if (dataPath in this.schema) {
-        this._updateData(dataPath, value, false);
-        this.el.emit("power-pet-pupilOffset", {
-          name: this.selectedName,
-          path,
-          value,
-        });
-      }
+      );
     },
     // PUPIL OFFSETS END
 
@@ -1500,42 +1514,10 @@
     },
     _setPupilScaleWhenInvisible: false,
     setPupilScale: function (path, value) {
-      if (path.startsWith(this._pupilScalePrefix)) {
-        path = path.replace(this._pupilScalePrefix, "");
-      }
-      if (path.startsWith(this.data.pupilName)) {
-        path = path.replace(this.data.pupilName + ".", "");
-      }
-      if (path.startsWith(".")) {
-        path = path.replace(".", "");
-      }
-      if (value == undefined) {
-        return;
-      }
-      value = Object.assign(
-        {},
-        this.data[this._pupilScalePrefix + path],
-        value
-      );
-      //console.log("setPupilScale", path, value);
-      if (!this.getIsModelSelected()) {
-        console.log("no model selected");
-        return;
-      }
-
-      const { pupils, pupilScales } = this.models[this.selectedName];
-
-      if (!this._includeNullPathInPupilSchema && path == "") {
-        return;
-      }
-      const node = this._walkTree(path, pupils);
-      if (!node) {
-        return;
-      }
-      //console.log("node", node);
-
-      if (node.isLast && node.isPupil) {
-        if (this._setPupilScaleWhenInvisible || node.mesh.visible) {
+      this._setPupilProperty(
+        path,
+        value,
+        (node) => {
           const { texture } = node;
           //console.log("setting pupilScale", node.mesh.name, value);
           if (this._invertPupilScale) {
@@ -1543,26 +1525,14 @@
           } else {
             texture.repeat.copy(value);
           }
+        },
+        {
+          prefix: this._pupilScalePrefix,
+          eventName: "pupilScale",
+          values: this._getPupilScales(),
+          defaultValue: { x: 1, y: 1 },
         }
-      } else {
-        const children = Object.entries(node);
-        children.forEach(([name, childNode]) => {
-          this.setPupilScale([path, name].join("."), value);
-        });
-      }
-
-      if (path in pupilScales) {
-        Object.assign(pupilScales[path], value);
-      }
-      const dataPath = this._pupilScalePrefix + path;
-      if (dataPath in this.schema) {
-        this._updateData(dataPath, value, false);
-        this.el.emit("power-pet-pupilScale", {
-          name: this.selectedName,
-          path,
-          value,
-        });
-      }
+      );
     },
     // PUPIL SCALES END
 
@@ -1608,62 +1578,28 @@
 
       return pupilRotationSchema;
     },
-    _setPupilRotationWhenInvisible: false,
+
     setPupilRotation: function (path, value) {
-      if (path.startsWith(this._pupilRotationPrefix)) {
-        path = path.replace(this._pupilRotationPrefix, "");
-      }
-      if (path.startsWith(this.data.pupilName)) {
-        path = path.replace(this.data.pupilName + ".", "");
-      }
-      if (path.startsWith(".")) {
-        path = path.replace(".", "");
-      }
-      if (value == undefined) {
-        return;
-      }
-      //console.log("setPupilRotation", path, value);
-      if (!this.getIsModelSelected()) {
-        console.log("no model selected");
-        return;
-      }
-
-      const { pupils, pupilRotations } = this.models[this.selectedName];
-
-      const node = this._walkTree(path, pupils);
-      if (!node) {
-        return;
-      }
-      //console.log("node", node);
-
-      if (node.isLast && node.isPupil) {
-        if (this._setPupilRotationWhenInvisible || node.mesh.visible) {
-          const { texture } = node;
-          //console.log("setting pupilRotation", node.mesh.name, value);
+      this._setPupilProperty(
+        path,
+        value,
+        (node) => {
+          const { texture, isUVMirrored } = node;
+          // console.log("setting pupilRotation", node.mesh.name, value);
           texture.rotation = this._useDegreesForPupilRotation
             ? THREE.MathUtils.degToRad(value)
             : value;
+          if (isUVMirrored) {
+            texture.rotation *= -1;
+          }
+        },
+        {
+          prefix: this._pupilRotationPrefix,
+          eventName: "pupilRotation",
+          values: this._getPupilRotations(),
+          defaultValue: 0,
         }
-      } else {
-        const children = Object.entries(node);
-        children.forEach(([name, childNode]) => {
-          this.setPupilRotation([path, name].join("."), value);
-        });
-      }
-
-      Object.assign(pupilRotations[path], value);
-      if (path in pupilRotations) {
-        Object.assign(pupilRotations[path], value);
-      }
-      const dataPath = this._pupilRotationPrefix + path;
-      if (dataPath in this.schema) {
-        this._updateData(dataPath, value, false);
-        this.el.emit("power-pet-pupilRotation", {
-          name: this.selectedName,
-          path,
-          value,
-        });
-      }
+      );
     },
     // PUPIL ROTATIONS END
   });
