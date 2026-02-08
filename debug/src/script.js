@@ -361,7 +361,7 @@ const onlyShowHighLevelPupilOffsets = true;
 powerPetEntity.addEventListener("power-pet-model-loaded", (event) => {
   const { name, model } = event.detail;
   const { pupilOffsetsArray } = model;
-  console.log("pupilOffsetsArray", pupilOffsetsArray);
+  //console.log("pupilOffsetsArray", pupilOffsetsArray);
 
   const pupilOffsetContainers = {};
 
