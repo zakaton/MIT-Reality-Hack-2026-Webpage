@@ -240,7 +240,7 @@
 
     _walkTree: function (path, tree, filterCallback) {
       let treeWalker = tree;
-      const segments = path.split(".");
+      const segments = path.split(".").filter(Boolean);
       const isValid = segments.every((segment) => {
         if (!treeWalker[segment]) {
           console.error(
@@ -534,6 +534,9 @@
         });
 
         const pupilOffsets = {};
+        if (this._includeNullPathInPupilSchema) {
+          pupilOffsets[""] = { x: 0, y: 0 };
+        }
         this._traverseTree(pupils, (subtree, path, isHead) => {
           if (!isHead) {
             return;
@@ -549,6 +552,9 @@
         //console.log("pupilOffsetsArray", pupilOffsetsArray);
 
         const pupilScales = {};
+        if (this._includeNullPathInPupilSchema) {
+          pupilScales[""] = { x: 1, y: 1 };
+        }
         this._traverseTree(pupils, (subtree, path, isHead) => {
           if (!isHead) {
             return;
@@ -564,6 +570,9 @@
         //console.log("pupilScalesArray", pupilScalesArray);
 
         const pupilRotations = {};
+        if (this._includeNullPathInPupilSchema) {
+          pupilRotations[""] = 0;
+        }
         this._traverseTree(pupils, (subtree, path, isHead) => {
           if (!isHead) {
             return;
@@ -705,6 +714,7 @@
 
       return variantSchema;
     },
+    _invertPupilScale: true,
     selectVariant: function (path, value) {
       if (path.startsWith(this._variantPrefix)) {
         path = path.replace(this._variantPrefix, "");
@@ -725,6 +735,10 @@
         pupilScales,
         pupilRotations,
       } = this.models[this.selectedName];
+
+      if (!this._includeNullPathInPupilSchema && path == "") {
+        return;
+      }
 
       const node = this._walkTree(
         path,
@@ -786,7 +800,11 @@
               }
               if (!this._setPupilScaleWhenInvisible) {
                 const value = pupilScales[childPupilPath];
-                texture.repeat.copy(value); // FIX
+                if (this._invertPupilScale) {
+                  texture.repeat.set(1 / value.x, 1 / value.y);
+                } else {
+                  texture.repeat.copy(value);
+                }
               }
               if (!this._setPupilRotationWhenInvisible) {
                 const value = pupilRotations[childPupilPath];
@@ -1304,6 +1322,7 @@
     // PUPILS START
     _ignorePupilsWithNoSiblingsInSchema: true,
     _onlyShowFirstLevelPupilsInSchema: true,
+    _includeNullPathInPupilSchema: true,
     _verifyPupilSchema: function (path) {
       if (
         this._onlyShowFirstLevelPupilsInSchema ||
@@ -1379,6 +1398,9 @@
       if (path.startsWith(this.data.pupilName)) {
         path = path.replace(this.data.pupilName + ".", "");
       }
+      if (path.startsWith(".")) {
+        path = path.replace(".", "");
+      }
       if (value == undefined) {
         return;
       }
@@ -1387,6 +1409,8 @@
         this.data[this._pupilOffsetPrefix + path],
         value
       );
+      value.x = THREE.MathUtils.clamp(value.x, -1, 1);
+      value.y = THREE.MathUtils.clamp(value.y, -1, 1);
       //console.log("setPupilOffset", path, value);
       if (!this.getIsModelSelected()) {
         console.log("no model selected");
@@ -1395,6 +1419,9 @@
 
       const { pupils, pupilOffsets } = this.models[this.selectedName];
 
+      if (!this._includeNullPathInPupilSchema && path == "") {
+        return;
+      }
       const node = this._walkTree(path, pupils);
       if (!node) {
         return;
@@ -1417,7 +1444,9 @@
         });
       }
 
-      Object.assign(pupilOffsets[path], value);
+      if (path in pupilOffsets) {
+        Object.assign(pupilOffsets[path], value);
+      }
       const dataPath = this._pupilOffsetPrefix + path;
       if (dataPath in this.schema) {
         this._updateData(dataPath, value, false);
@@ -1477,6 +1506,9 @@
       if (path.startsWith(this.data.pupilName)) {
         path = path.replace(this.data.pupilName + ".", "");
       }
+      if (path.startsWith(".")) {
+        path = path.replace(".", "");
+      }
       if (value == undefined) {
         return;
       }
@@ -1493,6 +1525,9 @@
 
       const { pupils, pupilScales } = this.models[this.selectedName];
 
+      if (!this._includeNullPathInPupilSchema && path == "") {
+        return;
+      }
       const node = this._walkTree(path, pupils);
       if (!node) {
         return;
@@ -1503,7 +1538,11 @@
         if (this._setPupilScaleWhenInvisible || node.mesh.visible) {
           const { texture } = node;
           //console.log("setting pupilScale", node.mesh.name, value);
-          texture.repeat.copy(value); // FIX
+          if (this._invertPupilScale) {
+            texture.repeat.set(1 / value.x, 1 / value.y);
+          } else {
+            texture.repeat.copy(value);
+          }
         }
       } else {
         const children = Object.entries(node);
@@ -1512,7 +1551,9 @@
         });
       }
 
-      Object.assign(pupilScales[path], value);
+      if (path in pupilScales) {
+        Object.assign(pupilScales[path], value);
+      }
       const dataPath = this._pupilScalePrefix + path;
       if (dataPath in this.schema) {
         this._updateData(dataPath, value, false);
@@ -1575,10 +1616,12 @@
       if (path.startsWith(this.data.pupilName)) {
         path = path.replace(this.data.pupilName + ".", "");
       }
+      if (path.startsWith(".")) {
+        path = path.replace(".", "");
+      }
       if (value == undefined) {
         return;
       }
-      // value = Math.clamp(-360, 360);
       //console.log("setPupilRotation", path, value);
       if (!this.getIsModelSelected()) {
         console.log("no model selected");
@@ -1609,6 +1652,9 @@
       }
 
       Object.assign(pupilRotations[path], value);
+      if (path in pupilRotations) {
+        Object.assign(pupilRotations[path], value);
+      }
       const dataPath = this._pupilRotationPrefix + path;
       if (dataPath in this.schema) {
         this._updateData(dataPath, value, false);
