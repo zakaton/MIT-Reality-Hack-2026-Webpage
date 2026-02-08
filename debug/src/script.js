@@ -441,3 +441,11 @@ powerPetEntity.addEventListener("power-pet-pupilOffset", (event) => {
 });
 
 // POWER PET PUPIL OFFSETS END
+
+// POWER PET PUPIL SCALE START
+// FILL
+// POWER PET PUPIL SCALE END
+
+// POWER PET PUPIL ROTATION START
+// FILL
+// POWER PET PUPIL ROTATION END

@@ -226,6 +226,11 @@
       detail = detail ?? { [key]: value };
       this.el.emit(`power-pet-${key}`, detail);
     },
+    _deleteDataKey: function (key) {
+      delete this.data[key];
+      delete this.attrValue[key];
+      delete this.attrValueProxy[key];
+    },
     _flushToDOM: function () {
       this.el.flushToDOM();
       if (this.getIsSelectedInInspector()) {
@@ -286,6 +291,8 @@
           this.selectVariant(diffKey, this.data[diffKey]);
         } else if (diffKey.startsWith(this._pupilOffsetPrefix)) {
           this.setPupilOffset(diffKey, this.data[diffKey]);
+        } else if (diffKey.startsWith(this._pupilScalePrefix)) {
+          this.setPupilScale(diffKey, this.data[diffKey]);
         } else {
           switch (diffKey) {
             case "model":
@@ -534,15 +541,30 @@
         });
         //console.log("pupilOffsets", pupilOffsets);
 
-        const variantsArray = Object.entries(variants).sort((a, b) =>
-          a[0].localeCompare(b[0])
-        );
-        //.map(([key, value]) => [this._variantPrefix + key, value]);
-
         const pupilOffsetsArray = Object.entries(pupilOffsets).sort((a, b) =>
           a[0].localeCompare(b[0])
         );
         //console.log("pupilOffsetsArray", pupilOffsetsArray);
+
+        const pupilScales = {};
+        this._traverseTree(pupils, (subtree, path, isHead) => {
+          if (!isHead) {
+            return;
+          }
+          pupilScales[path] = { x: 1, y: 1 };
+          return true;
+        });
+        console.log("pupilScales", pupilScales);
+
+        const pupilScalesArray = Object.entries(pupilScales).sort((a, b) =>
+          a[0].localeCompare(b[0])
+        );
+        //console.log("pupilScalesArray", pupilScalesArray);
+
+        const variantsArray = Object.entries(variants).sort((a, b) =>
+          a[0].localeCompare(b[0])
+        );
+        //.map(([key, value]) => [this._variantPrefix + key, value]);
 
         const model = {
           src: modelSrc,
@@ -554,6 +576,8 @@
           pupils,
           pupilOffsets,
           pupilOffsetsArray,
+          pupilScales,
+          pupilScalesArray,
         };
         // console.log("model", model);
         this.models[name] = model;
@@ -608,11 +632,17 @@
     _updateSchema: function () {
       const variantSchema = this._getVariantSchema();
       const pupilOffsetSchema = this._getPupilOffsetSchema();
-      const extensionSchema = { ...variantSchema, ...pupilOffsetSchema };
+      const pupilScaleSchema = this._getPupilScaleSchema();
+      const extensionSchema = {
+        ...variantSchema,
+        ...pupilOffsetSchema,
+        ...pupilScaleSchema,
+      };
       //console.log("extensionSchema", extensionSchema);
       this.extendSchema(extensionSchema);
       this._selectVariants();
       this._setPupilOffsets();
+      this._setPupilScales();
       this._flushToDOM();
     },
     // SCHEMA END
@@ -644,9 +674,7 @@
       Object.keys(this.data)
         .filter((key) => key.startsWith(this._variantPrefix))
         .forEach((key) => {
-          delete this.data[key];
-          delete this.attrValue[key];
-          delete this.attrValueProxy[key];
+          this._deleteDataKey(key);
         });
 
       variantsArray.forEach(([key, oneOf]) => {
@@ -668,7 +696,7 @@
         return;
       }
 
-      const { selectedVariants, meshTree, pupilOffsets } =
+      const { selectedVariants, meshTree, pupilOffsets, pupilScales } =
         this.models[this.selectedName];
 
       const node = this._walkTree(
@@ -717,19 +745,29 @@
           if (child.isLast && isNaN(value)) {
             const visible = name == value;
             child.mesh.visible = visible;
-            if (
-              !this._setPupilOffsetWhenInvisible &&
-              visible &&
-              child.isPupil
-            ) {
-              const { texture, isUVMirrored } = child;
-              texture.offset.copy(
-                pupilOffsets[
-                  [path, name].join(".").replace(this.data.pupilName + ".", "")
-                ]
-              );
-              if (isUVMirrored) {
-                texture.offset.x *= -1;
+            if (visible && child.isPupil) {
+              const { texture } = child;
+              if (!this._setPupilOffsetWhenInvisible) {
+                const { isUVMirrored } = child;
+                texture.offset.copy(
+                  pupilOffsets[
+                    [path, name]
+                      .join(".")
+                      .replace(this.data.pupilName + ".", "")
+                  ]
+                );
+                if (isUVMirrored) {
+                  texture.offset.x *= -1;
+                }
+              }
+              if (!this._setPupilScaleWhenInvisible) {
+                texture.repeat.copy(
+                  pupilScales[
+                    [path, name]
+                      .join(".")
+                      .replace(this.data.pupilName + ".", "")
+                  ]
+                );
               }
             }
           } else {
@@ -1239,10 +1277,38 @@
     // TURN END
 
     // PUPILS START
-    _pupilOffsetPrefix: "pupilOffset_",
+    _ignorePupilsWithNoSiblingsInSchema: true,
+    _onlyShowFirstLevelPupilsInSchema: true,
+    _verifyPupilSchema: function (path) {
+      if (
+        this._onlyShowFirstLevelPupilsInSchema ||
+        this._ignorePupilsWithNoSiblingsInSchema
+      ) {
+        const segments = path.split(".");
+        if (segments.length > 1) {
+          if (this._onlyShowFirstLevelPupilsInSchema) {
+            return;
+          }
+          const parentPath = segments.slice(0, -1).join(".");
+          const siblingCount =
+            pupilOffsetsArray.filter(([path, _]) => path.startsWith(parentPath))
+              .length - 1;
+          if (siblingCount == 1) {
+            return;
+          }
+        }
+      }
+      return true;
+    },
     _getPupils: function () {
       return this.models[this.selectedName]?.pupils ?? {};
     },
+    _initPupils: function () {},
+    _tickPupils: function (time, timeDelta) {},
+    // PUPILS END
+
+    // PUPIL OFFSETS START
+    _pupilOffsetPrefix: "pupilOffset_",
     _getPupilOffsets: function () {
       return this.models[this.selectedName]?.pupilOffsets ?? {};
     },
@@ -1255,8 +1321,6 @@
         this.setPupilOffset(key, offset);
       });
     },
-    _ignorePupilOffsetsWithNoSiblingsInSchema: true,
-    _onlyShowFirstLevelPupilOffsetsInSchema: true,
     _getPupilOffsetSchema: function () {
       // console.log("_getPupilOffsetSchema");
 
@@ -1266,32 +1330,15 @@
       Object.keys(this.data)
         .filter((key) => key.startsWith(this._pupilOffsetPrefix))
         .forEach((key) => {
-          delete this.data[key];
-          delete this.attrValue[key];
-          delete this.attrValueProxy[key];
+          this._deleteDataKey(key);
         });
 
-      pupilOffsetsArray.forEach(([key, offset]) => {
-        if (
-          this._onlyShowFirstLevelPupilOffsetsInSchema ||
-          this._ignorePupilOffsetsWithNoSiblingsInSchema
-        ) {
-          const segments = key.split(".");
-          if (segments.length > 1) {
-            if (this._onlyShowFirstLevelPupilOffsetsInSchema) {
-              return;
-            }
-            const parentPath = segments.slice(0, -1).join(".");
-            const siblingCount =
-              pupilOffsetsArray.filter(([key, _]) => key.startsWith(parentPath))
-                .length - 1;
-            if (siblingCount == 1) {
-              return;
-            }
-          }
+      pupilOffsetsArray.forEach(([path]) => {
+        if (!this._verifyPupilSchema(path)) {
+          return;
         }
 
-        pupilOffsetSchema[this._pupilOffsetPrefix + key] = {
+        pupilOffsetSchema[this._pupilOffsetPrefix + path] = {
           type: "vec2",
           default: { x: 0, y: 0 },
         };
@@ -1356,8 +1403,101 @@
         });
       }
     },
-    _initPupils: function () {},
-    _tickPupils: function (time, timeDelta) {},
-    // PUPILS END
+    // PUPIL OFFSETS END
+
+    // PUPIL SCALES START
+    _pupilScalePrefix: "pupilScale_",
+    _getPupilScales: function () {
+      return this.models[this.selectedName]?.pupilScales ?? {};
+    },
+    _getPupilScalesArray: function () {
+      return this.models[this.selectedName]?.pupilScalesArray ?? [];
+    },
+    _setPupilScales: function () {
+      const pupilScalesArray = structuredClone(this._getPupilScalesArray());
+      pupilScalesArray.forEach(([key, scale]) => {
+        this.setPupilScale(key, scale);
+      });
+    },
+    _getPupilScaleSchema: function () {
+      // console.log("_getPupilScaleSchema");
+
+      const pupilScaleSchema = {};
+      const pupilScalesArray = this._getPupilScalesArray();
+
+      Object.keys(this.data)
+        .filter((key) => key.startsWith(this._pupilScalePrefix))
+        .forEach((key) => {
+          this._deleteDataKey(key);
+        });
+
+      pupilScalesArray.forEach(([path]) => {
+        if (!this._verifyPupilSchema(path)) {
+          return;
+        }
+
+        pupilScaleSchema[this._pupilScalePrefix + path] = {
+          type: "vec2",
+          default: { x: 1, y: 1 },
+        };
+      });
+
+      return pupilScaleSchema;
+    },
+    _setPupilScaleWhenInvisible: false,
+    setPupilScale: function (path, value) {
+      if (path.startsWith(this._pupilScalePrefix)) {
+        path = path.replace(this._pupilScalePrefix, "");
+      }
+      if (path.startsWith(this.data.pupilName)) {
+        path = path.replace(this.data.pupilName + ".", "");
+      }
+      if (value == undefined) {
+        return;
+      }
+      value = Object.assign(
+        {},
+        this.data[this._pupilScalePrefix + path],
+        value
+      );
+      //console.log("setPupilScale", path, value);
+      if (!this.getIsModelSelected()) {
+        console.log("no model selected");
+        return;
+      }
+
+      const { pupils, pupilScales } = this.models[this.selectedName];
+
+      const node = this._walkTree(path, pupils);
+      if (!node) {
+        return;
+      }
+      //console.log("node", node);
+
+      if (node.isLast && node.isPupil) {
+        if (this._setPupilScaleWhenInvisible || node.mesh.visible) {
+          const { texture } = node;
+          //console.log("setting pupilScale", node.mesh.name, value);
+          texture.repeat.copy(value);
+        }
+      } else {
+        const children = Object.entries(node);
+        children.forEach(([name, childNode]) => {
+          this.setPupilScale([path, name].join("."), value);
+        });
+      }
+
+      Object.assign(pupilScales[path], value);
+      const dataPath = this._pupilScalePrefix + path;
+      if (dataPath in this.schema) {
+        this._updateData(dataPath, value, false);
+        this.el.emit("power-pet-pupilScale", {
+          name: this.selectedName,
+          path,
+          value,
+        });
+      }
+    },
+    // PUPIL SCALES END
   });
 }
