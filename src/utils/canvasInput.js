@@ -4,7 +4,7 @@ window.addEventListener("load", () => {
 
   const { lerp, inverseLerp, clamp } = THREE.MathUtils;
 
-  document.querySelectorAll("canvas").forEach((canvas) => {
+  const loadCanvas = (canvas) => {
     if (!("input" in canvas.dataset)) {
       return;
     }
@@ -175,5 +175,32 @@ window.addEventListener("load", () => {
       canvas.value = lerpValue({ x, y });
       dispatchEvent();
     });
+  };
+
+  document.querySelectorAll("canvas").forEach((canvas) => {
+    loadCanvas(canvas);
+  });
+
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (!(node instanceof HTMLElement)) continue;
+
+        // Check the node itself
+        if (node.tagName === "CANVAS" && node.hasAttribute("data-input")) {
+          onCanvasAdded(node);
+        }
+
+        // Check inside subtree (if a container was added)
+        const canvases = node.querySelectorAll?.("canvas[data-input]");
+
+        canvases?.forEach((canvas) => loadCanvas(canvas));
+      }
+    }
+  });
+
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
   });
 });

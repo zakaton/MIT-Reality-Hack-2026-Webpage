@@ -530,7 +530,6 @@
             return;
           }
           pupilOffsets[path] = { x: 0, y: 0 };
-          const children = Object.values(subtree);
           return true;
         });
         //console.log("pupilOffsets", pupilOffsets);
@@ -1256,6 +1255,8 @@
         this.setPupilOffset(key, offset);
       });
     },
+    _ignorePupilOffsetsWithNoSiblingsInSchema: true,
+    _onlyShowFirstLevelPupilOffsetsInSchema: true,
     _getPupilOffsetSchema: function () {
       // console.log("_getPupilOffsetSchema");
 
@@ -1271,16 +1272,25 @@
         });
 
       pupilOffsetsArray.forEach(([key, offset]) => {
-        const segments = key.split(".");
-        if (segments.length > 1) {
-          const parentPath = segments.slice(0, -1).join(".");
-          const siblingCount =
-            pupilOffsetsArray.filter(([key, _]) => key.startsWith(parentPath))
-              .length - 1;
-          if (siblingCount == 1) {
-            return;
+        if (
+          this._onlyShowFirstLevelPupilOffsetsInSchema ||
+          this._ignorePupilOffsetsWithNoSiblingsInSchema
+        ) {
+          const segments = key.split(".");
+          if (segments.length > 1) {
+            if (this._onlyShowFirstLevelPupilOffsetsInSchema) {
+              return;
+            }
+            const parentPath = segments.slice(0, -1).join(".");
+            const siblingCount =
+              pupilOffsetsArray.filter(([key, _]) => key.startsWith(parentPath))
+                .length - 1;
+            if (siblingCount == 1) {
+              return;
+            }
           }
         }
+
         pupilOffsetSchema[this._pupilOffsetPrefix + key] = {
           type: "vec2",
           default: { x: 0, y: 0 },
