@@ -394,7 +394,7 @@ powerPetEntity.addEventListener("power-pet-model-loaded", (event) => {
     input.addEventListener("input", () => {
       const { value } = input;
       //console.log({ path }, value);
-      powerPetEntity.setAttribute("power-pet", `pupil_${path}`, value);
+      powerPetEntity.setAttribute("power-pet", `pupilOffset_${path}`, value);
     });
 
     _pupilOffsetsContainer.appendChild(pupilOffsetContainer);

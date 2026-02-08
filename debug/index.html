@@ -28,6 +28,7 @@
       display: flex;
       flex-direction: row;
       flex-wrap: wrap;
+      gap: 1rem;
     }
     #sceneContainer {
       display: grid;
@@ -48,7 +49,7 @@
       height: 100vh !important;
       z-index: 9999;
     }
-    #options,
+    #optionsContainer,
     #squashContainer {
       display: flex;
       flex-direction: column;
@@ -197,12 +198,35 @@
           <a-sky color="#ECECEC" hide-on-enter-ar></a-sky>
         </a-scene>
       </div>
-      <div id="options">
+      <div id="pupilOffsetsContainer" class="hidden">
+        <h2>Pupil Offsets</h2>
+        <template id="pupilOffsetTemplate">
+          <label class="pupilOffset">
+            <span class="path"></span>
+            <canvas
+              width="100"
+              height="100"
+              data-input
+              data-min-x="1"
+              data-min-y="-1"
+              value="0"
+              data-max-x="-1"
+              data-max-y="1"
+            ></canvas>
+          </label>
+        </template>
+      </div>
+      <div id="optionsContainer">
         <h2>Options</h2>
         <button id="openInspector">open inspector</button>
         <label>
           load model
-          <input type="file" id="modelFile" accept=".glb,.gltf" multiple="true"
+          <input
+            type="file"
+            id="modelFile"
+            accept=".glb,.gltf"
+            multiple="true"
+            style="width: 8rem"
         /></label>
         <label>
           model
@@ -285,25 +309,6 @@
             value="0"
           />
         </label>
-      </div>
-
-      <div id="pupilOffsetsContainer" class="hidden">
-        <h2>Pupil Offsets</h2>
-        <template id="pupilOffsetTemplate">
-          <label class="pupilOffset">
-            <span class="path"></span>
-            <canvas
-              width="100"
-              height="100"
-              data-input
-              data-min-x="1"
-              data-min-y="-1"
-              value="0"
-              data-max-x="-1"
-              data-max-y="1"
-            ></canvas>
-          </label>
-        </template>
       </div>
     </div>
   </body>

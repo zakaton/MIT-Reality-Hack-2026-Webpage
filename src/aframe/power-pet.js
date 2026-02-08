@@ -1239,7 +1239,7 @@
     // TURN END
 
     // PUPILS START
-    _pupilOffsetPrefix: "pupil_",
+    _pupilOffsetPrefix: "pupilOffset_",
     _getPupils: function () {
       return this.models[this.selectedName]?.pupils ?? {};
     },
