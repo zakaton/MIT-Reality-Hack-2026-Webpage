@@ -80,6 +80,9 @@
       //console.log({ diffKeys });
 
       diffKeys.forEach((diffKey) => {
+        if (this.data[diffKey] == undefined) {
+          // return;
+        }
         //console.log("update", { [diffKey]: this.data[diffKey] });
         switch (diffKey) {
           case "models":
@@ -199,6 +202,14 @@
     },
 
     // UTILS START
+    sortEntries: function (entries) {
+      // console.log("sortEntries", entries);
+      return entries.sort((a, b) => a[0].localeCompare(b[0]));
+    },
+    sortObjectEntries: function (object) {
+      // console.log("sortObjectEntries", object);
+      return this.sortEntries(Object.entries(object));
+    },
     clampFloatToZero: function (number) {
       if (number == -0) {
         return 0;
@@ -286,6 +297,9 @@
       //console.log({ diffKeys });
 
       diffKeys.forEach((diffKey) => {
+        if (this.data[diffKey] == undefined) {
+          return;
+        }
         //console.log("update", { [diffKey]: this.data[diffKey] });
         if (diffKey.startsWith(this._variantPrefix)) {
           this.selectVariant(diffKey, this.data[diffKey]);
@@ -402,7 +416,7 @@
         }
 
         const meshTree = {};
-        const variants = {}; // "path.to.mesh": ["each", "possible", "variant"]
+        const allVariants = {}; // "path.to.mesh": ["each", "possible", "variant"]
         const textures = [];
         root.traverse((object3D) => {
           if (!object3D.isMesh) return;
@@ -418,9 +432,9 @@
           const hasMultipleUv = uvCount > 1;
 
           const path = meshPath.join(".");
-          variants[path] = [];
+          allVariants[path] = [];
           if (hasMultipleUv) {
-            variants[path] = new Array(uvCount).fill(0).map((_, index) => {
+            allVariants[path] = new Array(uvCount).fill(0).map((_, index) => {
               const uvName =
                 mesh.material.userData[`uv${index == 0 ? "" : index}`];
               if (uvName) {
@@ -502,14 +516,14 @@
                 Object.values(meshTree).filter((node) => node.isLast).length >
                 1;
               if (hasMeshChildren) {
-                variants[_path] = Object.keys(meshTree).sort();
+                allVariants[_path] = Object.keys(meshTree).sort();
               }
             }
 
             if (index > 0) {
               const parentPath = meshPath.slice(0, index).join(".");
               //console.log({ path, _path, parentPath });
-              variants[parentPath] = variants[_path].slice().sort();
+              allVariants[parentPath] = allVariants[_path].slice().sort();
             }
           };
           onMeshSegment(meshTree);
@@ -519,24 +533,23 @@
         const pupils = meshTree[this.data.pupilName] ?? {};
         //console.log("pupils", pupils);
 
-        Object.entries(variants).forEach(([key, oneOf]) => {
+        Object.entries(allVariants).forEach(([key, oneOf]) => {
           if (oneOf.length < 2) {
-            delete variants[key];
+            delete allVariants[key];
           }
+        });
+        //console.log("allVariants", allVariants);
+
+        const allVariantsArray = this.sortObjectEntries(allVariants);
+
+        const variants = {};
+        Object.entries(allVariants).forEach(([key, oneOf]) => {
+          variants[key] = oneOf.includes("default") ? "default" : oneOf[0];
         });
         //console.log("variants", variants);
 
-        const variantsArray = Object.entries(variants).sort((a, b) =>
-          a[0].localeCompare(b[0])
-        );
-        //.map(([key, value]) => [this._variantPrefix + key, value]);
-
-        const selectedVariants = {};
-        Object.entries(variants).forEach(([key, oneOf]) => {
-          selectedVariants[key] = oneOf.includes("default")
-            ? "default"
-            : oneOf[0];
-        });
+        const variantsArray = this.sortObjectEntries(variants);
+        //console.log("variantsArray", variantsArray);
 
         const pupilOffsets = {};
         if (this._includeNullPathInPupilSchema) {
@@ -551,9 +564,7 @@
         });
         //console.log("pupilOffsets", pupilOffsets);
 
-        const pupilOffsetsArray = Object.entries(pupilOffsets).sort((a, b) =>
-          a[0].localeCompare(b[0])
-        );
+        const pupilOffsetsArray = this.sortObjectEntries(pupilOffsets);
         //console.log("pupilOffsetsArray", pupilOffsetsArray);
 
         const pupilScales = {};
@@ -569,9 +580,7 @@
         });
         //console.log("pupilScales", pupilScales);
 
-        const pupilScalesArray = Object.entries(pupilScales).sort((a, b) =>
-          a[0].localeCompare(b[0])
-        );
+        const pupilScalesArray = this.sortObjectEntries(pupilScales);
         //console.log("pupilScalesArray", pupilScalesArray);
 
         const pupilRotations = {};
@@ -587,18 +596,17 @@
         });
         //console.log("pupilRotations", pupilRotations);
 
-        const pupilRotationsArray = Object.entries(pupilRotations).sort(
-          (a, b) => a[0].localeCompare(b[0])
-        );
+        const pupilRotationsArray = this.sortObjectEntries(pupilRotations);
         //console.log("pupilRotationsArray", pupilRotationsArray);
 
         const model = {
           src: modelSrc,
           entity: modelEntity,
           meshTree,
+          allVariants,
+          allVariantsArray,
           variants,
           variantsArray,
-          selectedVariants,
           pupils,
           pupilOffsets,
           pupilOffsetsArray,
@@ -683,24 +691,26 @@
     _getVariants: function () {
       return this.models[this.selectedName]?.variants ?? {};
     },
-    _getSelectedVariants: function () {
-      return this.models[this.selectedName]?.selectedVariants ?? {};
-    },
     _getVariantsArray: function () {
       return this.models[this.selectedName]?.variantsArray ?? [];
     },
+    _getAllVariants: function () {
+      return this.models[this.selectedName]?.allVariants ?? {};
+    },
+    _getAllVariantsArray: function () {
+      return this.models[this.selectedName]?.allVariantsArray ?? [];
+    },
     _selectVariants: function () {
-      const selectedVariants = this._getSelectedVariants();
-      const variantsArray = this._getVariantsArray();
-      variantsArray.forEach(([key, oneOf]) => {
-        this.selectVariant(key, selectedVariants[key]);
+      const variantsArray = structuredClone(this._getVariantsArray());
+      variantsArray.forEach(([key, value]) => {
+        this.selectVariant(key, value);
       });
     },
     _getVariantSchema: function () {
       // console.log("_getVariantSchema");
 
       const variantSchema = {};
-      const variantsArray = this._getVariantsArray();
+      const allVariantsArray = this._getAllVariantsArray();
 
       Object.keys(this.data)
         .filter((key) => key.startsWith(this._variantPrefix))
@@ -708,7 +718,7 @@
           this._deleteDataKey(key);
         });
 
-      variantsArray.forEach(([key, oneOf]) => {
+      allVariantsArray.forEach(([key, oneOf]) => {
         variantSchema[this._variantPrefix + key] = { oneOf };
       });
 
@@ -728,13 +738,8 @@
         return;
       }
 
-      const {
-        selectedVariants,
-        meshTree,
-        pupilOffsets,
-        pupilScales,
-        pupilRotations,
-      } = this.models[this.selectedName];
+      const { variants, meshTree, pupilOffsets, pupilScales, pupilRotations } =
+        this.models[this.selectedName];
 
       if (!this._includeNullPathInPupilSchema && path == "") {
         return;
@@ -791,26 +796,25 @@
               const childPupilPath = [path, name]
                 .join(".")
                 .replace(this.data.pupilName + ".", "");
-              if (!this._setPupilOffsetWhenInvisible) {
-                const value = pupilOffsets[childPupilPath];
-                texture.offset.copy(value);
+
+              if (!this._setPupilPropertyWhenInvisible) {
+                const pupilOffset = pupilOffsets[childPupilPath];
+                texture.offset.copy(pupilOffset);
                 if (child.isUVMirrored) {
                   texture.offset.x *= -1;
                 }
-              }
-              if (!this._setPupilScaleWhenInvisible) {
-                const value = pupilScales[childPupilPath];
+
+                const pupilScale = pupilScales[childPupilPath];
                 if (this._invertPupilScale) {
-                  texture.repeat.set(1 / value.x, 1 / value.y);
+                  texture.repeat.set(1 / pupilScale.x, 1 / pupilScale.y);
                 } else {
-                  texture.repeat.copy(value);
+                  texture.repeat.copy(pupilScale);
                 }
-              }
-              if (!this._setPupilRotationWhenInvisible) {
-                const value = pupilRotations[childPupilPath];
+
+                const pupilRotation = pupilRotations[childPupilPath];
                 texture.rotation = this._useDegreesForPupilRotation
-                  ? THREE.MathUtils.degToRad(value)
-                  : value;
+                  ? THREE.MathUtils.degToRad(pupilRotation)
+                  : pupilRotation;
               }
             }
           } else {
@@ -819,13 +823,18 @@
         });
       }
 
-      selectedVariants[path] = value;
-      this._updateData(this._variantPrefix + path, value, false);
-      this.el.emit("power-pet-variant", {
-        name: this.selectedName,
-        path,
-        value,
-      });
+      if (path in variants) {
+        variants[path] = value;
+      }
+      const dataPath = this._variantPrefix + path;
+      if (dataPath in this.schema) {
+        this._updateData(dataPath, value, false);
+        this.el.emit("power-pet-variant", {
+          name: this.selectedName,
+          path,
+          value,
+        });
+      }
     },
     // VARIANT END
 
@@ -1008,10 +1017,6 @@
       if (dur > 0) {
         const pitchDeg = this.clampFloatToZero(THREE.MathUtils.radToDeg(pitch));
         const rollDeg = this.clampFloatToZero(THREE.MathUtils.radToDeg(roll));
-        // console.log(
-        //   { pitchDeg, rollDeg },
-        //   this.squashTiltEntity.object3D.rotation
-        // );
 
         this.squashTiltEntity.removeAttribute("animation__tilt");
         this.squashTiltEntity.addEventListener(
@@ -1022,7 +1027,6 @@
           { once: true }
         );
 
-        // fix for weird animation issue
         const { rotation } = this.squashTiltEntity.object3D;
         rotation.x = this.clampFloatToZero(rotation.x);
         rotation.y = this.clampFloatToZero(rotation.y);
@@ -1349,7 +1353,8 @@
     },
     _setPupilPropertyWhenInvisible: true,
     _setPupilProperty: function (path, value, callback, options) {
-      const { prefix, values, eventName, defaultValue, clamp } = options;
+      const { prefix, values, valuesArray, eventName, defaultValue, clamp } =
+        options;
       path = path ?? "";
       if (path.startsWith(prefix)) {
         path = path.replace(prefix, "");
@@ -1396,7 +1401,9 @@
 
       if (path in values) {
         Object.assign(values[path], value);
+        valuesArray.find(([key, _]) => key == path)[1] = value;
       }
+
       const dataPath = prefix + path;
       if (dataPath in this.schema) {
         this._updateData(dataPath, value, false);
@@ -1450,7 +1457,6 @@
 
       return pupilOffsetSchema;
     },
-    _setPupilOffsetWhenInvisible: false,
     setPupilOffset: function (path, value) {
       this._setPupilProperty(
         path,
@@ -1467,6 +1473,7 @@
           prefix: this._pupilOffsetPrefix,
           eventName: "pupilOffset",
           values: this._getPupilOffsets(),
+          valuesArray: this._getPupilOffsetsArray(),
           defaultValue: { x: 0, y: 0 },
         }
       );
@@ -1512,7 +1519,6 @@
 
       return pupilScaleSchema;
     },
-    _setPupilScaleWhenInvisible: false,
     setPupilScale: function (path, value) {
       this._setPupilProperty(
         path,
@@ -1530,6 +1536,7 @@
           prefix: this._pupilScalePrefix,
           eventName: "pupilScale",
           values: this._getPupilScales(),
+          valuesArray: this._getPupilScalesArray(),
           defaultValue: { x: 1, y: 1 },
         }
       );
@@ -1597,6 +1604,7 @@
           prefix: this._pupilRotationPrefix,
           eventName: "pupilRotation",
           values: this._getPupilRotations(),
+          valuesArray: this._getPupilRotationsArray(),
           defaultValue: 0,
         }
       );

@@ -55,8 +55,7 @@
       flex-direction: column;
       align-items: baseline;
     }
-    .variantContainers,
-    .pupilOffsetContainers {
+    .containers {
       display: flex;
       flex-direction: column;
     }
@@ -208,12 +207,38 @@
               width="100"
               height="100"
               data-input
+              value="0"
               data-min-x="1"
               data-min-y="-1"
-              value="0"
               data-max-x="-1"
               data-max-y="1"
             ></canvas>
+          </label>
+        </template>
+      </div>
+      <div id="pupilScales" class="hidden">
+        <h2>Pupil Scales</h2>
+        <template>
+          <label class="pupilScale">
+            <span class="path"></span>
+            <canvas
+              class="input"
+              width="100"
+              height="100"
+              data-input
+              data-min="-2"
+              data-max="2"
+              value="1"
+            ></canvas>
+          </label>
+        </template>
+      </div>
+      <div id="pupilRotations" class="hidden">
+        <h2>Pupil Rotations</h2>
+        <template>
+          <label class="pupilRotation">
+            <span class="path"></span>
+            <input type="range" min="-180" max="180" class="input" value="0" />
           </label>
         </template>
       </div>
