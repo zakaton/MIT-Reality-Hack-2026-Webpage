@@ -115,90 +115,199 @@ powerPetEntity.addEventListener("power-pet-model", (event) => {
 });
 // POWER PET MODEL SELECT END
 
-// POWER PET VARIANTS START
-/** @type {HTMLTemplateElement} */
-const variantTemplate = document.getElementById("variantTemplate");
-const variantsContainer = document.getElementById("variants");
+// POWER PET CONTAINER START
+const onlyShowHighLevelPupils = true;
+const setupContainer = (valueName) => {
+  const valuesArrayName = `${valueName}sArray`;
+  console.log({ valueName, valuesArrayName });
 
-const allVariantContainers = {};
-const allVariantsContainers = {};
+  const valuesContainer = document.getElementById(`${valueName}s`);
+  const valueTemplate = valuesContainer.querySelector("template");
 
-powerPetEntity.addEventListener("power-pet-model-loaded", (event) => {
-  const { name, model } = event.detail;
-  const { variantsArray } = model;
-  //console.log("variantsArray", variantsArray);
+  const allValueContainers = {};
+  const allValuesContainers = {};
 
-  const variantContainers = {};
+  powerPetEntity.addEventListener("power-pet-model-loaded", (event) => {
+    const { name, model } = event.detail;
+    const { [valuesArrayName]: valuesArray } = model;
+    //console.log(valuesArrayName, valuesArray);
 
-  const _variantsContainer = document.createElement("div");
-  _variantsContainer.classList.add("hidden");
-  _variantsContainer.dataset.model = name;
-  _variantsContainer.classList.add("variantContainers");
-  variantsContainer.appendChild(_variantsContainer);
+    const valueContainers = {};
 
-  variantsArray.forEach(([path, oneOf]) => {
-    /** @type {HTMLElement} */
-    const variantContainer = variantTemplate.content
-      .cloneNode(true)
-      .querySelector(".variant");
+    const _valuesContainer = document.createElement("div");
+    _valuesContainer.classList.add("hidden");
+    _valuesContainer.dataset.model = valueName;
+    _valuesContainer.classList.add(`${valueName}Containers`);
+    valuesContainer.appendChild(_valuesContainer);
 
-    variantContainer.dataset.path = path;
+    valuesArray.forEach(([path, value]) => {
+      if (
+        valueName.startsWith("pupil") &&
+        onlyShowHighLevelPupils &&
+        path.split(".").length > 1
+      ) {
+        return;
+      }
 
-    const pathSpan = variantContainer.querySelector("span.path");
-    pathSpan.innerText = path;
+      /** @type {HTMLElement} */
+      const valueContainer = valueTemplate.content
+        .cloneNode(true)
+        .querySelector(`.${valueName}`);
+      valueContainer.dataset.path = path;
 
-    const select = variantContainer.querySelector("select");
-    const optgroup = variantContainer.querySelector("optgroup");
+      const pathSpan = valueContainer.querySelector("span.path");
+      pathSpan.innerText = path;
 
-    variantContainer.input = select;
+      const input = valueContainer.querySelector(".input");
+      valueContainer.input = input;
 
-    optgroup.label = `select ${path}`;
-    oneOf.forEach((variant) => {
-      optgroup.appendChild(new Option(variant));
+      // FILL
+
+      input.value = value;
+
+      input.addEventListener("input", () => {
+        const { value } = input;
+        //console.log({ path }, value);
+        powerPetEntity.setAttribute("power-pet", `${valueName}_${path}`, value);
+      });
+
+      _valuesContainer.appendChild(valueContainer);
+      valueContainers[path] = valueContainer;
     });
 
-    select.addEventListener("input", () => {
-      const { value } = select;
-      //console.log({ path, value });
-      powerPetEntity.setAttribute("power-pet", `variant_${path}`, value);
-    });
-
-    _variantsContainer.appendChild(variantContainer);
-    variantContainers[path] = variantContainer;
+    allValueContainers[name] = valueContainers;
+    allValuesContainers[name] = _valuesContainer;
   });
 
-  allVariantContainers[name] = variantContainers;
-  allVariantsContainers[name] = _variantsContainer;
-});
+  powerPetEntity.addEventListener("power-pet-model", (event) => {
+    const { name, model } = event.detail;
+    const { [valuesArrayName]: valuesArray } = model;
+    //console.log(valuesArrayName, valuesArray);
 
-powerPetEntity.addEventListener("power-pet-model", (event) => {
-  const { name, model } = event.detail;
-  const { variantsArray, selectedVariants } = model;
-  //console.log("selectedVariants", selectedVariants);
+    Object.entries(allValuesContainers).forEach(([_name, container]) => {
+      if (_name == name) {
+        container.classList.remove("hidden");
+      } else {
+        container.classList.add("hidden");
+      }
+    });
 
-  Object.entries(allVariantsContainers).forEach(([_name, container]) => {
-    if (_name == name) {
-      container.classList.remove("hidden");
+    valuesArray.forEach(([path, value]) => {
+      if (
+        valueName.startsWith("pupil") &&
+        onlyShowHighLevelPupils &&
+        path.split(".").length > 1
+      ) {
+        return;
+      }
+      allValueContainers[name][path].input.value = value;
+    });
+
+    if (valuesArray.length > 0) {
+      valuesContainer.classList.remove("hidden");
     } else {
-      container.classList.add("hidden");
+      valuesContainer.classList.add("hidden");
     }
   });
+  powerPetEntity.addEventListener(`power-pet-${valueName}`, (event) => {
+    const { name, path, value } = event.detail;
+    //console.log(event.type, { name, path, value }, allValueContainers);
+    const input = allValueContainers[name][path]?.input;
+    if (input) {
+      input.value = value;
+    }
+  });
+};
+// POWER PET CONTAINER END
 
-  Object.entries(selectedVariants).forEach(([path, value]) => {
-    allVariantContainers[name][path].input.value = value;
+// POWER PET VARIANTS START
+if (true) {
+  /** @type {HTMLTemplateElement} */
+  const variantTemplate = document.getElementById("variantTemplate");
+  const variantsContainer = document.getElementById("variants");
+
+  const allVariantContainers = {};
+  const allVariantsContainers = {};
+
+  powerPetEntity.addEventListener("power-pet-model-loaded", (event) => {
+    const { name, model } = event.detail;
+    const { variantsArray } = model;
+    //console.log("variantsArray", variantsArray);
+
+    const variantContainers = {};
+
+    const _variantsContainer = document.createElement("div");
+    _variantsContainer.classList.add("hidden");
+    _variantsContainer.dataset.model = name;
+    _variantsContainer.classList.add("variantContainers");
+    variantsContainer.appendChild(_variantsContainer);
+
+    variantsArray.forEach(([path, oneOf]) => {
+      /** @type {HTMLElement} */
+      const variantContainer = variantTemplate.content
+        .cloneNode(true)
+        .querySelector(".variant");
+
+      variantContainer.dataset.path = path;
+
+      const pathSpan = variantContainer.querySelector("span.path");
+      pathSpan.innerText = path;
+
+      const select = variantContainer.querySelector("select");
+      const optgroup = variantContainer.querySelector("optgroup");
+
+      variantContainer.input = select;
+
+      optgroup.label = `select ${path}`;
+      oneOf.forEach((variant) => {
+        optgroup.appendChild(new Option(variant));
+      });
+
+      select.addEventListener("input", () => {
+        const { value } = select;
+        //console.log({ path, value });
+        powerPetEntity.setAttribute("power-pet", `variant_${path}`, value);
+      });
+
+      _variantsContainer.appendChild(variantContainer);
+      variantContainers[path] = variantContainer;
+    });
+
+    allVariantContainers[name] = variantContainers;
+    allVariantsContainers[name] = _variantsContainer;
   });
 
-  if (variantsArray.length > 0) {
-    variantsContainer.classList.remove("hidden");
-  } else {
-    variantsContainer.classList.add("hidden");
-  }
-});
-powerPetEntity.addEventListener("power-pet-variant", (event) => {
-  const { name, path, value } = event.detail;
-  //console.log(event.type, { name, path, value }, allVariantContainers);
-  allVariantContainers[name][path].input.value = value;
-});
+  powerPetEntity.addEventListener("power-pet-model", (event) => {
+    const { name, model } = event.detail;
+    const { variantsArray, selectedVariants } = model;
+    //console.log("selectedVariants", selectedVariants);
+
+    Object.entries(allVariantsContainers).forEach(([_name, container]) => {
+      if (_name == name) {
+        container.classList.remove("hidden");
+      } else {
+        container.classList.add("hidden");
+      }
+    });
+
+    Object.entries(selectedVariants).forEach(([path, value]) => {
+      allVariantContainers[name][path].input.value = value;
+    });
+
+    if (variantsArray.length > 0) {
+      variantsContainer.classList.remove("hidden");
+    } else {
+      variantsContainer.classList.add("hidden");
+    }
+  });
+  powerPetEntity.addEventListener("power-pet-variant", (event) => {
+    const { name, path, value } = event.detail;
+    //console.log(event.type, { name, path, value }, allVariantContainers);
+    allVariantContainers[name][path].input.value = value;
+  });
+} else {
+  setupContainer("variant");
+}
 // POWER PET VARIANTS END
 
 // POWER PET SQUASH START
@@ -347,109 +456,6 @@ powerPetEntity.addEventListener("power-pet-turn", (event) => {
   turnInput.value = turn;
 });
 // POWER PET TURN END
-
-// POWER PET CONTAINER START
-const onlyShowHighLevelPupils = true;
-const setupContainer = (valueName) => {
-  const valuesArrayName = `${valueName}sArray`;
-  console.log({ valueName, valuesArrayName });
-
-  const valuesContainer = document.getElementById(`${valueName}s`);
-  const valueTemplate = valuesContainer.querySelector("template");
-
-  const allValueContainers = {};
-  const allValuesContainers = {};
-
-  powerPetEntity.addEventListener("power-pet-model-loaded", (event) => {
-    const { name, model } = event.detail;
-    const { [valuesArrayName]: valuesArray } = model;
-    //console.log(valuesArrayName, valuesArray);
-
-    const valueContainers = {};
-
-    const _valuesContainer = document.createElement("div");
-    _valuesContainer.classList.add("hidden");
-    _valuesContainer.dataset.model = valueName;
-    _valuesContainer.classList.add(`${valueName}Containers`);
-    valuesContainer.appendChild(_valuesContainer);
-
-    valuesArray.forEach(([path, value]) => {
-      if (
-        valueName.startsWith("pupil") &&
-        onlyShowHighLevelPupils &&
-        path.split(".").length > 1
-      ) {
-        return;
-      }
-
-      /** @type {HTMLElement} */
-      const valueContainer = valueTemplate.content
-        .cloneNode(true)
-        .querySelector(`.${valueName}`);
-      valueContainer.dataset.path = path;
-
-      const pathSpan = valueContainer.querySelector("span.path");
-      pathSpan.innerText = path;
-
-      const input = valueContainer.querySelector(".input");
-      valueContainer.input = input;
-
-      input.value = value;
-
-      input.addEventListener("input", () => {
-        const { value } = input;
-        //console.log({ path }, value);
-        powerPetEntity.setAttribute("power-pet", `${valueName}_${path}`, value);
-      });
-
-      _valuesContainer.appendChild(valueContainer);
-      valueContainers[path] = valueContainer;
-    });
-
-    allValueContainers[name] = valueContainers;
-    allValuesContainers[name] = _valuesContainer;
-  });
-
-  powerPetEntity.addEventListener("power-pet-model", (event) => {
-    const { name, model } = event.detail;
-    const { [valuesArrayName]: valuesArray } = model;
-    //console.log(valuesArrayName, valuesArray);
-
-    Object.entries(allValuesContainers).forEach(([_name, container]) => {
-      if (_name == name) {
-        container.classList.remove("hidden");
-      } else {
-        container.classList.add("hidden");
-      }
-    });
-
-    valuesArray.forEach(([path, value]) => {
-      if (
-        valueName.startsWith("pupil") &&
-        onlyShowHighLevelPupils &&
-        path.split(".").length > 1
-      ) {
-        return;
-      }
-      allValueContainers[name][path].input.value = value;
-    });
-
-    if (valuesArray.length > 0) {
-      valuesContainer.classList.remove("hidden");
-    } else {
-      valuesContainer.classList.add("hidden");
-    }
-  });
-  powerPetEntity.addEventListener(`power-pet-${valueName}`, (event) => {
-    const { name, path, value } = event.detail;
-    //console.log(event.type, { name, path, value }, allValueContainers);
-    const input = allValueContainers[name][path]?.input;
-    if (input) {
-      input.value = value;
-    }
-  });
-};
-// POWER PET CONTAINER END
 
 // POWER PET PUPIL OFFSETS START
 setupContainer("pupilOffset");

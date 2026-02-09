@@ -526,6 +526,11 @@
         });
         //console.log("variants", variants);
 
+        const variantsArray = Object.entries(variants).sort((a, b) =>
+          a[0].localeCompare(b[0])
+        );
+        //.map(([key, value]) => [this._variantPrefix + key, value]);
+
         const selectedVariants = {};
         Object.entries(variants).forEach(([key, oneOf]) => {
           selectedVariants[key] = oneOf.includes("default")
@@ -586,11 +591,6 @@
           (a, b) => a[0].localeCompare(b[0])
         );
         //console.log("pupilRotationsArray", pupilRotationsArray);
-
-        const variantsArray = Object.entries(variants).sort((a, b) =>
-          a[0].localeCompare(b[0])
-        );
-        //.map(([key, value]) => [this._variantPrefix + key, value]);
 
         const model = {
           src: modelSrc,
