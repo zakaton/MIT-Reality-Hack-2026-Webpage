@@ -798,19 +798,8 @@
             const visible = name == value;
             child.mesh.visible = visible;
             if (visible && child.isPupil) {
-              const { texture, pupilPath } = child;
-
               if (!this._setPupilPropertyWhenInvisible) {
-                const scale = pupilScales[pupilPath];
-                this._setPupilNodeScale(child, scale);
-
-                if (false) {
-                  const offset = pupilOffsets[pupilPath];
-                  this._setPupilNodeOffset(child, offset);
-                }
-
-                const rotation = pupilRotations[pupilPath];
-                this._setPupilNodeRotation(child, rotation);
+                this._updateNodeTextureMatrix(child);
               }
             }
           } else {
@@ -1396,7 +1385,7 @@
       }
 
       if (path in values) {
-        Object.assign(values[path], value);
+        values[path] = structuredClone(value);
         valuesArray.find(([key, _]) => key == path)[1] = value;
       }
 
@@ -1474,7 +1463,7 @@
         path,
         offset,
         (node) => {
-          this._setPupilNodeOffset(node, offset);
+          this._updateNodeTextureMatrix(node, { offset });
         },
         {
           prefix: this._pupilOffsetPrefix,
@@ -1537,12 +1526,46 @@
         texture.repeat.copy(value);
       }
     },
+    _updateNodeTextureMatrix: function (node, values = {}) {
+      const pupilScales = this._getPupilScales();
+      const pupilRotations = this._getPupilRotations();
+      const pupilOffsets = this._getPupilOffsets();
+
+      const { pupilPath, texture, isUVMirrored } = node;
+
+      const scale = values.scale ?? pupilScales[pupilPath];
+      const offset = values.offset ?? pupilOffsets[pupilPath];
+      let rotation = values.rotation ?? pupilRotations[pupilPath];
+
+      if (false) {
+        this._setPupilNodeScale(node, scale);
+        this._setPupilNodeRotation(node, rotation);
+        this._setPupilNodeOffset(node, offset);
+      } else {
+        rotation = this._useDegreesForPupilRotation
+          ? THREE.MathUtils.degToRad(rotation)
+          : rotation;
+
+        if (isUVMirrored) {
+          rotation *= -1;
+        }
+
+        texture.matrixAutoUpdate = false;
+        texture.matrix
+          .identity()
+          .translate(offset.x * (isUVMirrored ? -1 : 1), offset.y)
+          .translate(-0.5, -0.5)
+          .rotate(rotation)
+          .scale(1 / scale.x, 1 / scale.y)
+          .translate(0.5, 0.5);
+      }
+    },
     setPupilScale: function (path, scale) {
       this._setPupilProperty(
         path,
         scale,
         (node) => {
-          this._setPupilNodeScale(node, scale);
+          this._updateNodeTextureMatrix(node, { scale });
         },
         {
           prefix: this._pupilScalePrefix,
@@ -1612,7 +1635,7 @@
         path,
         rotation,
         (node) => {
-          this._setPupilNodeRotation(node, rotation);
+          this._updateNodeTextureMatrix(node, { rotation });
         },
         {
           prefix: this._pupilRotationPrefix,
