@@ -799,7 +799,7 @@
             child.mesh.visible = visible;
             if (visible && child.isPupil) {
               if (!this._setPupilPropertyWhenInvisible) {
-                this._updateNodeTextureMatrix(child);
+                this._updateTextureMatrix(child);
               }
             }
           } else {
@@ -1399,6 +1399,34 @@
         });
       }
     },
+    _updateTextureMatrixDirectly: true,
+    _updateTextureMatrix: function (node, values = {}) {
+      const pupilScales = this._getPupilScales();
+      const pupilRotations = this._getPupilRotations();
+      const pupilOffsets = this._getPupilOffsets();
+
+      const { pupilPath, texture, isUVMirrored } = node;
+
+      const scale = values.scale ?? pupilScales[pupilPath];
+      const offset = values.offset ?? pupilOffsets[pupilPath];
+
+      let rotation = values.rotation ?? pupilRotations[pupilPath];
+      rotation = this._useDegreesForPupilRotation
+        ? THREE.MathUtils.degToRad(rotation)
+        : rotation;
+      if (isUVMirrored) {
+        rotation *= -1;
+      }
+
+      texture.matrixAutoUpdate = false;
+      texture.matrix
+        .identity()
+        .translate(offset.x * (isUVMirrored ? -1 : 1), offset.y)
+        .translate(-0.5, -0.5)
+        .rotate(rotation)
+        .scale(1 / scale.x, 1 / scale.y)
+        .translate(0.5, 0.5);
+    },
     _initPupils: function () {},
     _tickPupils: function (time, timeDelta) {},
     // PUPILS END
@@ -1442,7 +1470,7 @@
 
       return pupilOffsetSchema;
     },
-    _setPupilNodeOffset: function (node, offset) {
+    _setPupilOffset: function (node, offset) {
       const { texture, isUVMirrored } = node;
 
       if (this._invertPupilScale) {
@@ -1463,7 +1491,11 @@
         path,
         offset,
         (node) => {
-          this._updateNodeTextureMatrix(node, { offset });
+          if (this._updateTextureMatrixDirectly) {
+            this._updateTextureMatrix(node, { offset });
+          } else {
+            this._setPupilOffset(node, offset);
+          }
         },
         {
           prefix: this._pupilOffsetPrefix,
@@ -1515,49 +1547,15 @@
 
       return pupilScaleSchema;
     },
-    _setPupilNodeScale: function (node, scale) {
+    _setPupilScale: function (node, scale) {
       const { texture, pupilPath } = node;
       const pupilOffsets = this._getPupilOffsets();
       const offset = pupilOffsets[pupilPath];
       if (this._invertPupilScale) {
         texture.repeat.set(1 / scale.x, 1 / scale.y);
-        this._setPupilNodeOffset(node, offset);
+        this._setPupilOffset(node, offset);
       } else {
         texture.repeat.copy(value);
-      }
-    },
-    _updateNodeTextureMatrix: function (node, values = {}) {
-      const pupilScales = this._getPupilScales();
-      const pupilRotations = this._getPupilRotations();
-      const pupilOffsets = this._getPupilOffsets();
-
-      const { pupilPath, texture, isUVMirrored } = node;
-
-      const scale = values.scale ?? pupilScales[pupilPath];
-      const offset = values.offset ?? pupilOffsets[pupilPath];
-      let rotation = values.rotation ?? pupilRotations[pupilPath];
-
-      if (false) {
-        this._setPupilNodeScale(node, scale);
-        this._setPupilNodeRotation(node, rotation);
-        this._setPupilNodeOffset(node, offset);
-      } else {
-        rotation = this._useDegreesForPupilRotation
-          ? THREE.MathUtils.degToRad(rotation)
-          : rotation;
-
-        if (isUVMirrored) {
-          rotation *= -1;
-        }
-
-        texture.matrixAutoUpdate = false;
-        texture.matrix
-          .identity()
-          .translate(offset.x * (isUVMirrored ? -1 : 1), offset.y)
-          .translate(-0.5, -0.5)
-          .rotate(rotation)
-          .scale(1 / scale.x, 1 / scale.y)
-          .translate(0.5, 0.5);
       }
     },
     setPupilScale: function (path, scale) {
@@ -1565,7 +1563,11 @@
         path,
         scale,
         (node) => {
-          this._updateNodeTextureMatrix(node, { scale });
+          if (this._updateTextureMatrixDirectly) {
+            this._updateTextureMatrix(node, { scale });
+          } else {
+            this._setPupilScale(node, scale);
+          }
         },
         {
           prefix: this._pupilScalePrefix,
@@ -1620,7 +1622,7 @@
 
       return pupilRotationSchema;
     },
-    _setPupilNodeRotation: function (node, rotation) {
+    _setPupilRotation: function (node, rotation) {
       const { texture, isUVMirrored } = node;
       // console.log("setting pupilRotation", node.mesh.name, rotation);
       texture.rotation = this._useDegreesForPupilRotation
@@ -1635,7 +1637,11 @@
         path,
         rotation,
         (node) => {
-          this._updateNodeTextureMatrix(node, { rotation });
+          if (this._updateTextureMatrixDirectly) {
+            this._updateTextureMatrix(node, { rotation });
+          } else {
+            this._setPupilRotation(node, rotation);
+          }
         },
         {
           prefix: this._pupilRotationPrefix,
