@@ -798,17 +798,20 @@
                 .replace(this.data.pupilName + ".", "");
 
               if (!this._setPupilPropertyWhenInvisible) {
-                const pupilOffset = pupilOffsets[childPupilPath];
-                texture.offset.copy(pupilOffset);
-                if (child.isUVMirrored) {
-                  texture.offset.x *= -1;
-                }
-
                 const pupilScale = pupilScales[childPupilPath];
                 if (this._invertPupilScale) {
                   texture.repeat.set(1 / pupilScale.x, 1 / pupilScale.y);
                 } else {
                   texture.repeat.copy(pupilScale);
+                }
+
+                const pupilOffset = pupilOffsets[childPupilPath];
+                texture.offset.copy(pupilOffset);
+                if (child.isUVMirrored) {
+                  texture.offset.x *= -1;
+                }
+                if (this._invertPupilScale) {
+                  // FILL - update offset
                 }
 
                 const pupilRotation = pupilRotations[childPupilPath];
@@ -1468,6 +1471,9 @@
           if (isUVMirrored) {
             texture.offset.x *= -1;
           }
+          if (this._invertPupilScale) {
+            // FILL - update offset
+          }
         },
         {
           prefix: this._pupilOffsetPrefix,
@@ -1528,6 +1534,7 @@
           //console.log("setting pupilScale", node.mesh.name, value);
           if (this._invertPupilScale) {
             texture.repeat.set(1 / value.x, 1 / value.y);
+            // FILL - update offset
           } else {
             texture.repeat.copy(value);
           }
