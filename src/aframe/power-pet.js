@@ -447,7 +447,7 @@
 
           //console.log("mesh", meshPath, { uvCount });
 
-          const isPupil = mesh.name.startsWith(this.data.pupilName);
+          const isPupil = path.startsWith(this.data.pupilName);
 
           const onMeshSegment = (meshTree, index = 0) => {
             const _path = meshPath.slice(0, index + 1).join(".");
@@ -465,9 +465,15 @@
                 isPupil,
                 texture,
                 modelEntity,
+                path,
               };
               meshTree[segment] = meshTreeNode;
               if (isPupil) {
+                meshTreeNode.pupilPath = path.replace(
+                  this.data.pupilName + ".",
+                  ""
+                );
+
                 if (textures.includes(texture)) {
                   //console.log(`duplicate texture found in "${mesh.name}" mesh`);
                   mesh.material = mesh.material.clone();
@@ -792,20 +798,17 @@
             const visible = name == value;
             child.mesh.visible = visible;
             if (visible && child.isPupil) {
-              const { texture } = child;
-              const childPupilPath = [path, name]
-                .join(".")
-                .replace(this.data.pupilName + ".", "");
+              const { texture, pupilPath } = child;
 
               if (!this._setPupilPropertyWhenInvisible) {
-                const pupilScale = pupilScales[childPupilPath];
+                const pupilScale = pupilScales[pupilPath];
                 if (this._invertPupilScale) {
                   texture.repeat.set(1 / pupilScale.x, 1 / pupilScale.y);
                 } else {
                   texture.repeat.copy(pupilScale);
                 }
 
-                const pupilOffset = pupilOffsets[childPupilPath];
+                const pupilOffset = pupilOffsets[pupilPath];
                 texture.offset.copy(pupilOffset);
                 if (child.isUVMirrored) {
                   texture.offset.x *= -1;
@@ -814,7 +817,7 @@
                   // FILL - update offset
                 }
 
-                const pupilRotation = pupilRotations[childPupilPath];
+                const pupilRotation = pupilRotations[pupilPath];
                 texture.rotation = this._useDegreesForPupilRotation
                   ? THREE.MathUtils.degToRad(pupilRotation)
                   : pupilRotation;
