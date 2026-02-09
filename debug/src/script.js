@@ -118,7 +118,7 @@ powerPetEntity.addEventListener("power-pet-model", (event) => {
 // POWER PET VARIANTS START
 /** @type {HTMLTemplateElement} */
 const variantTemplate = document.getElementById("variantTemplate");
-const variantsContainer = document.getElementById("variantsContainer");
+const variantsContainer = document.getElementById("variants");
 
 const allVariantContainers = {};
 const allVariantsContainers = {};
@@ -348,104 +348,117 @@ powerPetEntity.addEventListener("power-pet-turn", (event) => {
 });
 // POWER PET TURN END
 
-// POWER PET PUPIL OFFSETS START
-/** @type {HTMLTemplateElement} */
-const pupilOffsetTemplate = document.getElementById("pupilOffsetTemplate");
-const pupilOffsetsContainer = document.getElementById("pupilOffsetsContainer");
+// POWER PET CONTAINER START
+const onlyShowHighLevelPupils = true;
+const setupContainer = (valueName) => {
+  const valuesArrayName = `${valueName}sArray`;
+  console.log({ valueName, valuesArrayName });
 
-const allPupilOffsetContainers = {};
-const allPupilOffsetsContainers = {};
+  const valuesContainer = document.getElementById(`${valueName}s`);
+  const valueTemplate = valuesContainer.querySelector("template");
 
-const onlyShowHighLevelPupilOffsets = true;
+  const allValueContainers = {};
+  const allValuesContainers = {};
 
-powerPetEntity.addEventListener("power-pet-model-loaded", (event) => {
-  const { name, model } = event.detail;
-  const { pupilOffsetsArray } = model;
-  //console.log("pupilOffsetsArray", pupilOffsetsArray);
+  powerPetEntity.addEventListener("power-pet-model-loaded", (event) => {
+    const { name, model } = event.detail;
+    const { [valuesArrayName]: valuesArray } = model;
+    //console.log(valuesArrayName, valuesArray);
 
-  const pupilOffsetContainers = {};
+    const valueContainers = {};
 
-  const _pupilOffsetsContainer = document.createElement("div");
-  _pupilOffsetsContainer.classList.add("hidden");
-  _pupilOffsetsContainer.dataset.model = name;
-  _pupilOffsetsContainer.classList.add("pupilOffsetContainers");
-  pupilOffsetsContainer.appendChild(_pupilOffsetsContainer);
+    const _valuesContainer = document.createElement("div");
+    _valuesContainer.classList.add("hidden");
+    _valuesContainer.dataset.model = valueName;
+    _valuesContainer.classList.add(`${valueName}Containers`);
+    valuesContainer.appendChild(_valuesContainer);
 
-  pupilOffsetsArray.forEach(([path, offset]) => {
-    if (onlyShowHighLevelPupilOffsets && path.split(".").length > 1) {
-      return;
-    }
+    valuesArray.forEach(([path, value]) => {
+      if (
+        valueName.startsWith("pupil") &&
+        onlyShowHighLevelPupils &&
+        path.split(".").length > 1
+      ) {
+        return;
+      }
 
-    /** @type {HTMLElement} */
-    const pupilOffsetContainer = pupilOffsetTemplate.content
-      .cloneNode(true)
-      .querySelector(".pupilOffset");
+      /** @type {HTMLElement} */
+      const valueContainer = valueTemplate.content
+        .cloneNode(true)
+        .querySelector(`.${valueName}`);
+      valueContainer.dataset.path = path;
 
-    pupilOffsetContainer.dataset.path = path;
+      const pathSpan = valueContainer.querySelector("span.path");
+      pathSpan.innerText = path;
 
-    const pathSpan = pupilOffsetContainer.querySelector("span.path");
-    pathSpan.innerText = path;
+      const input = valueContainer.querySelector(".input");
+      valueContainer.input = input;
 
-    const input = pupilOffsetContainer.querySelector("[data-input]");
-    pupilOffsetContainer.input = input;
+      input.value = value;
 
-    input.value = offset;
+      input.addEventListener("input", () => {
+        const { value } = input;
+        //console.log({ path }, value);
+        powerPetEntity.setAttribute("power-pet", `${valueName}_${path}`, value);
+      });
 
-    input.addEventListener("input", () => {
-      const { value } = input;
-      //console.log({ path }, value);
-      powerPetEntity.setAttribute("power-pet", `pupilOffset_${path}`, value);
+      _valuesContainer.appendChild(valueContainer);
+      valueContainers[path] = valueContainer;
     });
 
-    _pupilOffsetsContainer.appendChild(pupilOffsetContainer);
-    pupilOffsetContainers[path] = pupilOffsetContainer;
+    allValueContainers[name] = valueContainers;
+    allValuesContainers[name] = _valuesContainer;
   });
 
-  allPupilOffsetContainers[name] = pupilOffsetContainers;
-  allPupilOffsetsContainers[name] = _pupilOffsetsContainer;
-});
+  powerPetEntity.addEventListener("power-pet-model", (event) => {
+    const { name, model } = event.detail;
+    const { [valuesArrayName]: valuesArray } = model;
+    //console.log(valuesArrayName, valuesArray);
 
-powerPetEntity.addEventListener("power-pet-model", (event) => {
-  const { name, model } = event.detail;
-  const { pupilOffsetsArray } = model;
-  //console.log("pupilOffsetsArray", pupilOffsetsArray);
+    Object.entries(allValuesContainers).forEach(([_name, container]) => {
+      if (_name == name) {
+        container.classList.remove("hidden");
+      } else {
+        container.classList.add("hidden");
+      }
+    });
 
-  Object.entries(allPupilOffsetsContainers).forEach(([_name, container]) => {
-    if (_name == name) {
-      container.classList.remove("hidden");
+    valuesArray.forEach(([path, value]) => {
+      if (
+        valueName.startsWith("pupil") &&
+        onlyShowHighLevelPupils &&
+        path.split(".").length > 1
+      ) {
+        return;
+      }
+      allValueContainers[name][path].input.value = value;
+    });
+
+    if (valuesArray.length > 0) {
+      valuesContainer.classList.remove("hidden");
     } else {
-      container.classList.add("hidden");
+      valuesContainer.classList.add("hidden");
     }
   });
-
-  pupilOffsetsArray.forEach(([path, value]) => {
-    if (onlyShowHighLevelPupilOffsets && path.split(".").length > 1) {
-      return;
+  powerPetEntity.addEventListener(`power-pet-${valueName}`, (event) => {
+    const { name, path, value } = event.detail;
+    //console.log(event.type, { name, path, value }, allValueContainers);
+    const input = allValueContainers[name][path]?.input;
+    if (input) {
+      input.value = value;
     }
-    allPupilOffsetContainers[name][path].input.value = value;
   });
+};
+// POWER PET CONTAINER END
 
-  if (pupilOffsetsArray.length > 0) {
-    pupilOffsetsContainer.classList.remove("hidden");
-  } else {
-    pupilOffsetsContainer.classList.add("hidden");
-  }
-});
-powerPetEntity.addEventListener("power-pet-pupilOffset", (event) => {
-  const { name, path, value } = event.detail;
-  //console.log(event.type, { name, path, value }, allPupilOffsetContainers);
-  const input = allPupilOffsetContainers[name][path]?.input;
-  if (input) {
-    input.value = value;
-  }
-});
-
+// POWER PET PUPIL OFFSETS START
+setupContainer("pupilOffset");
 // POWER PET PUPIL OFFSETS END
 
 // POWER PET PUPIL SCALE START
-// FILL
+// setupContainer("pupilOffset", "pupilOffsetsArray");
 // POWER PET PUPIL SCALE END
 
 // POWER PET PUPIL ROTATION START
-// FILL
+// setupContainer("pupilOffset", "pupilOffsetsArray");
 // POWER PET PUPIL ROTATION END
