@@ -87,34 +87,6 @@ const loadModelFile = async (file) => {
 const powerPetEntity = document.getElementById("powerPet");
 // POWER PET END
 
-// POWER PET MODEL SELECT START
-const powerPetModelSelect = document.getElementById("powerPetModel");
-const powerPetModelOptgroup = powerPetModelSelect.querySelector("optgroup");
-powerPetModelSelect.addEventListener("input", () => {
-  powerPetEntity.setAttribute("power-pet", "model", powerPetModelSelect.value);
-});
-sceneEntity.addEventListener("power-pet-model-added", (event) => {
-  const { models } = event.detail;
-
-  powerPetModelOptgroup.innerHTML = "";
-  Object.keys(models).forEach((name) => {
-    powerPetModelOptgroup.appendChild(new Option(name));
-  });
-
-  if (!powerPetEntity.getAttribute("power-pet")?.model) {
-    powerPetEntity.setAttribute(
-      "power-pet",
-      "model",
-      powerPetModelSelect.value
-    );
-  }
-});
-powerPetEntity.addEventListener("power-pet-model", (event) => {
-  const { name } = event.detail;
-  powerPetModelSelect.value = name;
-});
-// POWER PET MODEL SELECT END
-
 // POWER PET CONTAINER START
 const capitalizeFirstLetter = (string) =>
   string[0].toUpperCase() + string.slice(1);
@@ -254,8 +226,7 @@ const setupInput = (name, options = {}) => {
     //console.log({ [name]: value });
     powerPetEntity.setAttribute("power-pet", name, value);
   });
-  powerPetEntity.addEventListener(`power-pet-${name}`, (event) => {
-    let { [name]: value } = event.detail;
+  const updateValue = (value) => {
     if (property) {
       value = value[property];
     }
@@ -265,6 +236,14 @@ const setupInput = (name, options = {}) => {
     } else {
       input.value = value;
     }
+  };
+  powerPetEntity.addEventListener(`power-pet-${name}`, (event) => {
+    let { [name]: value } = event.detail;
+    updateValue(value);
+  });
+
+  powerPetEntity.addEventListener("loaded", () => {
+    updateValue(powerPetEntity.components["power-pet"].data[name]);
   });
 
   const { min } = options;
@@ -294,6 +273,36 @@ const setupInput = (name, options = {}) => {
   }
 };
 // POWER PET INPUT END
+
+// POWER PET MODEL SELECT START
+const powerPetModelSelect = document.getElementById("powerPetModel");
+const powerPetModelOptgroup = powerPetModelSelect.querySelector("optgroup");
+powerPetModelSelect.addEventListener("input", () => {
+  powerPetEntity.setAttribute("power-pet", "model", powerPetModelSelect.value);
+});
+sceneEntity.addEventListener("power-pet-model-added", (event) => {
+  const { models } = event.detail;
+
+  powerPetModelOptgroup.innerHTML = "";
+  Object.keys(models).forEach((name) => {
+    powerPetModelOptgroup.appendChild(new Option(name));
+  });
+
+  if (!powerPetEntity.getAttribute("power-pet")?.model) {
+    powerPetEntity.setAttribute(
+      "power-pet",
+      "model",
+      powerPetModelSelect.value
+    );
+  }
+});
+powerPetEntity.addEventListener("power-pet-model", (event) => {
+  const { name } = event.detail;
+  powerPetModelSelect.value = name;
+});
+
+setupInput("showModelBoundingBox");
+// POWER PET MODEL SELECT END
 
 // POWER PET VARIANTS START
 setupContainer("variant");

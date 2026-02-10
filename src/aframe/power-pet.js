@@ -159,7 +159,7 @@
   AFRAME.registerComponent("power-pet", {
     schema: {
       model: { oneOf: [] },
-      debugModelBoundingBox: { type: "boolean", default: false },
+      showModelBoundingBox: { type: "boolean", default: false },
 
       squashCenter: { type: "vec3", default: { x: 0, y: 0, z: 0 } },
       squash: { type: "number", default: 1 },
@@ -183,8 +183,8 @@
 
       pupilName: { type: "string", default: "pupil" },
 
-      debugLookAtPupils: { type: "boolean", default: false },
-      debugLookAt: { type: "boolean", default: false },
+      showLookAtPupils: { type: "boolean", default: false },
+      showLookAt: { type: "boolean", default: false },
       lookAtPosition: { type: "vec3", default: { x: 0, y: 0, z: 0 } },
       lookAtOffsetMin: { type: "vec2", default: { x: -1.45, y: -1 } },
       lookAtOffsetMax: { type: "vec2", default: { x: 1.45, y: 1 } },
@@ -341,8 +341,8 @@
                 this.selectModel(this.data.model);
               }
               break;
-            case "debugModelBoundingBox":
-              this.setDebugModelBoundingBox(this.data.debugModelBoundingBox);
+            case "showModelBoundingBox":
+              this.setShowModelBoundingBox(this.data.showModelBoundingBox);
               break;
             case "squash":
               this.setSquash(this.data.squash);
@@ -394,11 +394,11 @@
               break;
             case "pupilName":
               break;
-            case "debugLookAt":
-              this.setDebugLookAt(this.data.debugLookAt);
+            case "showLookAt":
+              this.setShowLookAt(this.data.showLookAt);
               break;
-            case "debugLookAtPupils":
-              this.setDebugLookAtPupils(this.data.debugLookAtPupils);
+            case "showLookAtPupils":
+              this.setShowLookAtPupils(this.data.showLookAtPupils);
               break;
             case "lookAtPosition":
               if (this._updateCalledOnce) {
@@ -450,7 +450,7 @@
       const modelBoundingBoxEntity = document.createElement("a-box");
       modelBoundingBoxEntity.setAttribute(
         "visible",
-        this.data.debugModelBoundingBox
+        this.data.showModelBoundingBox
       );
       modelBoundingBoxEntity.setAttribute("color", "green");
       modelBoundingBoxEntity.setAttribute("opacity", "0.1");
@@ -560,26 +560,26 @@
                 pupilEntity.classList.add("pupil");
                 modelEntity.appendChild(pupilEntity);
 
-                const pupilDebugEntity = document.createElement("a-entity");
-                pupilDebugEntity.classList.add("pupilDebug");
-                pupilDebugEntity.setAttribute(
+                const pupilShowEntity = document.createElement("a-entity");
+                pupilShowEntity.classList.add("pupilShow");
+                pupilShowEntity.setAttribute(
                   "visible",
-                  this.data.debugLookAtPupils
+                  this.data.showLookAtPupils
                 );
-                pupilEntity.appendChild(pupilDebugEntity);
+                pupilEntity.appendChild(pupilShowEntity);
 
-                const pupilDebugCone = document.createElement("a-cone");
-                pupilDebugCone.setAttribute("color", "yellow");
-                pupilDebugCone.setAttribute("height", "0.01");
-                pupilDebugCone.setAttribute("radius-top", "0");
-                pupilDebugCone.setAttribute("radius-bottom", "0.005");
-                pupilDebugCone.setAttribute("position", "0 0 0.005");
-                pupilDebugCone.setAttribute("rotation", "90 0 0");
-                pupilDebugCone.setAttribute("visible", "true");
-                pupilDebugEntity.appendChild(pupilDebugCone);
+                const pupilShowCone = document.createElement("a-cone");
+                pupilShowCone.setAttribute("color", "yellow");
+                pupilShowCone.setAttribute("height", "0.01");
+                pupilShowCone.setAttribute("radius-top", "0");
+                pupilShowCone.setAttribute("radius-bottom", "0.005");
+                pupilShowCone.setAttribute("position", "0 0 0.005");
+                pupilShowCone.setAttribute("rotation", "90 0 0");
+                pupilShowCone.setAttribute("visible", "true");
+                pupilShowEntity.appendChild(pupilShowCone);
 
                 meshTreeNode.pupilEntity = pupilEntity;
-                meshTreeNode.pupilDebugEntity = pupilDebugEntity;
+                meshTreeNode.pupilShowEntity = pupilShowEntity;
                 meshTreeNode.lookAtPosition = new THREE.Vector3();
                 meshTreeNode.localLookAtPosition = new THREE.Vector3();
                 meshTreeNode.normalizedLocalLookAtPosition =
@@ -699,6 +699,7 @@
         const model = {
           src: modelSrc,
           entity: modelEntity,
+          boundingBoxEntity: modelBoundingBoxEntity,
           meshTree,
           allVariants,
           allVariantsArray,
@@ -724,7 +725,7 @@
       this.modelsEntity.appendChild(modelEntity);
     },
     getIsModelSelected: function () {
-      return this.models[this.selectedName];
+      return this._getModel();
     },
     selectModel: function (newName) {
       if (!this.system.models[newName]) {
@@ -748,8 +749,9 @@
         entity.object3D.visible = false;
       }
 
-      const { entity } = this.models[newName];
+      const { entity, boundingBoxEntity } = this.models[newName];
       entity.object3D.visible = true;
+      boundingBoxEntity.object3D.visible = this.data.showModelBoundingBox;
 
       this.selectedName = newName;
 
@@ -760,10 +762,23 @@
         model: this.models[newName],
       });
     },
-    setDebugModelBoundingBox: function (debugModelBoundingBox) {
-      //console.log("setDebugModelBoundingBox", debugModelBoundingBox);
-      // FILL - update a
-      this._updateData("debugModelBoundingBox", debugModelBoundingBox);
+    _isModelLoaded: function () {
+      return Boolean(this._getModel());
+    },
+    _getModel: function () {
+      return this.models[this.selectedName];
+    },
+    setShowModelBoundingBox: function (showModelBoundingBox) {
+      //console.log("setShowModelBoundingBox", showModelBoundingBox);
+
+      if (!this._isModelLoaded()) {
+        return;
+      }
+
+      const { boundingBoxEntity } = this._getModel();
+      boundingBoxEntity.object3D.visible = this.data.showModelBoundingBox;
+
+      this._updateData("showModelBoundingBox", showModelBoundingBox);
     },
     // MODEL END
 
@@ -792,16 +807,16 @@
     // VARIANT START
     _variantPrefix: "variant_",
     _getVariants: function () {
-      return this.models[this.selectedName]?.variants ?? {};
+      return this._getModel()?.variants ?? {};
     },
     _getVariantsArray: function () {
-      return this.models[this.selectedName]?.variantsArray ?? [];
+      return this._getModel()?.variantsArray ?? [];
     },
     _getAllVariants: function () {
-      return this.models[this.selectedName]?.allVariants ?? {};
+      return this._getModel()?.allVariants ?? {};
     },
     _getAllVariantsArray: function () {
-      return this.models[this.selectedName]?.allVariantsArray ?? [];
+      return this._getModel()?.allVariantsArray ?? [];
     },
     _selectVariants: function () {
       const variantsArray = structuredClone(this._getVariantsArray());
@@ -842,7 +857,7 @@
       }
 
       const { variants, meshTree, pupilOffsets, pupilScales, pupilRotations } =
-        this.models[this.selectedName];
+        this._getModel();
 
       if (!this._includeNullPathInPupilSchema && path == "") {
         return;
@@ -897,7 +912,7 @@
             if (visible && child.isPupil) {
               if (!this._setPupilPropertyWhenInvisible) {
                 this._updateTextureMatrix(child);
-                this._updateDebugLookAt(child);
+                this._updateShowLookAt(child);
                 this._updateLookAtPosition(child);
               }
             }
@@ -1434,10 +1449,10 @@
       return true;
     },
     _getPupils: function () {
-      return this.models[this.selectedName]?.pupils ?? {};
+      return this._getModel()?.pupils ?? {};
     },
     _getPupilNodes: function () {
-      return this.models[this.selectedName]?.pupilNodes ?? [];
+      return this._getModel()?.pupilNodes ?? [];
     },
     _setPupilPropertyWhenInvisible: true,
     _setPupilProperty: function (path, value, callback, options) {
@@ -1463,7 +1478,7 @@
         return;
       }
 
-      const { pupils } = this.models[this.selectedName];
+      const { pupils } = this._getModel();
 
       const node = this._walkTree(path, pupils);
       if (!node) {
@@ -1537,10 +1552,10 @@
     // PUPIL OFFSETS START
     _pupilOffsetPrefix: "pupilOffset_",
     _getPupilOffsets: function () {
-      return this.models[this.selectedName]?.pupilOffsets ?? {};
+      return this._getModel()?.pupilOffsets ?? {};
     },
     _getPupilOffsetsArray: function () {
-      return this.models[this.selectedName]?.pupilOffsetsArray ?? [];
+      return this._getModel()?.pupilOffsetsArray ?? [];
     },
     _setPupilOffsets: function () {
       const pupilOffsetsArray = structuredClone(this._getPupilOffsetsArray());
@@ -1618,10 +1633,10 @@
     // PUPIL SCALES START
     _pupilScalePrefix: "pupilScale_",
     _getPupilScales: function () {
-      return this.models[this.selectedName]?.pupilScales ?? {};
+      return this._getModel()?.pupilScales ?? {};
     },
     _getPupilScalesArray: function () {
-      return this.models[this.selectedName]?.pupilScalesArray ?? [];
+      return this._getModel()?.pupilScalesArray ?? [];
     },
     _setPupilScales: function () {
       const pupilScalesArray = structuredClone(this._getPupilScalesArray());
@@ -1691,10 +1706,10 @@
     _pupilRotationPrefix: "pupilRotation_",
     _useDegreesForPupilRotation: true,
     _getPupilRotations: function () {
-      return this.models[this.selectedName]?.pupilRotations ?? {};
+      return this._getModel()?.pupilRotations ?? {};
     },
     _getPupilRotationsArray: function () {
-      return this.models[this.selectedName]?.pupilRotationsArray ?? [];
+      return this._getModel()?.pupilRotationsArray ?? [];
     },
     _setPupilRotations: function () {
       const pupilRotationsArray = structuredClone(
@@ -1766,7 +1781,7 @@
       const lookAtEntity = document.createElement("a-entity");
       lookAtEntity.classList.add("lookAtEntity");
       lookAtEntity.powerPet = this;
-      lookAtEntity.setAttribute("visible", this.data.debugLookAt);
+      lookAtEntity.setAttribute("visible", this.data.showLookAt);
       const { x, y, z } = this.data.lookAtPosition;
       lookAtEntity.setAttribute("position", [x, y, z].join(" "));
       this.el.sceneEl.appendChild(lookAtEntity);
@@ -1784,27 +1799,27 @@
     },
 
     _setLookAtPositionWhenInvisible: false,
-    _updateDebugLookAt: function (node, debugLookAt) {
-      debugLookAt = debugLookAt ?? this.data.debugLookAt;
-      //console.log("_updateDebugLookAt", node, { debugLookAt });
-      const { pupilDebugEntity } = node;
-      pupilDebugEntity.object3D.visible = debugLookAt;
+    _updateShowLookAt: function (node, showLookAt) {
+      showLookAt = showLookAt ?? this.data.showLookAt;
+      //console.log("_updateShowLookAt", node, { showLookAt });
+      const { pupilShowEntity } = node;
+      pupilShowEntity.object3D.visible = showLookAt;
     },
-    setDebugLookAt: function (debugLookAt) {
-      //console.log("setDebugLookAt", debugLookAt);
-      this._lookAtEntity.object3D.visible = debugLookAt;
-      this._updateData("debugLookAt", debugLookAt);
+    setShowLookAt: function (showLookAt) {
+      //console.log("setShowLookAt", showLookAt);
+      this._lookAtEntity.object3D.visible = showLookAt;
+      this._updateData("showLookAt", showLookAt);
     },
-    setDebugLookAtPupils: function (debugLookAtPupils) {
-      //console.log("setDebugLookAtPupils", debugLookAtPupils);
+    setShowLookAtPupils: function (showLookAtPupils) {
+      //console.log("setShowLookAtPupils", showLookAtPupils);
       const pupilNodes = this._getPupilNodes();
       pupilNodes.forEach((node) => {
         if (!this._setLookAtPositionWhenInvisible && !node.mesh.visible) {
           return;
         }
-        this._updateDebugLookAt(node, debugLookAt);
+        this._updateShowLookAt(node, showLookAt);
       });
-      this._updateData("debugLookAtPupils", debugLookAtPupils);
+      this._updateData("showLookAtPupils", showLookAtPupils);
     },
 
     _getLookAtMetadata: function (pupilNode, trackedNode) {
@@ -1815,7 +1830,7 @@
       //console.log("_updateLookAtPosition", node.path, lookAtPosition);
       const {
         pupilEntity,
-        pupilDebugEntity,
+        pupilShowEntity,
         lookAtPosition: _lookAtPosition,
         localLookAtPosition,
         normalizedLocalLookAtPosition,
@@ -1836,7 +1851,7 @@
       const yaw = Math.atan2(dir.x, dir.z);
       const pitch = Math.atan2(dir.y, Math.sqrt(dir.x * dir.x + dir.z * dir.z));
 
-      const { rotation } = pupilDebugEntity.object3D;
+      const { rotation } = pupilShowEntity.object3D;
       rotation.x = -pitch;
       rotation.y = yaw;
       //console.log({ pitch, yaw });
@@ -1874,7 +1889,7 @@
       );
 
       //console.log("setLookAtPosition", lookAtPosition, { dur });
-      if (this.data.debugLookAt) {
+      if (this.data.showLookAt) {
         this._lookAtEntity.object3D.position.copy(lookAtPosition);
         this._lookAtEntityPosition.copy(lookAtPosition);
       }
@@ -1893,7 +1908,7 @@
       return this.el && this.getSelectedInspectorEntity() == this._lookAtEntity;
     },
     _tickLookAt: function (time, timeDelta) {
-      if (!this.data.debugLookAt) {
+      if (!this.data.showLookAt) {
         return;
       }
       if (!this.getIsLookAtSelectedInInspector()) {
