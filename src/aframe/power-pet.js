@@ -159,10 +159,11 @@
   AFRAME.registerComponent("power-pet", {
     schema: {
       model: { oneOf: [] },
+      debugModelBoundingBox: { type: "boolean", default: false },
 
       squashCenter: { type: "vec3", default: { x: 0, y: 0, z: 0 } },
       squash: { type: "number", default: 1 },
-      squashMax: { type: "vec2", default: { x: 1.15, y: 0.85 } },
+      squashMin: { type: "vec2", default: { x: 1.15, y: 0.85 } },
       showSquashCenter: { default: false },
 
       squashColliderSize: { type: "number", default: 0.2 },
@@ -182,8 +183,11 @@
 
       pupilName: { type: "string", default: "pupil" },
 
+      debugLookAtPupils: { type: "boolean", default: false },
       debugLookAt: { type: "boolean", default: false },
       lookAtPosition: { type: "vec3", default: { x: 0, y: 0, z: 0 } },
+      lookAtOffsetMin: { type: "vec2", default: { x: -1.45, y: -1 } },
+      lookAtOffsetMax: { type: "vec2", default: { x: 1.45, y: 1 } },
     },
 
     init: function () {
@@ -337,6 +341,9 @@
                 this.selectModel(this.data.model);
               }
               break;
+            case "debugModelBoundingBox":
+              this.setDebugModelBoundingBox(this.data.debugModelBoundingBox);
+              break;
             case "squash":
               this.setSquash(this.data.squash);
               break;
@@ -352,8 +359,8 @@
             case "squashCenter":
               this.setSquashCenter(this.data.squashCenter);
               break;
-            case "squashMax":
-              this.setSquashMax(this.data.squashMax);
+            case "squashMin":
+              this.setSquashMin(this.data.squashMin);
               break;
             case "showSquashCenter":
               this.setShowSquashCenter(this.data.showSquashCenter);
@@ -390,10 +397,19 @@
             case "debugLookAt":
               this.setDebugLookAt(this.data.debugLookAt);
               break;
+            case "debugLookAtPupils":
+              this.setDebugLookAtPupils(this.data.debugLookAtPupils);
+              break;
             case "lookAtPosition":
               if (this._updateCalledOnce) {
                 this.setLookAtPosition(this.data.lookAtPosition);
               }
+              break;
+            case "lookAtOffsetMin":
+              this.setLookAtOffsetMin(this.data.lookAtOffsetMin);
+              break;
+            case "lookAtOffsetMax":
+              this.setLookAtOffsetMax(this.data.lookAtOffsetMax);
               break;
             default:
               console.warn(`uncaught diffKey "${diffKey}"`);
@@ -430,14 +446,36 @@
       modelEntity.classList.add("model");
       modelEntity.setAttribute("gltf-model", modelSrc);
       modelEntity.setAttribute("visible", "false");
+
+      const modelBoundingBoxEntity = document.createElement("a-box");
+      modelBoundingBoxEntity.setAttribute(
+        "visible",
+        this.data.debugModelBoundingBox
+      );
+      modelBoundingBoxEntity.setAttribute("color", "green");
+      modelBoundingBoxEntity.setAttribute("opacity", "0.1");
+
       modelEntity.addEventListener("model-loaded", () => {
         // console.log("model-loaded", modelEntity);
 
+        /** @type {Mesh} */
         const root = modelEntity.getObject3D("mesh");
         if (!root) {
           console.error("no mesh found in modelEntity");
           return;
         }
+
+        const bbox = new THREE.Box3().setFromObject(root);
+        const size = bbox.getSize(new THREE.Vector3());
+        const center = bbox.getCenter(new THREE.Vector3());
+        modelEntity.object3D.worldToLocal(center);
+        // console.log(size, center);
+        modelBoundingBoxEntity.setAttribute("scale", size.toArray().join(" "));
+        modelBoundingBoxEntity.setAttribute(
+          "position",
+          center.toArray().join(" ")
+        );
+        this.modelsEntity.appendChild(modelBoundingBoxEntity);
 
         const meshTree = {};
         const allVariants = {}; // "path.to.mesh": ["each", "possible", "variant"]
@@ -489,6 +527,7 @@
                 isPupil,
                 texture,
                 modelEntity,
+                modelBoundingBoxEntity,
                 path,
               };
               meshTree[segment] = meshTreeNode;
@@ -514,14 +553,19 @@
                 texture.needsUpdate = true;
 
                 const pupilEntity = document.createElement("a-entity");
-                const { x, y, z } = mesh.position;
-                pupilEntity.setAttribute("position", [x, y, z].join(" "));
+                pupilEntity.setAttribute(
+                  "position",
+                  mesh.position.toArray().join(" ")
+                );
                 pupilEntity.classList.add("pupil");
                 modelEntity.appendChild(pupilEntity);
 
                 const pupilDebugEntity = document.createElement("a-entity");
                 pupilDebugEntity.classList.add("pupilDebug");
-                pupilDebugEntity.setAttribute("visible", this.data.debugLookAt);
+                pupilDebugEntity.setAttribute(
+                  "visible",
+                  this.data.debugLookAtPupils
+                );
                 pupilEntity.appendChild(pupilDebugEntity);
 
                 const pupilDebugCone = document.createElement("a-cone");
@@ -716,6 +760,11 @@
         model: this.models[newName],
       });
     },
+    setDebugModelBoundingBox: function (debugModelBoundingBox) {
+      //console.log("setDebugModelBoundingBox", debugModelBoundingBox);
+      // FILL - update a
+      this._updateData("debugModelBoundingBox", debugModelBoundingBox);
+    },
     // MODEL END
 
     // SCHEMA START
@@ -890,10 +939,6 @@
 
       this.squashCenterEntity = document.createElement("a-entity");
       this.squashCenterEntity.classList.add("squashCenter");
-      this.squashCenterEntity.setAttribute(
-        "visible",
-        this.data.showSquashCenter
-      );
       this.squashPositionEntity.appendChild(this.squashCenterEntity);
 
       this.squashCenterSphere = document.createElement("a-sphere");
@@ -902,6 +947,10 @@
       this.squashCenterSphere.setAttribute(
         "material",
         "depthTest: false; depthWrite: false; transparent: true;"
+      );
+      this.squashCenterSphere.setAttribute(
+        "visible",
+        this.data.showSquashCenter
       );
       this.squashCenterEntity.appendChild(this.squashCenterSphere);
 
@@ -968,12 +1017,12 @@
         );
       }
     },
-    setSquashMax: function (squashMax) {
-      this._updateData("squashMax", squashMax);
+    setSquashMin: function (squashMin) {
+      this._updateData("squashMin", squashMin);
       this.setSquash(this.data.squash);
     },
     setSquash: function (squash, dur = 0) {
-      const { x, y } = this.data.squashMax;
+      const { x, y } = this.data.squashMin;
 
       squash = THREE.MathUtils.clamp(squash, y, 1);
       //console.log("setSquash", squash);
@@ -1016,7 +1065,7 @@
     },
     setShowSquashCenter: function (showSquashCenter) {
       //console.log("setShowSquashCenter", showSquashCenter);
-      this.squashCenterEntity.object3D.visible = showSquashCenter;
+      this.squashCenterSphere.object3D.visible = showSquashCenter;
       this._updateData("showSquashCenter", showSquashCenter);
     },
     setShowSquashControlPoint: function (showSquashControlPoint) {
@@ -1557,6 +1606,10 @@
           values: this._getPupilOffsets(),
           valuesArray: this._getPupilOffsetsArray(),
           defaultValue: { x: 0, y: 0 },
+          clamp: ({ x, y }) => ({
+            x: THREE.MathUtils.clamp(x, -1, 1),
+            y: THREE.MathUtils.clamp(y, -1, 1),
+          }),
         }
       );
     },
@@ -1740,6 +1793,10 @@
     setDebugLookAt: function (debugLookAt) {
       //console.log("setDebugLookAt", debugLookAt);
       this._lookAtEntity.object3D.visible = debugLookAt;
+      this._updateData("debugLookAt", debugLookAt);
+    },
+    setDebugLookAtPupils: function (debugLookAtPupils) {
+      //console.log("setDebugLookAtPupils", debugLookAtPupils);
       const pupilNodes = this._getPupilNodes();
       pupilNodes.forEach((node) => {
         if (!this._setLookAtPositionWhenInvisible && !node.mesh.visible) {
@@ -1747,7 +1804,7 @@
         }
         this._updateDebugLookAt(node, debugLookAt);
       });
-      //this._updateData("debugLookAt", debugLookAt);
+      this._updateData("debugLookAtPupils", debugLookAtPupils);
     },
 
     _getLookAtMetadata: function (pupilNode, trackedNode) {
@@ -1762,6 +1819,7 @@
         lookAtPosition: _lookAtPosition,
         localLookAtPosition,
         normalizedLocalLookAtPosition,
+        path,
       } = node;
 
       _lookAtPosition.copy(lookAtPosition);
@@ -1779,17 +1837,43 @@
       const pitch = Math.atan2(dir.y, Math.sqrt(dir.x * dir.x + dir.z * dir.z));
 
       const { rotation } = pupilDebugEntity.object3D;
-      rotation.order = "YXZ";
       rotation.x = -pitch;
       rotation.y = yaw;
-      console.log({ pitch, yaw });
+      //console.log({ pitch, yaw });
 
-      // FILL - get pitch/yaw
-      // FILL - update pitch/yaw on pupilEntity
+      let offsetX = THREE.MathUtils.inverseLerp(
+        this.data.lookAtOffsetMin.x,
+        this.data.lookAtOffsetMax.x,
+        -yaw
+      );
+      offsetX = THREE.MathUtils.lerp(-1, 1, offsetX);
+
+      let offsetY = THREE.MathUtils.inverseLerp(
+        this.data.lookAtOffsetMin.y,
+        this.data.lookAtOffsetMax.y,
+        pitch
+      );
+      offsetY = THREE.MathUtils.lerp(-1, 1, offsetY);
+      // FIX - correct mapping
+
+      const offset = {
+        x: offsetX,
+        y: offsetY,
+      };
+      //console.log("offset", offset);
+      this.setPupilOffset(path, offset);
+
+      // FILL - scale pupils if close
     },
 
     setLookAtPosition: function (lookAtPosition, dur = 0) {
-      console.log("setLookAtPosition", lookAtPosition, { dur });
+      lookAtPosition = Object.assign(
+        {},
+        this.data.lookAtPosition,
+        lookAtPosition
+      );
+
+      //console.log("setLookAtPosition", lookAtPosition, { dur });
       if (this.data.debugLookAt) {
         this._lookAtEntity.object3D.position.copy(lookAtPosition);
         this._lookAtEntityPosition.copy(lookAtPosition);
@@ -1822,6 +1906,27 @@
         return;
       }
       this.setLookAtPosition(this._lookAtEntity.object3D.position);
+    },
+
+    setLookAtOffsetMin: function (lookAtOffsetMin) {
+      lookAtOffsetMin = Object.assign(
+        {},
+        this.data.lookAtOffsetMax,
+        lookAtOffsetMin
+      );
+      //console.log("setLookAtOffsetMin", lookAtOffsetMin);
+      this.setLookAtPosition();
+      this._updateData("lookAtOffsetMin", lookAtOffsetMin);
+    },
+    setLookAtOffsetMax: function (lookAtOffsetMax) {
+      lookAtOffsetMax = Object.assign(
+        {},
+        this.data.lookAtOffsetMax,
+        lookAtOffsetMax
+      );
+      //console.log("setLookAtOffsetMax", lookAtOffsetMax);
+      this.setLookAtPosition();
+      this._updateData("lookAtOffsetMax", lookAtOffsetMax);
     },
 
     // LOOKAT END

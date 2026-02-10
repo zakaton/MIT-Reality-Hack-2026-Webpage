@@ -125,7 +125,7 @@
 
           <a-entity
             id="powerPet"
-            power-pet="showSquashCollider: false; showSquashCenter: false; showSquashControlPoint: false; debugLookAt: true;"
+            power-pet="showSquashCollider: true; showSquashCenter: false; showSquashControlPoint: false; debugLookAt: true; debugModelBoundingBox: true;"
             position="0 1.1 -0.4"
             rotation="0 180 0"
           ></a-entity>
@@ -259,6 +259,10 @@
           <select id="powerPetModel">
             <optgroup label="select model"></optgroup>
           </select>
+        </label>
+        <label>
+          show model bounding box
+          <input type="checkbox" id="showModelBoundingBox" />
         </label>
       </div>
       <div id="variants" class="hidden">

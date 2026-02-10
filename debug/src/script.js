@@ -231,155 +231,88 @@ const setupContainer = (valueName) => {
 };
 // POWER PET CONTAINER END
 
+// POWER PET INPUT START
+const setupInput = (name, options = {}) => {
+  if (options.range) {
+    options = Object.assign({}, options, { min: true, max: true });
+  }
+
+  let id = name;
+  const { property } = options;
+  if (property) {
+    id += property[0].toUpperCase() + property.slice(1);
+  }
+
+  const input = document.getElementById(id);
+  // console.log(options, { id }, input);
+
+  input.addEventListener("input", () => {
+    let value = input.type == "checkbox" ? input.checked : input.value;
+    if (property) {
+      value = { [property]: value };
+    }
+    //console.log({ [name]: value });
+    powerPetEntity.setAttribute("power-pet", name, value);
+  });
+  powerPetEntity.addEventListener(`power-pet-${name}`, (event) => {
+    let { [name]: value } = event.detail;
+    if (property) {
+      value = value[property];
+    }
+    //console.log({ [name]: value });
+    if (input.type == "checkbox") {
+      input.checked = value;
+    } else {
+      input.value = value;
+    }
+  });
+
+  const { min } = options;
+  if (min) {
+    const minName = name + "Min";
+    powerPetEntity.addEventListener(`power-pet-${minName}`, (event) => {
+      let { [minName]: value } = event.detail;
+      if (typeof min == "string") {
+        value = value[min];
+      }
+      // console.log(minName, value);
+      input.min = value;
+    });
+  }
+
+  const { max } = options;
+  if (max) {
+    const maxName = name + "Max";
+    powerPetEntity.addEventListener(`power-pet-${maxName}`, (event) => {
+      let { [maxName]: value } = event.detail;
+      if (typeof max == "string") {
+        value = value[max];
+      }
+      // console.log(maxName, value);
+      input.max = value;
+    });
+  }
+};
+// POWER PET INPUT END
+
 // POWER PET VARIANTS START
 setupContainer("variant");
 // POWER PET VARIANTS END
 
 // POWER PET SQUASH START
-const squashContainer = document.getElementById("squashContainer");
+setupInput("tilt", { range: true });
+setupInput("squash", { min: "y" });
 
-const tiltInput = document.getElementById("tilt");
-const mirrorTiltInput = {
-  x: false,
-  y: false,
-  apply(tilt) {
-    if (this.x || this.y) {
-      tilt = structuredClone(tilt);
-      if (this.x) {
-        tilt.x *= -1;
-      }
-      if (this.y) {
-        tilt.y *= -1;
-      }
-    }
-    return tilt;
-  },
-};
-tiltInput.addEventListener("input", () => {
-  const tilt = tiltInput.value;
-  powerPetEntity.setAttribute("power-pet", "tilt", tilt);
-});
-powerPetEntity.addEventListener("power-pet-tilt", (event) => {
-  const { tilt } = event.detail;
-  tiltInput.value = tilt;
-});
-powerPetEntity.addEventListener("power-pet-tiltMin", (event) => {
-  let { tiltMin } = event.detail;
-  //console.log("tiltMin", tiltMin);
-  tiltMin = mirrorTiltInput.apply(tiltMin);
-  tiltInput.min = tiltMin;
-});
-powerPetEntity.addEventListener("power-pet-tiltMax", (event) => {
-  let { tiltMax } = event.detail;
-  //console.log("tiltMax", tiltMax);
-  tiltMax = mirrorTiltInput.apply(tiltMax);
-  tiltInput.max = tiltMax;
-});
+setupInput("showSquashCenter", { range: true });
+setupInput("showSquashControlPoint", { range: true });
+setupInput("showSquashCollider", { range: true });
 
-const squashInput = document.getElementById("squash");
-squashInput.addEventListener("input", () => {
-  const squash = +squashInput.value;
-  //console.log({ squash });
-  powerPetEntity.setAttribute("power-pet", "squash", squash);
-});
-powerPetEntity.addEventListener("power-pet-squash", (event) => {
-  const { squash } = event.detail;
-  squashInput.value = squash;
-});
-powerPetEntity.addEventListener("power-pet-squashMax", (event) => {
-  const { squashMax } = event.detail;
-  squashInput.min = squashMax.y;
-});
-
-const showSquashCenterInput = document.getElementById("showSquashCenter");
-showSquashCenterInput.addEventListener("input", () => {
-  const showSquashCenter = showSquashCenterInput.checked;
-  console.log({ showSquashCenter });
-  powerPetEntity.setAttribute(
-    "power-pet",
-    "showSquashCenter",
-    showSquashCenter
-  );
-});
-powerPetEntity.addEventListener("power-pet-showSquashCenter", (event) => {
-  const { showSquashCenter } = event.detail;
-  showSquashCenterInput.checked = showSquashCenter;
-});
-
-const showSquashControlPointInput = document.getElementById(
-  "showSquashControlPoint"
-);
-showSquashControlPointInput.addEventListener("input", () => {
-  const showSquashControlPoint = showSquashControlPointInput.checked;
-  console.log({ showSquashControlPoint });
-  powerPetEntity.setAttribute(
-    "power-pet",
-    "showSquashControlPoint",
-    showSquashControlPoint
-  );
-});
-powerPetEntity.addEventListener("power-pet-showSquashControlPoint", (event) => {
-  const { showSquashControlPoint } = event.detail;
-  showSquashControlPointInput.checked = showSquashControlPoint;
-});
-
-const showSquashColliderInput = document.getElementById("showSquashCollider");
-showSquashColliderInput.addEventListener("input", () => {
-  const showSquashCollider = showSquashColliderInput.checked;
-  console.log({ showSquashCollider });
-  powerPetEntity.setAttribute(
-    "power-pet",
-    "showSquashCollider",
-    showSquashCollider
-  );
-});
-powerPetEntity.addEventListener("power-pet-showSquashCollider", (event) => {
-  const { showSquashCollider } = event.detail;
-  showSquashColliderInput.checked = showSquashCollider;
-});
-
-const squashCenterYInput = document.getElementById("squashCenterY");
-squashCenterYInput.addEventListener("input", () => {
-  const squashCenterY = +squashCenterYInput.value;
-  //console.log({ squashCenterY });
-  powerPetEntity.setAttribute("power-pet", "squashCenter", {
-    y: squashCenterY,
-  });
-});
-powerPetEntity.addEventListener("power-pet-squashCenter", (event) => {
-  const { squashCenter } = event.detail;
-  squashCenterYInput.value = squashCenter.y;
-});
-
-const squashColliderCenterYInput = document.getElementById(
-  "squashColliderCenterY"
-);
-squashColliderCenterYInput.addEventListener("input", () => {
-  const squashColliderCenterY = +squashColliderCenterYInput.value;
-  //console.log({ squashColliderCenterY });
-  powerPetEntity.setAttribute("power-pet", "squashColliderCenter", {
-    y: squashColliderCenterY,
-  });
-});
-powerPetEntity.addEventListener("power-pet-squashColliderCenter", (event) => {
-  const { squashColliderCenter } = event.detail;
-  //console.log("squashColliderCenter", squashColliderCenter);
-  squashColliderCenterYInput.value = squashColliderCenter.y;
-});
+setupInput("squashCenter", { property: "y" });
+setupInput("squashColliderCenter", { property: "y" });
 // POWER PET SQUASH END
 
 // POWER PET TURN START
-const turnInput = document.getElementById("turn");
-turnInput.addEventListener("input", () => {
-  const turn = +turnInput.value;
-  // console.log({ turn });
-  powerPetEntity.setAttribute("power-pet", "turn", turn);
-});
-powerPetEntity.addEventListener("power-pet-turn", (event) => {
-  const { turn } = event.detail;
-  //console.log("turn", turn);
-  turnInput.value = turn;
-});
+setupInput("turn");
 // POWER PET TURN END
 
 // POWER PET PUPIL OFFSETS START
