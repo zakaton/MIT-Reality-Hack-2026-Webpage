@@ -91,7 +91,7 @@
           embedded
           power-pet="models: #dogModel,#jimmyModel,#mouthModel"
           xr-mode-ui="XRMode: ar"
-          light="defaultLightsEnabled: false"
+          light="defaultLightsEnabled: true;"
           grabbable-listener
           device-orientation-permission-ui="enabled: false"
         >
@@ -114,7 +114,7 @@
             ></a-asset-item>
           </a-assets>
 
-          <a-light type="ambient"></a-light>
+          <!-- <a-light type="ambient"></a-light> -->
 
           <a-camera
             id="camera"
@@ -125,7 +125,7 @@
 
           <a-entity
             id="powerPet"
-            power-pet="showSquashCollider: false; showSquashCenter: false; showSquashControlPoint: false; showPupil: false;"
+            power-pet="showSquashCollider: false; showSquashCenter: false; showSquashControlPoint: false; debugLookAt: true;"
             position="0 1.1 -0.4"
             rotation="0 180 0"
           ></a-entity>

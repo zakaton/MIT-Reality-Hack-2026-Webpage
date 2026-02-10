@@ -111,7 +111,7 @@
     _remove: function (component) {
       if (this.components.includes(component)) {
         //console.log("_remove", component);
-        this.component.splice(this.components.indexOf(component), 1);
+        this.components.splice(this.components.indexOf(component), 1);
       }
     },
     // COMPONENT END
@@ -168,8 +168,8 @@
       squashColliderSize: { type: "number", default: 0.2 },
       squashColliderBuffer: { type: "number", default: -0.02 },
       squashColliderCenter: { type: "vec3", default: { x: 0, y: 0.04, z: 0 } },
-      showSquashCollider: { default: false },
-      showSquashControlPoint: { default: false },
+      showSquashCollider: { type: "boolean", default: false },
+      showSquashControlPoint: { type: "boolean", default: false },
       squashRadiusThreshold: { type: "number", default: 0.05 },
       squashRadiusBuffer: { type: "number", default: 0.01 },
 
@@ -181,17 +181,22 @@
       turn: { type: "number", default: 0 },
 
       pupilName: { type: "string", default: "pupil" },
-      showPupil: { type: "boolean", default: false },
+
+      debugLookAt: { type: "boolean", default: false },
+      lookAtPosition: { type: "vec3", default: { x: 0, y: 0, z: 0 } },
     },
 
     init: function () {
+      this._initUtils();
       this._initModel();
       this._initSquash();
       this._initPetting();
       this._initPupils();
+      this._initLookAt();
       this.system._add(this);
     },
     remove: function () {
+      this._removeLookAt();
       this.system._remove(this);
     },
 
@@ -199,9 +204,21 @@
       this._tickSquash(...arguments);
       this._tickSquashAnimation(...arguments);
       this._tickPupils(...arguments);
+      this._tickLookAt(...arguments);
     },
 
     // UTILS START
+    _initUtils: function () {
+      this._worldToLocalScale = new THREE.Vector3();
+    },
+    worldToLocal: function (object3D, vector3, excludeScale = false) {
+      //console.log("worldToLocal", object3D, vector3);
+      object3D.worldToLocal(vector3);
+      if (excludeScale) {
+        object3D.getWorldScale(this._worldToLocalScale);
+        vector3.divide(this._worldToLocalScale);
+      }
+    },
     sortEntries: function (entries) {
       // console.log("sortEntries", entries);
       return entries.sort((a, b) => a[0].localeCompare(b[0]));
@@ -370,7 +387,13 @@
               break;
             case "pupilName":
               break;
-            case "showPupil":
+            case "debugLookAt":
+              this.setDebugLookAt(this.data.debugLookAt);
+              break;
+            case "lookAtPosition":
+              if (this._updateCalledOnce) {
+                this.setLookAtPosition(this.data.lookAtPosition);
+              }
               break;
             default:
               console.warn(`uncaught diffKey "${diffKey}"`);
@@ -378,6 +401,7 @@
           }
         }
       });
+      this._updateCalledOnce = true;
     },
 
     // MODEL START
@@ -490,22 +514,33 @@
                 texture.needsUpdate = true;
 
                 const pupilEntity = document.createElement("a-entity");
-                pupilEntity.setAttribute("visible", this.data.showPupil);
                 const { x, y, z } = mesh.position;
                 pupilEntity.setAttribute("position", [x, y, z].join(" "));
                 pupilEntity.classList.add("pupil");
-                pupilEntity.setAttribute("rotation", "90 0 0");
+                modelEntity.appendChild(pupilEntity);
+
+                const pupilDebugEntity = document.createElement("a-entity");
+                pupilDebugEntity.classList.add("pupilDebug");
+                pupilDebugEntity.setAttribute("visible", this.data.debugLookAt);
+                pupilEntity.appendChild(pupilDebugEntity);
 
                 const pupilDebugCone = document.createElement("a-cone");
                 pupilDebugCone.setAttribute("color", "yellow");
                 pupilDebugCone.setAttribute("height", "0.01");
                 pupilDebugCone.setAttribute("radius-top", "0");
                 pupilDebugCone.setAttribute("radius-bottom", "0.005");
-                pupilDebugCone.setAttribute("position", "0 0.005 0");
-                pupilEntity.appendChild(pupilDebugCone);
-                modelEntity.appendChild(pupilEntity);
+                pupilDebugCone.setAttribute("position", "0 0 0.005");
+                pupilDebugCone.setAttribute("rotation", "90 0 0");
+                pupilDebugCone.setAttribute("visible", "true");
+                pupilDebugEntity.appendChild(pupilDebugCone);
 
                 meshTreeNode.pupilEntity = pupilEntity;
+                meshTreeNode.pupilDebugEntity = pupilDebugEntity;
+                meshTreeNode.lookAtPosition = new THREE.Vector3();
+                meshTreeNode.localLookAtPosition = new THREE.Vector3();
+                meshTreeNode.normalizedLocalLookAtPosition =
+                  new THREE.Vector3();
+                meshTreeNode.lookAtDistance = 0;
               }
             } else {
               if (!meshTree[segment]) {
@@ -536,9 +571,6 @@
         });
         //console.log("meshTree", meshTree);
 
-        const pupils = meshTree[this.data.pupilName] ?? {};
-        //console.log("pupils", pupils);
-
         Object.entries(allVariants).forEach(([key, oneOf]) => {
           if (oneOf.length < 2) {
             delete allVariants[key];
@@ -557,11 +589,26 @@
         const variantsArray = this.sortObjectEntries(variants);
         //console.log("variantsArray", variantsArray);
 
+        const pupils = meshTree[this.data.pupilName] ?? {};
+        //console.log("pupils", pupils);
+
+        const pupilNodes = [];
+        this._traverseTree(pupils, (subTree, path, isHead) => {
+          if (!isHead) {
+            return;
+          }
+          if (subTree.isLast) {
+            pupilNodes.push(subTree);
+          }
+          return true;
+        });
+        //console.log("pupilNodes", pupilNodes);
+
         const pupilOffsets = {};
         if (this._includeNullPathInPupilSchema) {
           pupilOffsets[""] = { x: 0, y: 0 };
         }
-        this._traverseTree(pupils, (subtree, path, isHead) => {
+        this._traverseTree(pupils, (subTree, path, isHead) => {
           if (!isHead) {
             return;
           }
@@ -577,7 +624,7 @@
         if (this._includeNullPathInPupilSchema) {
           pupilScales[""] = { x: 1, y: 1 };
         }
-        this._traverseTree(pupils, (subtree, path, isHead) => {
+        this._traverseTree(pupils, (subTree, path, isHead) => {
           if (!isHead) {
             return;
           }
@@ -593,7 +640,7 @@
         if (this._includeNullPathInPupilSchema) {
           pupilRotations[""] = 0;
         }
-        this._traverseTree(pupils, (subtree, path, isHead) => {
+        this._traverseTree(pupils, (subTree, path, isHead) => {
           if (!isHead) {
             return;
           }
@@ -614,6 +661,7 @@
           variants,
           variantsArray,
           pupils,
+          pupilNodes,
           pupilOffsets,
           pupilOffsetsArray,
           pupilScales,
@@ -800,6 +848,8 @@
             if (visible && child.isPupil) {
               if (!this._setPupilPropertyWhenInvisible) {
                 this._updateTextureMatrix(child);
+                this._updateDebugLookAt(child);
+                this._updateLookAtPosition(child);
               }
             }
           } else {
@@ -1126,7 +1176,8 @@
               .setLength(obb.halfSize.x)
           );
 
-          this.squashCenterEntity.object3D.worldToLocal(
+          this.worldToLocal(
+            this.squashCenterEntity.object3D,
             this._squashColliderTempPosition
           );
           // console.log(this._squashColliderTempPosition);
@@ -1335,6 +1386,9 @@
     },
     _getPupils: function () {
       return this.models[this.selectedName]?.pupils ?? {};
+    },
+    _getPupilNodes: function () {
+      return this.models[this.selectedName]?.pupilNodes ?? [];
     },
     _setPupilPropertyWhenInvisible: true,
     _setPupilProperty: function (path, value, callback, options) {
@@ -1653,5 +1707,123 @@
       );
     },
     // PUPIL ROTATIONS END
+
+    // LOOKAT START
+    _initLookAt: function () {
+      const lookAtEntity = document.createElement("a-entity");
+      lookAtEntity.classList.add("lookAtEntity");
+      lookAtEntity.powerPet = this;
+      lookAtEntity.setAttribute("visible", this.data.debugLookAt);
+      const { x, y, z } = this.data.lookAtPosition;
+      lookAtEntity.setAttribute("position", [x, y, z].join(" "));
+      this.el.sceneEl.appendChild(lookAtEntity);
+      this._lookAtEntity = lookAtEntity;
+      this._lookAtEntityPosition = new THREE.Vector3();
+
+      const sphereEntity = document.createElement("a-sphere");
+      sphereEntity.setAttribute("color", "blue");
+      sphereEntity.setAttribute("radius", "0.01");
+      lookAtEntity.appendChild(sphereEntity);
+    },
+    _removeLookAt: function () {
+      //console.log("_removeLookAt");
+      this._lookAtEntity.remove();
+    },
+
+    _setLookAtPositionWhenInvisible: false,
+    _updateDebugLookAt: function (node, debugLookAt) {
+      debugLookAt = debugLookAt ?? this.data.debugLookAt;
+      //console.log("_updateDebugLookAt", node, { debugLookAt });
+      const { pupilDebugEntity } = node;
+      pupilDebugEntity.object3D.visible = debugLookAt;
+    },
+    setDebugLookAt: function (debugLookAt) {
+      //console.log("setDebugLookAt", debugLookAt);
+      this._lookAtEntity.object3D.visible = debugLookAt;
+      const pupilNodes = this._getPupilNodes();
+      pupilNodes.forEach((node) => {
+        if (!this._setLookAtPositionWhenInvisible && !node.mesh.visible) {
+          return;
+        }
+        this._updateDebugLookAt(node, debugLookAt);
+      });
+      //this._updateData("debugLookAt", debugLookAt);
+    },
+
+    _getLookAtMetadata: function (pupilNode, trackedNode) {
+      // FILL - reuse for metadata on nearby objects
+    },
+    _updateLookAtPosition: function (node, lookAtPosition) {
+      lookAtPosition = lookAtPosition ?? this.data.lookAtPosition;
+      //console.log("_updateLookAtPosition", node.path, lookAtPosition);
+      const {
+        pupilEntity,
+        pupilDebugEntity,
+        lookAtPosition: _lookAtPosition,
+        localLookAtPosition,
+        normalizedLocalLookAtPosition,
+      } = node;
+
+      _lookAtPosition.copy(lookAtPosition);
+      localLookAtPosition.copy(lookAtPosition);
+      this.worldToLocal(pupilEntity.object3D, localLookAtPosition);
+      // console.log("localLookAtPosition", localLookAtPosition);
+
+      node.lookAtDistance = localLookAtPosition.length();
+      node.lastTimeLookAtUpdated = this.el.sceneEl.time;
+
+      normalizedLocalLookAtPosition.copy(localLookAtPosition).normalize();
+
+      const dir = normalizedLocalLookAtPosition;
+      const yaw = Math.atan2(dir.x, dir.z);
+      const pitch = Math.atan2(dir.y, Math.sqrt(dir.x * dir.x + dir.z * dir.z));
+
+      const { rotation } = pupilDebugEntity.object3D;
+      rotation.order = "YXZ";
+      rotation.x = -pitch;
+      rotation.y = yaw;
+      console.log({ pitch, yaw });
+
+      // FILL - get pitch/yaw
+      // FILL - update pitch/yaw on pupilEntity
+    },
+
+    setLookAtPosition: function (lookAtPosition, dur = 0) {
+      console.log("setLookAtPosition", lookAtPosition, { dur });
+      if (this.data.debugLookAt) {
+        this._lookAtEntity.object3D.position.copy(lookAtPosition);
+        this._lookAtEntityPosition.copy(lookAtPosition);
+      }
+
+      const pupilNodes = this._getPupilNodes();
+      pupilNodes.forEach((node) => {
+        if (!this._setLookAtPositionWhenInvisible && !node.mesh.visible) {
+          return;
+        }
+        this._updateLookAtPosition(node, lookAtPosition);
+      });
+      this._updateData("lookAtPosition", lookAtPosition);
+    },
+
+    getIsLookAtSelectedInInspector: function () {
+      return this.el && this.getSelectedInspectorEntity() == this._lookAtEntity;
+    },
+    _tickLookAt: function (time, timeDelta) {
+      if (!this.data.debugLookAt) {
+        return;
+      }
+      if (!this.getIsLookAtSelectedInInspector()) {
+        return;
+      }
+
+      if (
+        this._lookAtEntityPosition.equals(this._lookAtEntity.object3D.position)
+      ) {
+        return;
+      }
+      this.setLookAtPosition(this._lookAtEntity.object3D.position);
+    },
+
+    // LOOKAT END
   });
 }
