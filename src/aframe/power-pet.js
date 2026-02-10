@@ -186,8 +186,10 @@
       showLookAtPupils: { type: "boolean", default: false },
       showLookAt: { type: "boolean", default: false },
       lookAtPosition: { type: "vec3", default: { x: 0, y: 0, z: 0 } },
-      lookAtOffsetMin: { type: "vec2", default: { x: -1.45, y: -1 } },
-      lookAtOffsetMax: { type: "vec2", default: { x: 1.45, y: 1 } },
+      lookAtOffsetAngleMin: { type: "vec2", default: { x: -1, y: -1 } },
+      lookAtOffsetAngleMax: { type: "vec2", default: { x: 1, y: 1 } },
+      lookAtOffsetMin: { type: "vec2", default: { x: -0.1, y: -0.2 } },
+      lookAtOffsetMax: { type: "vec2", default: { x: 0.1, y: 0.2 } },
     },
 
     init: function () {
@@ -411,6 +413,12 @@
             case "lookAtOffsetMax":
               this.setLookAtOffsetMax(this.data.lookAtOffsetMax);
               break;
+            case "lookAtOffsetAngleMin":
+              this.setLookAtOffsetAngleMin(this.data.lookAtOffsetAngleMin);
+              break;
+            case "lookAtOffsetAngleMax":
+              this.setLookAtOffsetAngleMax(this.data.lookAtOffsetAngleMax);
+              break;
             default:
               console.warn(`uncaught diffKey "${diffKey}"`);
               break;
@@ -454,7 +462,8 @@
       );
       modelBoundingBoxEntity.setAttribute("color", "green");
       modelBoundingBoxEntity.setAttribute("opacity", "0.1");
-
+      const modelBoundingBoxSize = new THREE.Vector3();
+      const modelBoundingBoxCenter = new THREE.Vector3();
       modelEntity.addEventListener("model-loaded", () => {
         // console.log("model-loaded", modelEntity);
 
@@ -466,14 +475,17 @@
         }
 
         const bbox = new THREE.Box3().setFromObject(root);
-        const size = bbox.getSize(new THREE.Vector3());
-        const center = bbox.getCenter(new THREE.Vector3());
-        modelEntity.object3D.worldToLocal(center);
-        // console.log(size, center);
-        modelBoundingBoxEntity.setAttribute("scale", size.toArray().join(" "));
+        bbox.getSize(modelBoundingBoxSize);
+        bbox.getCenter(modelBoundingBoxCenter);
+        modelEntity.object3D.worldToLocal(modelBoundingBoxCenter);
+        // console.log(modelBoundingBoxSize, modelBoundingBoxCenter);
+        modelBoundingBoxEntity.setAttribute(
+          "scale",
+          modelBoundingBoxSize.toArray().join(" ")
+        );
         modelBoundingBoxEntity.setAttribute(
           "position",
-          center.toArray().join(" ")
+          modelBoundingBoxCenter.toArray().join(" ")
         );
         this.modelsEntity.appendChild(modelBoundingBoxEntity);
 
@@ -700,6 +712,8 @@
           src: modelSrc,
           entity: modelEntity,
           boundingBoxEntity: modelBoundingBoxEntity,
+          size: modelBoundingBoxSize,
+          center: modelBoundingBoxCenter,
           meshTree,
           allVariants,
           allVariantsArray,
@@ -745,8 +759,9 @@
 
       const previousName = this.selectedName;
       if (this.models[previousName]) {
-        const { entity } = this.models[previousName];
+        const { entity, boundingBoxEntity } = this.models[previousName];
         entity.object3D.visible = false;
+        boundingBoxEntity.object3D.visible = false;
       }
 
       const { entity, boundingBoxEntity } = this.models[newName];
@@ -1214,6 +1229,12 @@
       }
     },
     _tickSquash: function (time, timeDelta) {
+      if (!this._isModelLoaded()) {
+        return;
+      }
+
+      const { size, center } = this._getModel();
+
       let newHasSquashControlPoint = false;
       let controlPointColliderIndex;
       let isNudging = false;
@@ -1284,6 +1305,7 @@
         const angle2D = this._squashControlPoint2d.angle();
 
         const length = this._squashControlPoint.length();
+        // FILL - replace using bounding box size/center
         const fullLength =
           this.data.squashColliderSize / 2 -
           this.data.squashCenter.y +
@@ -1312,6 +1334,7 @@
             squash = 1;
 
             const tiltDirection = angle2D;
+            // FILL - replace using bounding box size/center
             let radiusInterpolation = THREE.MathUtils.inverseLerp(
               this.data.squashColliderSize / 2 - this.data.squashRadiusBuffer,
               0.05,
@@ -1857,20 +1880,31 @@
       //console.log({ pitch, yaw });
 
       let offsetX = THREE.MathUtils.inverseLerp(
-        this.data.lookAtOffsetMin.x,
-        this.data.lookAtOffsetMax.x,
+        this.data.lookAtOffsetAngleMin.x,
+        this.data.lookAtOffsetAngleMax.x,
         -yaw
       );
-      offsetX = THREE.MathUtils.lerp(-1, 1, offsetX);
+      offsetX = THREE.MathUtils.clamp(offsetX, 0, 1);
+      offsetX = 0.5 + (offsetX - 0.5) ** 2 * Math.sign(offsetX - 0.5);
+      offsetX = THREE.MathUtils.lerp(
+        this.data.lookAtOffsetMin.x,
+        this.data.lookAtOffsetMax.x,
+        offsetX
+      );
 
       let offsetY = THREE.MathUtils.inverseLerp(
-        this.data.lookAtOffsetMin.y,
-        this.data.lookAtOffsetMax.y,
+        this.data.lookAtOffsetAngleMin.y,
+        this.data.lookAtOffsetAngleMax.y,
         pitch
       );
-      offsetY = THREE.MathUtils.lerp(-1, 1, offsetY);
+      offsetY = THREE.MathUtils.clamp(offsetY, 0, 1);
+      offsetY = 0.5 + (offsetY - 0.5) ** 2 * Math.sign(offsetY - 0.5);
+      offsetY = THREE.MathUtils.lerp(
+        this.data.lookAtOffsetMin.y,
+        this.data.lookAtOffsetMax.y,
+        offsetY
+      );
       // FIX - correct mapping
-
       const offset = {
         x: offsetX,
         y: offsetY,
@@ -1929,7 +1963,7 @@
         this.data.lookAtOffsetMax,
         lookAtOffsetMin
       );
-      //console.log("setLookAtOffsetMin", lookAtOffsetMin);
+      console.log("setLookAtOffsetMin", lookAtOffsetMin);
       this.setLookAtPosition();
       this._updateData("lookAtOffsetMin", lookAtOffsetMin);
     },
@@ -1939,9 +1973,29 @@
         this.data.lookAtOffsetMax,
         lookAtOffsetMax
       );
-      //console.log("setLookAtOffsetMax", lookAtOffsetMax);
+      console.log("setLookAtOffsetMax", lookAtOffsetMax);
       this.setLookAtPosition();
       this._updateData("lookAtOffsetMax", lookAtOffsetMax);
+    },
+    setLookAtOffsetAngleMin: function (lookAtOffsetAngleMin) {
+      lookAtOffsetAngleMin = Object.assign(
+        {},
+        this.data.lookAtOffsetAngleMax,
+        lookAtOffsetAngleMin
+      );
+      console.log("setLookAtOffsetAngleMin", lookAtOffsetAngleMin);
+      this.setLookAtPosition();
+      this._updateData("lookAtOffsetAngleMin", lookAtOffsetAngleMin);
+    },
+    setLookAtOffsetAngleMax: function (lookAtOffsetAngleMax) {
+      lookAtOffsetAngleMax = Object.assign(
+        {},
+        this.data.lookAtOffsetAngleMax,
+        lookAtOffsetAngleMax
+      );
+      console.log("setLookAtOffsetAngleMax", lookAtOffsetAngleMax);
+      this.setLookAtPosition();
+      this._updateData("lookAtOffsetAngleMax", lookAtOffsetAngleMax);
     },
 
     // LOOKAT END
