@@ -35,7 +35,7 @@ unoQ.onIsConnected(() => {
 });
 
 const toggleUnoQConnection = () => {
-  unoQ.toggleConnection(unoQConfig.address);
+  unoQ.toggleConnection(unoQAddressInput.value);
 };
 const toggleUnoQConnectionButton = document.getElementById(
   "toggleUnoQConnection"
@@ -70,7 +70,6 @@ unoQAutoConnectCheckbox.addEventListener("input", () => {
 unoQ.onConnected(() => {
   unoQAutoConnectCheckbox.disabled = false;
 });
-
 // UNO Q END
 
 // UNO Q CONFIG START

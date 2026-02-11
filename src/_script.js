@@ -158,8 +158,8 @@ const { degToRad } = THREE.MathUtils;
 
 /** @type {Record<string, number[]>} */
 const angleOffsets = {
-  servos: [20, -72 - 45],
-  steppers: [0],
+  servo: [20, -72 - 45],
+  stepper: [0],
 };
 
 const angleEntities = petEntity.querySelectorAll("[data-angle-type]");
@@ -655,8 +655,8 @@ if (unoSocketAddress.length) {
 }
 
 let angles = {
-  servos: [0, 0],
-  steppers: [0],
+  servo: [0, 0],
+  stepper: [0],
 };
 const throttleRate = 20;
 const updateAngles = (newAngles) => {
@@ -677,28 +677,28 @@ setAngles = AFRAME.utils.throttleLeadingAndTrailing(setAngles, throttleRate);
 
 /** @type {Record<string, {min: number, max: number}[]>} */
 const angleInputRanges = {
-  servos: [
+  servo: [
     { min: 0, max: 160 },
     { min: 0, max: 160 },
   ],
-  steppers: [{ min: -180, max: 180 }],
+  stepper: [{ min: -180, max: 180 }],
 };
 
 // UI
 const anglesContainer = document.getElementById("angles");
-const stepperAnglesContainer = document.getElementById("steppers");
-const servoAnglesContainer = document.getElementById("servos");
+const stepperAnglesContainer = document.getElementById("stepper");
+const servoAnglesContainer = document.getElementById("servo");
 /** @type {Record<string, HTMLElement[]>} */
 const angleContainers = {
-  servos: [],
-  steppers: [],
+  servo: [],
+  stepper: [],
 };
 /** @type {HTMLCanvasElement} */
 const angles2DCanvas = document.getElementById("angles2D");
 const angles2DContext = angles2DCanvas.getContext("2d");
 const angles2DMap = {
-  x: { type: "servos", index: 0 },
-  y: { type: "servos", index: 1 },
+  x: { type: "servo", index: 0 },
+  y: { type: "servo", index: 1 },
 };
 let isMouseDown = false;
 const setIsMouseDown = (newIsMouseDown) => {
@@ -747,8 +747,8 @@ let set2DAngles = () => {
 
   const newAngles = unoSocket?.connected
     ? {
-        servos: [],
-        steppers: [],
+        servo: [],
+        stepper: [],
       }
     : structuredClone(angles);
   newAngles[angles2DMap.x.type][angles2DMap.x.index] = Math.round(xAngle);
@@ -779,7 +779,7 @@ const updateAnglesUI = () => {
           .cloneNode(true)
           .querySelector(".angle");
         const containerParent =
-          type == "servos" ? servoAnglesContainer : stepperAnglesContainer;
+          type == "servo" ? servoAnglesContainer : stepperAnglesContainer;
         containerParent.appendChild(container);
 
         container.querySelector("span.index").innerText = index;
