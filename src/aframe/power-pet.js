@@ -77,7 +77,7 @@
       const diff = AFRAME.utils.diff(oldData, this.data);
 
       const diffKeys = Object.keys(diff);
-      //console.log({ diffKeys });
+      //console.log("diffKeys", diffKeys);
 
       diffKeys.forEach((diffKey) => {
         if (this.data[diffKey] == undefined) {
@@ -195,6 +195,8 @@
       },
       lookAtOffsetMin: { type: "vec2", default: { x: -0.1, y: -0.1 } },
       lookAtOffsetMax: { type: "vec2", default: { x: 0.1, y: 0.1 } },
+
+      lookableSelector: { type: "string", default: "power-pet-lookable" },
     },
 
     init: function () {
@@ -204,10 +206,12 @@
       this._initPetting();
       this._initPupils();
       this._initLookAt();
+      this._initLookables();
       this.system._add(this);
     },
     remove: function () {
       this._removeLookAt();
+      this._removeLookables();
       this.system._remove(this);
     },
 
@@ -216,6 +220,7 @@
       this._tickSquashAnimation(...arguments);
       this._tickPupils(...arguments);
       this._tickLookAt(...arguments);
+      this._tickLookables(...arguments);
     },
 
     // UTILS START
@@ -322,7 +327,7 @@
 
       const diffKeys = Object.keys(diff);
 
-      //console.log({ diffKeys });
+      //console.log("diffKeys", diffKeys);
 
       diffKeys.forEach((diffKey) => {
         if (this.data[diffKey] == undefined) {
@@ -420,6 +425,11 @@
               break;
             case "lookAtOffsetAngleMax":
               this.setLookAtOffsetAngleMax(this.data.lookAtOffsetAngleMax);
+              break;
+            case "lookableSelector":
+              if (this._updateCalledOnce) {
+                this.setLookableSelector(this.data.lookableSelector);
+              }
               break;
             default:
               console.warn(`uncaught diffKey "${diffKey}"`);
@@ -664,6 +674,22 @@
         });
         //console.log("pupilNodes", pupilNodes);
 
+        const pupilCenterEntity = document.createElement("a-entity");
+
+        const pupilCenter = new THREE.Vector3();
+        pupilNodes.forEach((pupilNode) => {
+          const { mesh } = pupilNode;
+          pupilCenter.add(mesh.position);
+        });
+        pupilCenter.divideScalar(pupilNodes.length);
+        pupilCenterEntity.setAttribute(
+          "position",
+          pupilCenter.toArray().join(" ")
+        );
+        console.log("pupilCenter", pupilCenter);
+        pupilCenterEntity.classList.add("pupilCenter");
+        modelEntity.appendChild(pupilCenterEntity);
+
         const pupilOffsets = {};
         if (this._includeNullPathInPupilSchema) {
           pupilOffsets[""] = { x: 0, y: 0 };
@@ -724,6 +750,8 @@
           allVariantsArray,
           variants,
           variantsArray,
+          pupilCenterEntity,
+          pupilCenter,
           pupils,
           pupilNodes,
           pupilOffsets,
@@ -2000,7 +2028,117 @@
       this.setLookAtPosition();
       this._updateData("lookAtOffsetAngleMax", lookAtOffsetAngleMax);
     },
-
     // LOOKAT END
+
+    // LOOKABLES START
+    _tickLookablesInterval: 200,
+    _initLookables: function () {
+      _tickLookables = this._tickLookables = AFRAME.utils.throttleTick(
+        this._tickLookables,
+        this._tickLookablesInterval,
+        this
+      );
+
+      this._lookables = new Map();
+
+      this._lookableObserver = new MutationObserver((mutations) => {
+        //console.log("mutations", mutations);
+        for (const mutation of mutations) {
+          const { type, attributeName, target, addedNodes, removedNodes } =
+            mutation;
+          switch (type) {
+            case "childList":
+              addedNodes.forEach((lookable) => {
+                if (lookable.hasAttribute(this.data.lookableSelector)) {
+                  this._addLookable(lookable);
+                }
+              });
+              removedNodes.forEach((lookable) => {
+                this._removeLookable(lookable);
+              });
+              break;
+            case "attributes":
+              if (attributeName === this.data.lookableSelector) {
+                if (target.hasAttribute(this.data.lookableSelector)) {
+                  this._addLookable(target);
+                } else {
+                  this._removeLookable(target);
+                }
+              }
+              break;
+          }
+        }
+      });
+      this._observeLookables();
+    },
+    _removeLookables: function () {
+      this._stopObservingLookables();
+    },
+
+    _observeLookables: function (lookableSelector) {
+      this._stopObservingLookables();
+      lookableSelector = lookableSelector ?? this.data.lookableSelector;
+      console.log("_observeLookables", { lookableSelector });
+      this._lookableObserver.observe(this.el.sceneEl, {
+        subtree: true,
+        attributes: true,
+        childList: true,
+        attributeFilter: [lookableSelector],
+      });
+      this._updateLookableList(lookableSelector);
+    },
+    _stopObservingLookables: function () {
+      console.log("_stopObservingLookables");
+      this._lookables.forEach((lookable) => this._removeLookable(lookable));
+      this._lookableObserver.disconnect();
+    },
+
+    _addLookable: function (lookable) {
+      //console.log("_addLookable", lookable);
+      if (this._lookables.has(lookable)) {
+        //console.log("already added lookable", lookable);
+        return;
+      }
+      this._lookables.set(lookable, {
+        position: new THREE.Vector3(),
+        localPosition: new THREE.Vector3(),
+        lastTimeUpdated: 0,
+        normalizedLocalPosition: new THREE.Vector3(),
+        yaw: 0,
+        pitch: 0,
+      });
+      console.log("added lookable", lookable);
+    },
+    _removeLookable: function (lookable) {
+      //console.log("_removeLookable", lookable);
+      if (!this._lookables.has(lookable)) {
+        //console.log("lookable not found");
+        return;
+      }
+      this._lookables.delete(lookable);
+      console.log("removed lookable", lookable);
+    },
+
+    _updateLookableList: function (lookableSelector) {
+      lookableSelector = lookableSelector ?? this.data.lookableSelector;
+      //console.log("_updateLookableList", { lookableSelector });
+      const lookables = this.el.sceneEl.querySelectorAll(
+        `[${this.data.lookableSelector}]`
+      );
+      //console.log("lookables", lookables);
+      lookables.forEach((lookable) => {
+        this._addLookable(lookable);
+      });
+    },
+    setLookableSelector: function (lookableSelector) {
+      //console.log("setLookableSelector", lookableSelector);
+      this._observeLookables(lookableSelector);
+      this._updateData("lookableSelector", lookableSelector);
+    },
+
+    _tickLookables: function (time, timeDelta) {
+      // FILL - update lookables positions
+    },
+    // LOOKABLES END
   });
 }

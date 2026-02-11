@@ -48,20 +48,8 @@
             src="./assets/3d/anchor.glb"
           ></a-asset-item>
           <a-asset-item
-            id="testDoggyModel"
-            src="./assets/3d/TestDoggy.glb"
-          ></a-asset-item>
-          <a-asset-item
-            id="testDoggySafeModel"
-            src="./assets/3d/TestFaceCard_MultiUV_SafeNaming.glb"
-          ></a-asset-item>
-          <a-asset-item
-            id="lindasDogModel"
-            src="./assets/3d/pets/dog2.glb"
-          ></a-asset-item>
-          <a-asset-item
-            id="jimmysDogModel"
-            src="./assets/3d/JimmysDog.glb"
+            id="dogModel"
+            src="./assets/3d/DogAttempt.glb"
           ></a-asset-item>
         </a-assets>
 
@@ -94,26 +82,6 @@
             rotation="90 0 0"
           ></a-entity>
         </a-entity>
-
-        <a-entity
-          gltf-model="#testDoggyModel"
-          material="flatShading: true"
-          id="testDoggy"
-          scale="1 1 1"
-          rotation="0 0 0"
-          position="0 1.2 -3"
-          visible="false"
-        ></a-entity>
-
-        <!-- <a-entity
-          gltf-model="#dogAttemptModel"
-          material="flatShading: true"
-          id="lindasDog"
-          scale="4 4 4"
-          rotation="0 0 0"
-          position="0 1.2 -0.5"
-          visible="false"
-        ></a-entity> -->
 
         <a-entity id="raycasterDebug">
           <a-ring
@@ -199,28 +167,7 @@
                   </a-entity>
 
                   <a-entity
-                    gltf-model="#jimmysDogModel"
-                    material="flatShading: true"
-                    id="jimmysDog"
-                    scale="0.5 0.5 0.5"
-                    rotation="0 0 0"
-                    position="0 0 0"
-                    visible="false"
-                  ></a-entity>
-
-                  <a-entity
-                    gltf-model="#testDoggySafeModel"
-                    debug-uv
-                    material="flatShading: true"
-                    id="uvTestDog"
-                    scale="0.5 0.5 0.5"
-                    rotation="0 0 0"
-                    position="0 0 -0.5"
-                    visible="false"
-                  ></a-entity>
-
-                  <a-entity
-                    gltf-model="#lindasDogModel"
+                    gltf-model="#dogModel"
                     material="flatShading: true"
                     id="lindasDog"
                     scale="0.9 0.9 0.9"

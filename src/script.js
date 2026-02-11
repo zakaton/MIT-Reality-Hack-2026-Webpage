@@ -325,112 +325,11 @@ window.addEventListener("beforeunload", () => {
 });
 
 // SHOW
-const jimmysDogEntity = document.getElementById("jimmysDog");
 const lindasDogEntity = document.getElementById("lindasDog");
-const showJimmysDog = () => {
-  jimmysDogEntity.object3D.visible = true;
-  lindasDogEntity.object3D.visible = false;
-};
-window.showJimmysDog = showJimmysDog;
 const showLindasDog = () => {
   lindasDogEntity.object3D.visible = true;
-  jimmysDogEntity.object3D.visible = false;
 };
 window.showLindasDog = showLindasDog;
-
-// JIMMY EYE TRACKING
-/** @typedef {import("three").Material} Material */
-/** @typedef {import("three").Texture} Texture */
-
-/** @type {Record<string, Object3D>} */
-const jimmysDogMeshes = {};
-window.jimmysDogMeshes = jimmysDogMeshes;
-jimmysDogEntity.addEventListener("model-loaded", () => {
-  const root = jimmysDogEntity.getObject3D("mesh");
-  if (!root) return;
-
-  root.traverse((node) => {
-    if (!node.isMesh) return;
-    jimmysDogMeshes[node.name] = node;
-    if (node.name.includes("Pupil_L")) {
-      node.material = node.material.clone();
-      node.material.map = node.material.map.clone();
-
-      const tex = node.material.map;
-      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-      tex.needsUpdate = true;
-    }
-  });
-  console.log("jimmysDogMeshes", jimmysDogMeshes);
-});
-
-/** @type {Record<name, Material} */
-const jimmysDogMaterials = {};
-window.jimmysDogMaterials = jimmysDogMaterials;
-jimmysDogEntity.addEventListener("model-loaded", () => {
-  const root = jimmysDogEntity.getObject3D("mesh");
-  if (!root) return;
-
-  root.traverse((node) => {
-    if (!node.isMesh) return;
-
-    const materials = Array.isArray(node.material)
-      ? node.material
-      : [node.material];
-
-    materials.forEach((material, index) => {
-      jimmysDogMaterials[material.name] = material;
-    });
-  });
-  console.log("jimmysDogMaterials", jimmysDogMaterials);
-});
-
-const jimmysDogPupilRange = {
-  left: {
-    x: { min: -0.13, max: 0.13 },
-    y: { min: -0.15, max: 0.15 },
-  },
-  right: {
-    x: { min: -0.13, max: 0.13 },
-    y: { min: -0.15, max: 0.15 },
-  },
-};
-const lerp = (range, interpolation) => {
-  return THREE.MathUtils.lerp(range.min, range.max, interpolation);
-};
-
-const setJimmysDogPupilPosition = (
-  isLeft,
-  x,
-  y,
-  startAtNegativeOne = false
-) => {
-  if (startAtNegativeOne) {
-    x = THREE.MathUtils.inverseLerp(-1, 1, x);
-    y = THREE.MathUtils.inverseLerp(-1, 1, y);
-  }
-  const name = isLeft ? "Pupil_Left" : "Pupil_Right";
-  if (isLeft) {
-    x = 1 - x;
-  }
-  const { offset } = jimmysDogMeshes[name].material.map;
-  const side = isLeft ? "left" : "right";
-  offset.x = lerp(jimmysDogPupilRange[side].x, x);
-  offset.y = lerp(jimmysDogPupilRange[side].y, y);
-};
-window.setJimmysDogPupilPosition = setJimmysDogPupilPosition;
-
-const testJimmysDogPupils = false;
-if (testJimmysDogPupils) {
-  scene.addEventListener("mousemove", (event) => {
-    const { offsetX, offsetY } = event;
-    const x = 1 - offsetX / scene.clientWidth;
-    const y = 1 - offsetY / scene.clientHeight;
-    //console.log({ x, y });
-    setJimmysDogPupilPosition(true, x, y);
-    setJimmysDogPupilPosition(false, x, y);
-  });
-}
 
 // LINDA EYE TRACKING
 /** @type {Record<name, Material} */
@@ -649,9 +548,7 @@ function getRelativeAngles(object3D, worldVector) {
 setInterval(() => {
   const vector = camera.object3D.getWorldPosition(new THREE.Vector3());
 
-  const object3D = jimmysDogEntity.object3D.visible
-    ? jimmysDogEntity.object3D
-    : lindasDogEntity.object3D;
+  const object3D = lindasDogEntity.object3D;
   let { horizontal, vertical } = getRelativeAngles(object3D, vector);
 
   //console.log({ horizontal, vertical });
@@ -663,13 +560,8 @@ setInterval(() => {
 
   //console.log({ x, y });
 
-  if (jimmysDogEntity.object3D.visible) {
-    setJimmysDogPupilPosition(true, x, 0.6);
-    setJimmysDogPupilPosition(false, x, 0.6);
-  } else {
-    setLindasDogPupilPosition(true, x, 0.6);
-    setLindasDogPupilPosition(false, x, 0.6);
-  }
+  setLindasDogPupilPosition(true, x, 0.6);
+  setLindasDogPupilPosition(false, x, 0.6);
 }, 200);
 
 let isBeingPet = false;
@@ -726,16 +618,12 @@ const blink = () => {
 };
 blink();
 
-// QUEST TRACKING
-// FILL - track relative headset transform
-// FILL - track relative hand transform
-
 // Socket.io
 /** @type {import("socket.io-client")} */
 const ioClient = window.io;
 const { io } = ioClient;
 
-const unoSocketAddress = "http://192.168.4.251:7000"; // FILL YOUR UNO Q's address here, e.g. "http://localhost:7000" or "http://powerpet.local:7000"
+const unoSocketAddress = "http://powerpet.local:7000"; // FILL YOUR UNO Q's address here, e.g. "http://localhost:7000" or "http://powerpet.local:7000"
 /** @type {import("socket.io-client").Socket?} */
 let unoSocket;
 if (unoSocketAddress.length) {
@@ -743,6 +631,7 @@ if (unoSocketAddress.length) {
   unoSocket.on("connect", () => {
     console.log("connected to uno");
     unoSocket.emit("getAngles", {});
+    unoSocket.emit("getState", {});
   });
   unoSocket.on("disconnect", () => {
     console.log("disconnected from uno");
@@ -750,6 +639,18 @@ if (unoSocketAddress.length) {
   unoSocket.on("getAngles", (newAngles) => {
     //console.log("getAngles", newAngles);
     updateAngles(newAngles);
+  });
+  unoSocket.on("state", (state) => {
+    console.log("state", state);
+    // FILL
+  });
+  unoSocket.on("stateDiff", (stateDiff) => {
+    console.log("stateDiff", stateDiff);
+    // FILL
+  });
+  unoSocket.on("broadcast", (message) => {
+    console.log("broadcast", message);
+    // FILL
   });
 }
 
@@ -765,6 +666,7 @@ const updateAngles = (newAngles) => {
   updateAnglesEntities();
 };
 let setAngles = async (newAngles) => {
+  //console.log("setAngles", newAngles);
   if (unoSocket?.connected) {
     unoSocket.emit("setAngles", newAngles);
   } else {
@@ -802,20 +704,22 @@ let isMouseDown = false;
 const setIsMouseDown = (newIsMouseDown) => {
   isMouseDown = newIsMouseDown;
   console.log({ isMouseDown });
-  drawAngles2D();
 };
-angles2DCanvas.addEventListener("mousedown", () => {
+angles2DCanvas.addEventListener("mousedown", (event) => {
   setIsMouseDown(true);
+  onAngles2DCanvasMouseEvent(event);
 });
-angles2DCanvas.addEventListener("mouseup", () => {
+angles2DCanvas.addEventListener("mouseup", (event) => {
   setIsMouseDown(false);
+  onAngles2DCanvasMouseEvent(event);
 });
 const angles2DColor = "white";
 const angles2DCursor = {
   x: 0,
   y: 0,
 };
-angles2DCanvas.addEventListener("mousemove", (event) => {
+/** @param {MouseEvent} event */
+const onAngles2DCanvasMouseEvent = (event) => {
   const { offsetX, offsetY } = event;
   angles2DCursor.x = offsetX / angles2DCanvas.clientWidth;
   angles2DCursor.y = offsetY / angles2DCanvas.clientHeight;
@@ -826,6 +730,9 @@ angles2DCanvas.addEventListener("mousemove", (event) => {
   if (isMouseDown) {
     set2DAngles();
   }
+};
+angles2DCanvas.addEventListener("mousemove", (event) => {
+  onAngles2DCanvasMouseEvent(event);
 });
 let set2DAngles = () => {
   const { x, y } = angles2DCursor;
@@ -838,25 +745,14 @@ let set2DAngles = () => {
 
   //console.log({ xAngle, yAngle });
 
-  if (unoSocket?.connected) {
-    const newAngles = {
-      servos: [],
-      steppers: [],
-    };
-    newAngles[angles2DMap.x.type][angles2DMap.x.index] = xAngle;
-    newAngles[angles2DMap.y.type][angles2DMap.y.index] = yAngle;
-    unoSocket.emit("setAngles", newAngles);
-  } else {
-    const newAngles = structuredClone(angles);
-    newAngles[angles2DMap.x.type][angles2DMap.x.index] = xAngle;
-    newAngles[angles2DMap.y.type][angles2DMap.y.index] = yAngle;
-    updateAngles(newAngles);
-  }
+  const newAngles = {
+    servos: [],
+    steppers: [],
+  };
+  newAngles[angles2DMap.x.type][angles2DMap.x.index] = Math.round(xAngle);
+  newAngles[angles2DMap.y.type][angles2DMap.y.index] = Math.round(yAngle);
+  setAngles(newAngles);
 };
-set2DAngles = AFRAME.utils.throttleLeadingAndTrailing(
-  set2DAngles,
-  throttleRate
-);
 const drawAngles2D = () => {
   const { x, y } = angles2DCursor;
   const { width, height } = angles2DCanvas;
@@ -922,41 +818,5 @@ const updateAnglesUI = () => {
   });
 };
 updateAnglesUI();
-
-const uvTestDogEntity = document.getElementById("uvTestDog");
-/** @type {Record<string, Object3D>} */
-const uvTestDogMeshes = {};
-window.uvTestDogMeshes = uvTestDogMeshes;
-uvTestDogEntity.addEventListener("model-loaded", () => {
-  const root = uvTestDogEntity.getObject3D("mesh");
-  if (!root) return;
-
-  root.traverse((node) => {
-    if (!node.isMesh) return;
-    uvTestDogMeshes[node.name] = node;
-  });
-  console.log("uvTestDogMeshes", uvTestDogMeshes);
-});
-/** @type {Record<name, Material} */
-const uvTestDogMaterials = {};
-window.uvTestDogMaterials = uvTestDogMaterials;
-uvTestDogEntity.addEventListener("model-loaded", () => {
-  const root = uvTestDogEntity.getObject3D("mesh");
-  if (!root) return;
-
-  root.traverse((node) => {
-    if (!node.isMesh) return;
-
-    const materials = Array.isArray(node.material)
-      ? node.material
-      : [node.material];
-
-    materials.forEach((material, index) => {
-      uvTestDogMaterials[material.name] = material;
-    });
-  });
-  console.log("uvTestDogMaterials", uvTestDogMaterials);
-});
-// FILL - get/set quest head/hands
 
 window.unoSocket = unoSocket;
