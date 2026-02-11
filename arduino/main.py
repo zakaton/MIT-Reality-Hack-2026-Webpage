@@ -1,7 +1,7 @@
 from arduino.app_utils import *
 from arduino.app_bricks.web_ui import WebUI
 
-ui = WebUI()
+ui = WebUI(use_tls=True)
 ui.expose_api("GET", "/", lambda: "powerpet")
 
 
