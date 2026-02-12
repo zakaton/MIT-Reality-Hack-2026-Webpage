@@ -76,8 +76,10 @@ void setStepperAngle(int angle)
 
 void setup()
 {
-    stepper.setMaxSpeed(2000);
-    stepper.setAcceleration(1000);
+    // stepper.setMaxSpeed(2000);
+    // stepper.setAcceleration(1000);
+    stepper.setMaxSpeed(400);
+    stepper.setAcceleration(300);
 
     for (uint8_t i = 0; i < numberOfServos; i++)
     {
@@ -88,7 +90,7 @@ void setup()
     Bridge.provide("test", test);
     Bridge.provide("setServoAngle", setServoAngle);
     Bridge.provide("setStepperAngle", setStepperAngle);
-    Monitor.println("setup");
+    // Monitor.println("setup");
 }
 
 int servoTest = 0;
