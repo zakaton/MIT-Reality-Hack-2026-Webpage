@@ -121,10 +121,6 @@ const throttleInterval = 50;
 
 class UnoQ {
   constructor() {
-    this.setAngle = throttleLeadingAndTrailing(
-      this.setAngle.bind(this),
-      throttleInterval
-    );
     this.setAngles = throttleLeadingAndTrailing(
       this.setAngles.bind(this),
       throttleInterval
@@ -459,14 +455,33 @@ class UnoQ {
    * @param {number} index
    * @param {number} angle
    */
-  async setAngle(type, index, angle) {
+  async #setAngle(type, index, angle) {
     if (!this.isConnected) {
       return;
     }
-    console.log({ type, index, angle });
+    // console.log({ type, index, angle });
     const promise = this.waitForEvent("angles");
     this.#socket.emit("setAngle", { type, index, angle });
     await promise;
+  }
+  #throttledSetAngleFunctions = {};
+  /**
+   * @param {AngleType} type
+   * @param {number} index
+   * @param {number} angle
+   */
+  async setAngle(type, index, angle) {
+    if (this.angles[type]?.[index] == angle) {
+      return;
+    }
+    const key = [type, index].join(".");
+    if (!this.#throttledSetAngleFunctions[key]) {
+      this.#throttledSetAngleFunctions[key] = throttleLeadingAndTrailing(
+        this.#setAngle.bind(this),
+        throttleInterval
+      );
+    }
+    await this.#throttledSetAngleFunctions[key](type, index, angle);
   }
   /** @param {Angles} angles */
   async setAngles(angles) {

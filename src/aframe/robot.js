@@ -1,6 +1,4 @@
 {
-  const anglePrefix = "angle_";
-
   /** @type {import("three")} */
   const THREE = window.THREE;
 
@@ -69,11 +67,10 @@
     init: function () {
       this._initUtils();
       this._initDebug();
-      this._initServos();
-      this._initSteppers();
+      this._initAngles();
+      this._updateSchema();
       // FILL
       this.system._add(this);
-      this._didInit = true;
     },
     remove: function () {
       // FILL
@@ -88,7 +85,100 @@
     get _anglePrefix() {
       return "angle_";
     },
+    _initAngles: function () {
+      //console.log("_initAngles");
+      this._angles = {
+        servo: [],
+        stepper: [],
+      };
+      const angleEntities = Array.from(
+        this.el.querySelectorAll("[data-angle-type]")
+      );
+      // console.log("angleEntities", angleEntities);
+      angleEntities.forEach((entity) => {
+        const type = entity.dataset.angleType;
+        const index = entity.dataset.angleIndex;
+        const angle = {
+          angle: entity.dataset.angle ?? 0,
+          axis: entity.dataset.angleAxis ?? "x",
+          sign: entity.dataset.angleSign ?? 1,
+          offset: entity.dataset.angleOffset ?? 0,
+          entity,
+        };
+        for (let key in angle) {
+          if (!isNaN(angle[key])) {
+            angle[key] = +angle[key];
+          }
+        }
+        this._angles[type][index] = angle;
+      });
+      // console.log("_angles", this._angles);
+    },
+    _forEachAngle: function (callback) {
+      for (const type in this._angles) {
+        this._angles[type].forEach((angle, index) => {
+          callback(type, index, angle.angle);
+        });
+      }
+    },
+    _getAnglesSchema: function () {
+      //console.log("_getAnglesSchema");
 
+      const anglesSchema = {};
+
+      Object.keys(this.data)
+        .filter((key) => key.startsWith(this._anglePrefix))
+        .forEach((key) => {
+          this._deleteDataKey(key);
+        });
+
+      this._forEachAngle((type, index, angle) => {
+        anglesSchema[this._anglePrefix + [type, index].join("_")] = {
+          type: "int",
+          default: 0,
+        };
+      });
+
+      return anglesSchema;
+    },
+    _setAngles: function () {
+      this._forEachAngle((type, index, angle) => {
+        this.setAngle(type, index, angle);
+      });
+    },
+    setAngle: function (type, index, angle, dur = 0) {
+      if (!this._angles[type]?.[index]) {
+        return;
+      }
+      switch (type) {
+        case "servo":
+          angle = THREE.MathUtils.clamp(angle, 0, 160);
+          break;
+      }
+      //console.log("setAngle", { type, index, angle });
+
+      const { entity, axis, sign, offset } = this._angles[type][index];
+      const entityAngle = (angle + offset) * sign;
+      const entityAngleRadians = THREE.MathUtils.degToRad(entityAngle);
+
+      if (dur > 0) {
+        // FILL
+      } else {
+        this._angles[type][index].angle = angle;
+
+        entity.object3D.rotation[axis] = entityAngleRadians;
+
+        const dataPath = this._anglePrefix + [type, index].join("_");
+        if (dataPath in this.schema) {
+          this._updateData(dataPath, angle, false);
+          this.el.emit("robot-angle", {
+            type,
+            index,
+            angle,
+          });
+        }
+      }
+    },
     // ANGLES END
 
     // UTILS START
@@ -156,10 +246,9 @@
         }
         //console.log("update", { [diffKey]: this.data[diffKey] });
 
-        if (diffKey.startsWith(this._servoPrefix)) {
-          this.setServoAngle(diffKey, this.data[diffKey]);
-        } else if (diffKey.startsWith(this._stepperPrefix)) {
-          this.setStepperAngle(diffKey, this.data[diffKey]);
+        if (diffKey.startsWith(this._anglePrefix)) {
+          const [_, type, index] = diffKey.split("_");
+          this.setAngle(type, +index, +this.data[diffKey]);
         } else {
           switch (diffKey) {
             case "showDebug":
@@ -176,73 +265,16 @@
 
     // SCHEMA START
     _updateSchema: function () {
-      if (!this._didInit) {
-        return;
-      }
-      const servosSchema = this._getServosSchema();
-      const steppersSchema = this._getSteppersSchema();
-      const extensionSchema = { ...servosSchema, ...steppersSchema };
-      console.log("extensionSchema", extensionSchema);
+      const anglesSchema = this._getAnglesSchema();
+      const extensionSchema = { ...anglesSchema };
+      // console.log("extensionSchema", extensionSchema);
       this.extendSchema(extensionSchema);
-      this._setServos();
-      this._setSteppers();
+      this._setAngles();
       this._flushToDOM();
     },
     // SCHEMA END
 
     // SERVOS START
-    _initServos: function () {
-      this._servos = [];
-      const servoEntities = Array.from(
-        this.el.querySelectorAll("[data-angle-type='servo']")
-      ).sort((a, b) => a.dataset.angleIndex - b.dataset.angleIndex);
-      // console.log("servoEntities", servoEntities);
-      servoEntities.forEach((entity, index) => {
-        this._servos[index] = {
-          angle: entity.dataset.angle ?? 0,
-          axis: entity.dataset.angleAxis ?? "x",
-          sign: entity.dataset.angleSign ?? 1,
-          offset: entity.dataset.angleOffset ?? 0,
-          entity,
-        };
-        this._servos.forEach((servo) => {
-          for (let key in servo) {
-            if (!isNaN(servo[key])) {
-              servo[key] = +servo[key];
-            }
-          }
-        });
-      });
-      //console.log("_servos", this._servos);
-    },
-    get _servoPrefix() {
-      return this._anglePrefix + "servo_";
-    },
-    _getServosSchema: function () {
-      //console.log("_getServosSchema");
-
-      const servosSchema = {};
-
-      Object.keys(this.data)
-        .filter((key) => key.startsWith(this._servoPrefix))
-        .forEach((key) => {
-          this._deleteDataKey(key);
-        });
-
-      this._servos.forEach((servo, index) => {
-        servosSchema[this._servoPrefix + index] = {
-          type: "int",
-          default: 0,
-        };
-      });
-
-      return servosSchema;
-    },
-    _setServos: function () {
-      this._servos.forEach((servo, index) => {
-        this.setServoAngle(index, servo.angle);
-      });
-    },
     setServoAngle: function (index, angle, dur = 0) {
       if (typeof index == "string" && index.startsWith(this._servoPrefix)) {
         index = Number(index.replace(this._servoPrefix, ""));
@@ -278,101 +310,13 @@
     },
     // SERVOS END
 
-    // STEPPERS START
-    _initSteppers: function () {
-      this._steppers = [];
-      const stepperEntities = Array.from(
-        this.el.querySelectorAll("[data-angle-type='stepper']")
-      ).sort((a, b) => a.dataset.angleIndex - b.dataset.angleIndex);
-      //console.log("stepperEntities", stepperEntities);
-      stepperEntities.forEach((entity, index) => {
-        this._steppers[index] = {
-          angle: entity.dataset.angle ?? 0,
-          axis: entity.dataset.angleAxis ?? "x",
-          sign: entity.dataset.angleSign ?? 1,
-          offset: entity.dataset.angleOffset ?? 0,
-          entity,
-        };
-        this._steppers.forEach((stepper) => {
-          for (let key in stepper) {
-            if (!isNaN(stepper[key])) {
-              stepper[key] = +stepper[key];
-            }
-          }
-        });
-      });
-      //console.log("_steppers", this._steppers);
-    },
-    get _stepperPrefix() {
-      return this._anglePrefix + "stepper_";
-    },
-    _getSteppersSchema: function () {
-      //console.log("_getSteppersSchema");
-
-      const steppersSchema = {};
-
-      Object.keys(this.data)
-        .filter((key) => key.startsWith(this._stepperPrefix))
-        .forEach((key) => {
-          this._deleteDataKey(key);
-        });
-
-      this._steppers.forEach((stepper, index) => {
-        steppersSchema[this._stepperPrefix + index] = {
-          type: "int",
-          default: 0,
-        };
-      });
-
-      return steppersSchema;
-    },
-    _setSteppers: function () {
-      this._steppers.forEach((stepper, index) => {
-        this.setStepperAngle(index, stepper.angle);
-      });
-    },
-    setStepperAngle: function (index, angle, dur = 0) {
-      if (typeof index == "string" && index.startsWith(this._stepperPrefix)) {
-        index = Number(index.replace(this._stepperPrefix, ""));
-      }
-      if (!this._steppers[index]) {
-        return;
-      }
-      angle = THREE.MathUtils.clamp(angle, 0, 160);
-      //console.log("setStepperAngle", { index, angle });
-
-      const { entity, axis, sign, offset } = this._steppers[index];
-
-      const entityAngle = (angle + offset) * sign;
-      const entityAngleRadians = THREE.MathUtils.degToRad(entityAngle);
-
-      if (dur > 0) {
-        // FILL
-      } else {
-        this._steppers[index].angle = angle;
-
-        entity.object3D.rotation[axis] = entityAngleRadians;
-
-        const dataPath = this._stepperPrefix + index;
-        if (dataPath in this.schema) {
-          this._updateData(dataPath, angle, false);
-          this.el.emit("robot-angle", {
-            type: "stepper",
-            index,
-            angle,
-          });
-        }
-      }
-    },
-    // STEPPERS END
-
     // DEBUG START
     _initDebug: function () {
       this._debugEntities = Array.from(this.el.querySelectorAll(".debug"));
       //console.log("_debugEntities", this._debugEntities);
     },
     setShowDebug: function (showDebug) {
-      console.log("setShowDebug", { showDebug });
+      //console.log("setShowDebug", { showDebug });
       this._debugEntities.forEach((debugEntity) => {
         debugEntity.object3D.visible = showDebug;
       });
