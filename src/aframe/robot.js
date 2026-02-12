@@ -63,9 +63,6 @@
 
   AFRAME.registerComponent("robot", {
     schema: {
-      numberOfServos: { type: "int", default: 0 },
-      numberOfSteppers: { type: "int", default: 0 },
-
       showDebug: { type: "boolean", default: false },
     },
 
@@ -91,6 +88,7 @@
     get _anglePrefix() {
       return "angle_";
     },
+
     // ANGLES END
 
     // UTILS START
@@ -164,12 +162,6 @@
           this.setStepperAngle(diffKey, this.data[diffKey]);
         } else {
           switch (diffKey) {
-            case "numberOfSteppers":
-              this.setNumberOfSteppers(this.data.numberOfSteppers);
-              break;
-            case "numberOfServos":
-              this.setNumberOfServos(this.data.numberOfServos);
-              break;
             case "showDebug":
               this.setShowDebug(this.data.showDebug);
               break;
@@ -187,7 +179,6 @@
       if (!this._didInit) {
         return;
       }
-      console.log("fuck", this._anglePrefix);
       const servosSchema = this._getServosSchema();
       const steppersSchema = this._getSteppersSchema();
       const extensionSchema = { ...servosSchema, ...steppersSchema };
@@ -223,14 +214,6 @@
         });
       });
       //console.log("_servos", this._servos);
-      this.setNumberOfServos(this._servos.length);
-    },
-    setNumberOfServos: function (numberOfServos) {
-      numberOfServos = Math.max(0, numberOfServos);
-      //console.log("setNumberOfServos", { numberOfServos });
-      this._servos.length = numberOfServos;
-      this._updateData("numberOfServos", numberOfServos);
-      this._updateSchema();
     },
     get _servoPrefix() {
       return this._anglePrefix + "servo_";
@@ -319,13 +302,6 @@
         });
       });
       //console.log("_steppers", this._steppers);
-      this.setNumberOfSteppers(this._steppers.length);
-    },
-    setNumberOfSteppers: function (numberOfSteppers) {
-      numberOfSteppers = Math.max(0, numberOfSteppers);
-      // console.log("setNumberOfSteppers", { numberOfSteppers });
-      this._updateData("numberOfSteppers", numberOfSteppers);
-      this._updateSchema();
     },
     get _stepperPrefix() {
       return this._anglePrefix + "stepper_";
