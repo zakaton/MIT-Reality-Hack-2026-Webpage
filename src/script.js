@@ -102,9 +102,10 @@ const angles = {
 /** @param {Angles} newAngles */
 const updateAngles = (newAngles) => {
   Object.assign(angles, newAngles);
-  console.log("angles", angles);
+  console.log("updateAngles", angles);
   forEachAngle((type, index, angle) => {
     angleInputs[type][index].forEach((input) => (input.value = angle));
+    robotEntity.setAttribute("robot", `angle_${type}_${index}`, angle);
   });
 };
 unoQ.onAngles((event) => updateAngles(event.detail.angles));
@@ -210,4 +211,13 @@ const powerPetEntity = document.getElementById("powerPet");
 
 // ROBOT START
 const robotEntity = document.getElementById("robot");
+robotEntity.setAttribute("robot", {
+  numberOfServos: angles.servo.length,
+  numberOfSteppers: angles.stepper.length,
+});
+robotEntity.addEventListener("robot-angle", (event) => {
+  const { type, index, angle } = event.detail;
+  console.log("robot-angle", { type, index, angle });
+  // FILL - set angle
+});
 // ROBOT END

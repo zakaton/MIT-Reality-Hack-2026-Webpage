@@ -112,7 +112,12 @@
             position="0 1.2 0"
           ></a-camera>
 
-          <a-entity id="robot" robot rotation="0 180 0" position="0 0.8 -0.3">
+          <a-entity
+            id="robot"
+            robot="showDebug: true;"
+            rotation="0 180 0"
+            position="0 0.8 -0.3"
+          >
             <a-entity class="debug" visible="true">
               <a-box
                 height="0.0508"
@@ -124,7 +129,7 @@
             </a-entity>
 
             <a-entity
-              data-angle-type="steppers"
+              data-angle-type="stepper"
               data-angle-index="0"
               data-angle-axis="y"
               data-angle-sign="-1"
@@ -141,9 +146,11 @@
 
               <a-entity
                 position="0 0.1397 0"
-                data-angle-type="servos"
+                data-angle-type="servo"
                 data-angle-index="0"
                 data-angle-axis="x"
+                data-angle-sign="-1"
+                data-angle-offset="20"
               >
                 <a-entity class="debug" visible="true">
                   <a-box
@@ -157,9 +164,11 @@
 
                 <a-entity
                   position="0 0.12065 0"
-                  data-angle-type="servos"
+                  data-angle-type="servo"
                   data-angle-index="1"
                   data-angle-axis="x"
+                  data-angle-sign="-1"
+                  data-angle-offset="-72"
                 >
                   <a-entity class="debug" visible="true">
                     <a-box

@@ -55,7 +55,11 @@
 
         <a-light type="ambient"></a-light>
 
-        <a-camera id="camera"></a-camera>
+        <a-camera
+          id="camera"
+          look-controls="enabled: true; magicWindowTrackingEnabled: false;"
+          wasd-controls="enabled: true; acceleration: 1;"
+        ></a-camera>
 
         <a-mixin
           id="realWorldPlaneMixin"

@@ -636,7 +636,7 @@ if (unoSocketAddress.length) {
   unoSocket.on("disconnect", () => {
     console.log("disconnected from uno");
   });
-  unoSocket.on("getAngles", (newAngles) => {
+  unoSocket.on("angles", (newAngles) => {
     //console.log("getAngles", newAngles);
     updateAngles(newAngles);
   });

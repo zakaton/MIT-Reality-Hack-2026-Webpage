@@ -1,4 +1,6 @@
 {
+  const anglePrefix = "angle_";
+
   /** @type {import("three")} */
   const THREE = window.THREE;
 
@@ -60,12 +62,21 @@
   });
 
   AFRAME.registerComponent("robot", {
-    schema: {},
+    schema: {
+      numberOfServos: { type: "int", default: 0 },
+      numberOfSteppers: { type: "int", default: 0 },
+
+      showDebug: { type: "boolean", default: false },
+    },
 
     init: function () {
       this._initUtils();
+      this._initDebug();
+      this._initServos();
+      this._initSteppers();
       // FILL
       this.system._add(this);
+      this._didInit = true;
     },
     remove: function () {
       // FILL
@@ -73,8 +84,14 @@
     },
 
     tick: function (time, timeDelta) {
-      //FILL
+      // FILL
     },
+
+    // ANGLES START
+    get _anglePrefix() {
+      return "angle_";
+    },
+    // ANGLES END
 
     // UTILS START
     _initUtils: function () {
@@ -113,7 +130,7 @@
       }
 
       detail = detail ?? { [key]: value };
-      this.el.emit(`power-pet-${key}`, detail);
+      this.el.emit(`robot-${key}`, detail);
     },
     _deleteDataKey: function (key) {
       delete this.data[key];
@@ -141,10 +158,25 @@
         }
         //console.log("update", { [diffKey]: this.data[diffKey] });
 
-        switch (diffKey) {
-          default:
-            console.warn(`uncaught diffKey "${diffKey}"`);
-            break;
+        if (diffKey.startsWith(this._servoPrefix)) {
+          this.setServoAngle(diffKey, this.data[diffKey]);
+        } else if (diffKey.startsWith(this._stepperPrefix)) {
+          this.setStepperAngle(diffKey, this.data[diffKey]);
+        } else {
+          switch (diffKey) {
+            case "numberOfSteppers":
+              this.setNumberOfSteppers(this.data.numberOfSteppers);
+              break;
+            case "numberOfServos":
+              this.setNumberOfServos(this.data.numberOfServos);
+              break;
+            case "showDebug":
+              this.setShowDebug(this.data.showDebug);
+              break;
+            default:
+              console.warn(`uncaught diffKey "${diffKey}"`);
+              break;
+          }
         }
       });
       this._updateCalledOnce = true;
@@ -152,154 +184,224 @@
 
     // SCHEMA START
     _updateSchema: function () {
-      // const variantSchema = this._getVariantSchema();
-      const extensionSchema = {};
-      //console.log("extensionSchema", extensionSchema);
+      if (!this._didInit) {
+        return;
+      }
+      console.log("fuck", this._anglePrefix);
+      const servosSchema = this._getServosSchema();
+      const steppersSchema = this._getSteppersSchema();
+      const extensionSchema = { ...servosSchema, ...steppersSchema };
+      console.log("extensionSchema", extensionSchema);
       this.extendSchema(extensionSchema);
-      // this._selectVariants();
+      this._setServos();
+      this._setSteppers();
       this._flushToDOM();
     },
     // SCHEMA END
 
     // SERVOS START
-    // FILL
+    _initServos: function () {
+      this._servos = [];
+      const servoEntities = Array.from(
+        this.el.querySelectorAll("[data-angle-type='servo']")
+      ).sort((a, b) => a.dataset.angleIndex - b.dataset.angleIndex);
+      // console.log("servoEntities", servoEntities);
+      servoEntities.forEach((entity, index) => {
+        this._servos[index] = {
+          angle: entity.dataset.angle ?? 0,
+          axis: entity.dataset.angleAxis ?? "x",
+          sign: entity.dataset.angleSign ?? 1,
+          offset: entity.dataset.angleOffset ?? 0,
+          entity,
+        };
+        this._servos.forEach((servo) => {
+          for (let key in servo) {
+            if (!isNaN(servo[key])) {
+              servo[key] = +servo[key];
+            }
+          }
+        });
+      });
+      //console.log("_servos", this._servos);
+      this.setNumberOfServos(this._servos.length);
+    },
+    setNumberOfServos: function (numberOfServos) {
+      numberOfServos = Math.max(0, numberOfServos);
+      //console.log("setNumberOfServos", { numberOfServos });
+      this._servos.length = numberOfServos;
+      this._updateData("numberOfServos", numberOfServos);
+      this._updateSchema();
+    },
+    get _servoPrefix() {
+      return this._anglePrefix + "servo_";
+    },
+    _getServosSchema: function () {
+      //console.log("_getServosSchema");
+
+      const servosSchema = {};
+
+      Object.keys(this.data)
+        .filter((key) => key.startsWith(this._servoPrefix))
+        .forEach((key) => {
+          this._deleteDataKey(key);
+        });
+
+      this._servos.forEach((servo, index) => {
+        servosSchema[this._servoPrefix + index] = {
+          type: "int",
+          default: 0,
+        };
+      });
+
+      return servosSchema;
+    },
+    _setServos: function () {
+      this._servos.forEach((servo, index) => {
+        this.setServoAngle(index, servo.angle);
+      });
+    },
+    setServoAngle: function (index, angle, dur = 0) {
+      if (typeof index == "string" && index.startsWith(this._servoPrefix)) {
+        index = Number(index.replace(this._servoPrefix, ""));
+      }
+      if (!this._servos[index]) {
+        return;
+      }
+      angle = THREE.MathUtils.clamp(angle, 0, 160);
+      //console.log("setServoAngle", { index, angle });
+
+      const { entity, axis, sign, offset } = this._servos[index];
+
+      const entityAngle = (angle + offset) * sign;
+      const entityAngleRadians = THREE.MathUtils.degToRad(entityAngle);
+
+      if (dur > 0) {
+        // FILL
+      } else {
+        this._servos[index].angle = angle;
+
+        entity.object3D.rotation[axis] = entityAngleRadians;
+
+        const dataPath = this._servoPrefix + index;
+        if (dataPath in this.schema) {
+          this._updateData(dataPath, angle, false);
+          this.el.emit("robot-angle", {
+            type: "servo",
+            index,
+            angle,
+          });
+        }
+      }
+    },
     // SERVOS END
 
     // STEPPERS START
-    // FILL
+    _initSteppers: function () {
+      this._steppers = [];
+      const stepperEntities = Array.from(
+        this.el.querySelectorAll("[data-angle-type='stepper']")
+      ).sort((a, b) => a.dataset.angleIndex - b.dataset.angleIndex);
+      //console.log("stepperEntities", stepperEntities);
+      stepperEntities.forEach((entity, index) => {
+        this._steppers[index] = {
+          angle: entity.dataset.angle ?? 0,
+          axis: entity.dataset.angleAxis ?? "x",
+          sign: entity.dataset.angleSign ?? 1,
+          offset: entity.dataset.angleOffset ?? 0,
+          entity,
+        };
+        this._steppers.forEach((stepper) => {
+          for (let key in stepper) {
+            if (!isNaN(stepper[key])) {
+              stepper[key] = +stepper[key];
+            }
+          }
+        });
+      });
+      //console.log("_steppers", this._steppers);
+      this.setNumberOfSteppers(this._steppers.length);
+    },
+    setNumberOfSteppers: function (numberOfSteppers) {
+      numberOfSteppers = Math.max(0, numberOfSteppers);
+      // console.log("setNumberOfSteppers", { numberOfSteppers });
+      this._updateData("numberOfSteppers", numberOfSteppers);
+      this._updateSchema();
+    },
+    get _stepperPrefix() {
+      return this._anglePrefix + "stepper_";
+    },
+    _getSteppersSchema: function () {
+      //console.log("_getSteppersSchema");
+
+      const steppersSchema = {};
+
+      Object.keys(this.data)
+        .filter((key) => key.startsWith(this._stepperPrefix))
+        .forEach((key) => {
+          this._deleteDataKey(key);
+        });
+
+      this._steppers.forEach((stepper, index) => {
+        steppersSchema[this._stepperPrefix + index] = {
+          type: "int",
+          default: 0,
+        };
+      });
+
+      return steppersSchema;
+    },
+    _setSteppers: function () {
+      this._steppers.forEach((stepper, index) => {
+        this.setStepperAngle(index, stepper.angle);
+      });
+    },
+    setStepperAngle: function (index, angle, dur = 0) {
+      if (typeof index == "string" && index.startsWith(this._stepperPrefix)) {
+        index = Number(index.replace(this._stepperPrefix, ""));
+      }
+      if (!this._steppers[index]) {
+        return;
+      }
+      angle = THREE.MathUtils.clamp(angle, 0, 160);
+      //console.log("setStepperAngle", { index, angle });
+
+      const { entity, axis, sign, offset } = this._steppers[index];
+
+      const entityAngle = (angle + offset) * sign;
+      const entityAngleRadians = THREE.MathUtils.degToRad(entityAngle);
+
+      if (dur > 0) {
+        // FILL
+      } else {
+        this._steppers[index].angle = angle;
+
+        entity.object3D.rotation[axis] = entityAngleRadians;
+
+        const dataPath = this._stepperPrefix + index;
+        if (dataPath in this.schema) {
+          this._updateData(dataPath, angle, false);
+          this.el.emit("robot-angle", {
+            type: "stepper",
+            index,
+            angle,
+          });
+        }
+      }
+    },
     // STEPPERS END
 
-    // VARIANT START
-    // _variantPrefix: "variant_",
-    // _getVariants: function () {
-    //   return this._getModel()?.variants ?? {};
-    // },
-    // _getVariantsArray: function () {
-    //   return this._getModel()?.variantsArray ?? [];
-    // },
-    // _getAllVariants: function () {
-    //   return this._getModel()?.allVariants ?? {};
-    // },
-    // _getAllVariantsArray: function () {
-    //   return this._getModel()?.allVariantsArray ?? [];
-    // },
-    // _selectVariants: function () {
-    //   const variantsArray = structuredClone(this._getVariantsArray());
-    //   variantsArray.forEach(([key, value]) => {
-    //     this.selectVariant(key, value);
-    //   });
-    // },
-    // _getVariantSchema: function () {
-    //   // console.log("_getVariantSchema");
-
-    //   const variantSchema = {};
-    //   const allVariantsArray = this._getAllVariantsArray();
-
-    //   Object.keys(this.data)
-    //     .filter((key) => key.startsWith(this._variantPrefix))
-    //     .forEach((key) => {
-    //       this._deleteDataKey(key);
-    //     });
-
-    //   allVariantsArray.forEach(([key, oneOf]) => {
-    //     variantSchema[this._variantPrefix + key] = { oneOf };
-    //   });
-
-    //   return variantSchema;
-    // },
-    // _invertPupilScale: true,
-    // selectVariant: function (path, value) {
-    //   if (path.startsWith(this._variantPrefix)) {
-    //     path = path.replace(this._variantPrefix, "");
-    //   }
-    //   if (value == undefined) {
-    //     return;
-    //   }
-    //   // console.log("selectVariant", { path, value });
-    //   if (!this.getIsModelSelected()) {
-    //     console.log("no model selected");
-    //     return;
-    //   }
-
-    //   const { variants, meshTree, pupilOffsets, pupilScales, pupilRotations } =
-    //     this._getModel();
-
-    //   if (!this._includeNullPathInPupilSchema && path == "") {
-    //     return;
-    //   }
-
-    //   const node = this._walkTree(
-    //     path,
-    //     meshTree,
-    //     (node, treeWalker, segment) => {
-    //       if (node.isLast && !node.hasMultipleUv) {
-    //         console.error(
-    //           `invalid path "${path}" - no segment "${segment}" found and only 1 uvCount`,
-    //           treeWalker,
-    //           "in",
-    //           meshTree
-    //         );
-    //         return false;
-    //       }
-    //       return true;
-    //     }
-    //   );
-    //   if (!node) {
-    //     return;
-    //   }
-    //   //console.log("node", node);
-
-    //   if (node.isLast) {
-    //     let channel = 0;
-    //     if (isNaN(value)) {
-    //       channel = node.uvMap[value];
-    //     } else {
-    //       channel = +value;
-    //       Object.entries(node.uvMap).some(([key, _channel]) => {
-    //         if (_channel == channel) {
-    //           value = key;
-    //           return true;
-    //         }
-    //       });
-    //     }
-    //     if (channel >= node.uvCount) {
-    //       console.error(`invalid uv index ${channel}, max ${node.uvCount - 1}`);
-    //       return;
-    //     }
-    //     //console.log(`setting uv index to ${channel}`);
-    //     node.texture.channel = channel;
-    //   } else {
-    //     const children = Object.entries(node);
-    //     children.forEach(([name, child]) => {
-    //       if (child.isLast && isNaN(value)) {
-    //         const visible = name == value;
-    //         child.mesh.visible = visible;
-    //         if (visible && child.isPupil) {
-    //           if (!this._setPupilPropertyWhenInvisible) {
-    //             this._updateTextureMatrix(child);
-    //             this._updateShowLookAt(child);
-    //             this._updateLookAtPosition(child);
-    //           }
-    //         }
-    //       } else {
-    //         this.selectVariant([path, name].join("."), value);
-    //       }
-    //     });
-    //   }
-
-    //   if (path in variants) {
-    //     variants[path] = value;
-    //   }
-    //   const dataPath = this._variantPrefix + path;
-    //   if (dataPath in this.schema) {
-    //     this._updateData(dataPath, value, false);
-    //     this.el.emit("power-pet-variant", {
-    //       name: this.selectedName,
-    //       path,
-    //       value,
-    //     });
-    //   }
-    // },
-    // VARIANT END
+    // DEBUG START
+    _initDebug: function () {
+      this._debugEntities = Array.from(this.el.querySelectorAll(".debug"));
+      //console.log("_debugEntities", this._debugEntities);
+    },
+    setShowDebug: function (showDebug) {
+      console.log("setShowDebug", { showDebug });
+      this._debugEntities.forEach((debugEntity) => {
+        debugEntity.object3D.visible = showDebug;
+      });
+      this._updateData("showDebug", showDebug);
+    },
+    // DEBUG END
   });
 }
