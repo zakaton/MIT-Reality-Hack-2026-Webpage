@@ -1,6 +1,8 @@
 /** @typedef {import("socket.io-client") io} */
 /** @typedef {import("socket.io-client").Socket} Socket */
 
+import { throttleLeadingAndTrailing } from "../utils/helpers.js";
+
 /** @type {io} */
 const ioClient = window.io;
 const { io } = ioClient;
@@ -115,7 +117,20 @@ const { io } = ioClient;
  * } Event
  */
 
+const throttleInterval = 50;
+
 class UnoQ {
+  constructor() {
+    this.setAngle = throttleLeadingAndTrailing(
+      this.setAngle.bind(this),
+      throttleInterval
+    );
+    this.setAngles = throttleLeadingAndTrailing(
+      this.setAngles.bind(this),
+      throttleInterval
+    );
+  }
+
   // EVENT LISTENERS START
   #eventListeners = {};
 
