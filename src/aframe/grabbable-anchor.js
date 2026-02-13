@@ -67,7 +67,8 @@ AFRAME.registerComponent("grabbable-anchor", {
       },
       { once: !this.data.autoUpdate }
     );
-    this.el.sceneEl.addEventListener("exit-vr", () => {
+    this.el.sceneEl.addEventListener("exit-vr", (event) => {
+      console.log(event);
       if (this.data.autoUpdate) {
         this._saveRelativeTransforms();
       }
@@ -223,7 +224,11 @@ AFRAME.registerComponent("grabbable-anchor", {
     );
   },
   _saveRelativeTransforms: function () {
-    console.log("saveRelativeTransforms");
+    if (!this.el.components["anchored"]?.anchor) {
+      return;
+    }
+
+    //console.log("saveRelativeTransforms");
 
     const relativeTransforms = {};
 
@@ -250,7 +255,7 @@ AFRAME.registerComponent("grabbable-anchor", {
     );
   },
   _loadRelativeTransforms: function () {
-    console.log("loadRelativeTransforms");
+    //console.log("loadRelativeTransforms");
 
     const relativeTransformsString = localStorage.getItem(
       this.data.localStorageKey
@@ -274,11 +279,13 @@ AFRAME.registerComponent("grabbable-anchor", {
       this._updateAnchorableEntity(entity);
     });
   },
+
   _updateAnchorableEntity: function (entity) {
     if (!this._relativeTransforms?.[entity.id]) {
       //console.log(`no relativeTransform found for anchorableEntity "${entity.id}"`);
       return;
     }
+
     const relativeTransform = this._relativeTransforms[entity.id];
     const { position, euler, quaternion } = relativeTransform;
     //console.log(`_updateAnchorableEntity "${entity.id}"`, position, euler);

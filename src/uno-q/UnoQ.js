@@ -99,11 +99,59 @@ const { io } = ioClient;
  */
 
 /**
+ * @typedef {BaseEvent & {
+ *   type: "clientJoin",
+ *   detail: {client: string}
+ * }} ClientJoinEvent
+ */
+/**
+ * @callback OnClientJoinCallback
+ * @param {ClientJoinEvent} event
+ */
+
+/**
+ * @typedef {BaseEvent & {
+ *   type: "clientExit",
+ *   detail: {client: string}
+ * }} ClientExitEvent
+ */
+/**
+ * @callback OnClientExitCallback
+ * @param {ClientExitEvent} event
+ */
+
+/**
+ * @typedef {BaseEvent & {
+ *   type: "clients",
+ *   detail: {clients: string[]}
+ * }} ClientsEvent
+ */
+/**
+ * @callback OnClientsCallback
+ * @param {ClientsEvent} event
+ */
+
+/**
+ * @typedef {BaseEvent & {
+ *   type: "clientState",
+ *   detail: {client: string, clientState: any}
+ * }} ClientStateEvent
+ */
+/**
+ * @callback OnClientStateCallback
+ * @param {ClientStateEvent} event
+ */
+
+/**
  * @typedef { ConnectionStatus |
  * "isConnected" |
  * "broadcast" |
  * "state" |
- * "angles"
+ * "angles" |
+ * "clientJoin" |
+ * "clientExit" |
+ * "clients" |
+ * "clientState"
  * } EventType
  */
 
@@ -113,7 +161,11 @@ const { io } = ioClient;
  * IsConnectedEvent |
  * BroadcastEvent |
  * StateEvent |
- * AnglesEvent
+ * AnglesEvent |
+ * ClientJoinEvent |
+ * ClientExitEvent |
+ * ClientsEvent |
+ * ClientStateEvent
  * } Event
  */
 
@@ -222,6 +274,95 @@ class UnoQ {
   }
   // CONNECTION STATUS END
 
+  // CLIENT START
+  get id() {
+    return this.#socket?.id;
+  }
+  #clients = [];
+  get clients() {
+    return this.#clients;
+  }
+  #onClients(clients) {
+    this.#clients.length = 0;
+    this.#clients.push(...clients);
+    // console.log("clients", this.clients);
+    this.#dispatchEvent("clients", { clients });
+  }
+  async #getClients() {
+    if (!this.isConnected) {
+      return;
+    }
+    const promise = this.waitForEvent("clients");
+    this.#socket.emit("getClients", {});
+    await promise;
+  }
+
+  #onClientJoin({ client }) {
+    //console.log("onClientJoin", { client });
+    if (this.#clients.includes(client)) {
+      return;
+    }
+    this.#clients.push(client);
+    this.#dispatchEvent("clientJoin", { client });
+  }
+  #onClientExit({ client }) {
+    //console.log("onClientExit", { client });
+    if (!this.#clients.includes(client)) {
+      return;
+    }
+    this.#clients.splice(this.#clients.indexOf(client), 1);
+    this.#dispatchEvent("clientExit", { client });
+  }
+
+  /**
+   * @param {OnClientsCallback} callback
+   * @param {CallbackOptions} options
+   */
+  onClients(callback, options) {
+    this.#addEventListener("clients", callback, options);
+  }
+  /** @param {OnClientsCallback} callback */
+  offClients(callback) {
+    this.#removeEventListener("clients", callback);
+  }
+
+  /**
+   * @param {OnClientJoinCallback} callback
+   * @param {CallbackOptions} options
+   */
+  onClientJoin(callback, options) {
+    this.#addEventListener("clientJoin", callback, options);
+  }
+  /** @param {OnClientJoinCallback} callback  */
+  offClientJoin(callback) {
+    this.#removeEventListener("clientJoin", callback);
+  }
+
+  /**
+   * @param {OnClientExitCallback} callback
+   * @param {CallbackOptions} options
+   */
+  onClientExit(callback, options) {
+    this.#addEventListener("clientExit", callback, options);
+  }
+  /** @param {OnClientExitCallback} callback */
+  offClientExit(callback) {
+    this.#removeEventListener("clientExit", callback);
+  }
+
+  /**
+   * @param {OnClientStateCallback} callback
+   * @param {CallbackOptions} options
+   */
+  onClientState(callback, options) {
+    this.#addEventListener("clientState", callback, options);
+  }
+  /** @param {OnClientStateCallback} callback */
+  offClientState(callback) {
+    this.#removeEventListener("clientState", callback);
+  }
+  // CLIENT END
+
   // CONNECTION START
   /** @param {string} address */
   async connect(address) {
@@ -236,6 +377,9 @@ class UnoQ {
     this.#socket.on("state", this.#onState.bind(this));
     this.#socket.on("stateDiff", this.#onStateDiff.bind(this));
     this.#socket.on("angles", this.#onAngles.bind(this));
+    this.#socket.on("clientJoin", this.#onClientJoin.bind(this));
+    this.#socket.on("clientExit", this.#onClientExit.bind(this));
+    this.#socket.on("clients", this.#onClients.bind(this));
     await promise;
   }
   async disconnect() {
@@ -269,6 +413,7 @@ class UnoQ {
     const address = `${secure ? "https" : "http"}://${hostname}:${port}`;
     this.#address = address;
 
+    await this.#getClients();
     await this.#getState();
     await this.#getAngles();
 
@@ -285,12 +430,9 @@ class UnoQ {
   onConnected(callback, options) {
     this.#addEventListener("connected", callback, options);
   }
-  /**
-   * @param {OnConnectedCallback} callback
-   * @param {CallbackOptions} options
-   */
-  offConnected(callback, options) {
-    this.#removeEventListener("connected", callback, options);
+  /** @param {OnConnectedCallback} callback */
+  offConnected(callback) {
+    this.#removeEventListener("connected", callback);
   }
 
   /**
@@ -300,12 +442,9 @@ class UnoQ {
   onDisconnected(callback, options) {
     this.#addEventListener("disconnected", callback, options);
   }
-  /**
-   * @param {OnDisconnectedCallback} callback
-   * @param {CallbackOptions} options
-   */
-  offDisconnected(callback, options) {
-    this.#removeEventListener("disconnected", callback, options);
+  /** @param {OnDisconnectedCallback} callback */
+  offDisconnected(callback) {
+    this.#removeEventListener("disconnected", callback);
   }
 
   /**
@@ -315,12 +454,9 @@ class UnoQ {
   onIsConnected(callback, options) {
     this.#addEventListener("isConnected", callback, options);
   }
-  /**
-   * @param {OnIsConnectedCallback} callback
-   * @param {CallbackOptions} options
-   */
+  /** @param {OnIsConnectedCallback} callback */
   offIsConnected(callback) {
-    this.#removeEventListener("isConnected", callback, options);
+    this.#removeEventListener("isConnected", callback);
   }
 
   /**
@@ -330,12 +466,9 @@ class UnoQ {
   onConnectionStatus(callback, options) {
     this.#addEventListener("connectionStatus", callback, options);
   }
-  /**
-   * @param {OnConnectionStatusCallback} callback
-   * @param {CallbackOptions} options
-   */
+  /** @param {OnConnectionStatusCallback} callback */
   offConnectionStatus(callback) {
-    this.#removeEventListener("connectionStatus", callback, options);
+    this.#removeEventListener("connectionStatus", callback);
   }
   // CONNECTION LISTENERS END
 
@@ -358,12 +491,9 @@ class UnoQ {
   onBroadcast(callback, options) {
     this.#addEventListener("broadcast", callback, options);
   }
-  /**
-   * @param {OnBroadcastCallback} callback
-   * @param {CallbackOptions} options
-   */
+  /** @param {OnBroadcastCallback} callback */
   offBroadcast(callback) {
-    this.#removeEventListener("broadcast", callback, options);
+    this.#removeEventListener("broadcast", callback);
   }
   // BROADCAST END
 
@@ -371,10 +501,19 @@ class UnoQ {
   #state;
   #onState(state) {
     this.#state = state;
+    const diffKeys = Object.keys(state);
     //console.log("state", this.state);
     this.#dispatchEvent("state", {
       state: this.state,
-      diffKeys: Object.keys(state),
+      diffKeys,
+    });
+    diffKeys.forEach((diffKey) => {
+      if (this.clients.includes(diffKey)) {
+        this.#dispatchEvent("clientState", {
+          client: diffKey,
+          clientState: this.state[diffKey],
+        });
+      }
     });
   }
   get state() {
@@ -398,10 +537,26 @@ class UnoQ {
   }
 
   #onStateDiff(stateDiff) {
+    const diffKeys = Object.keys(stateDiff);
+    diffKeys.forEach((key) => {
+      if (stateDiff[key] == null) {
+        delete stateDiff[key];
+        delete this.state?.[key];
+      }
+    });
     this.#state = Object.assign({}, this.state, stateDiff);
     this.#dispatchEvent("state", {
       state: this.state,
-      diffKeys: Object.keys(stateDiff),
+      diffKeys,
+    });
+
+    diffKeys.forEach((diffKey) => {
+      if (this.clients.includes(diffKey)) {
+        this.#dispatchEvent("clientState", {
+          client: diffKey,
+          clientState: this.state[diffKey],
+        });
+      }
     });
   }
   async updateState(stateDiff) {
@@ -420,12 +575,9 @@ class UnoQ {
   onState(callback, options) {
     this.#addEventListener("state", callback, options);
   }
-  /**
-   * @param {OnStateCallback} callback
-   * @param {CallbackOptions} options
-   */
+  /** @param {OnStateCallback} callback */
   offState(callback) {
-    this.#removeEventListener("state", callback, options);
+    this.#removeEventListener("state", callback);
   }
   // STATE END
 
@@ -500,12 +652,9 @@ class UnoQ {
   onAngles(callback, options) {
     this.#addEventListener("angles", callback, options);
   }
-  /**
-   * @param {OnAnglesCallback} callback
-   * @param {CallbackOptions} options
-   */
+  /** @param {OnAnglesCallback} callback */
   offAngles(callback) {
-    this.#removeEventListener("angles", callback, options);
+    this.#removeEventListener("angles", callback);
   }
   // ANGLES END
 }

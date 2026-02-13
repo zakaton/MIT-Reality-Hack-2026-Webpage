@@ -276,7 +276,7 @@
       delete this.attrValueProxy[key];
     },
     _flushToDOM: function () {
-      this.el.flushToDOM();
+      this.flushToDOM();
       if (this.getIsSelectedInInspector()) {
         AFRAME.INSPECTOR.selectEntity(this.el);
       }
@@ -477,8 +477,8 @@
       const modelBoundingBoxSize = new THREE.Vector3();
       const modelBoundingBoxCenter = new THREE.Vector3();
       const modelBoundingBox = new THREE.Box3();
-      modelEntity.addEventListener("model-loaded", () => {
-        // console.log("model-loaded", modelEntity);
+      const onModelEntityLoaded = () => {
+        //console.log("model-loaded", modelEntity);
 
         /** @type {Mesh} */
         const root = modelEntity.getObject3D("mesh");
@@ -488,11 +488,13 @@
         }
 
         modelBoundingBox.setFromObject(root);
-        modelEntity.object3D.worldToLocal(modelBoundingBox.min);
-        modelEntity.object3D.worldToLocal(modelBoundingBox.max);
+        //console.log("modelBoundingBox", modelBoundingBox);
+        // modelEntity.object3D.worldToLocal(modelBoundingBox.min);
+        // modelEntity.object3D.worldToLocal(modelBoundingBox.max);
         modelBoundingBox.getSize(modelBoundingBoxSize);
         modelBoundingBox.getCenter(modelBoundingBoxCenter);
-        // console.log(modelBoundingBoxSize, modelBoundingBoxCenter);
+        modelEntity.object3D.worldToLocal(modelBoundingBoxCenter);
+        //console.log(modelBoundingBoxSize, modelBoundingBoxCenter);
         modelBoundingBoxEntity.setAttribute(
           "scale",
           modelBoundingBoxSize.toArray().join(" ")
@@ -502,6 +504,8 @@
           modelBoundingBoxCenter.toArray().join(" ")
         );
         this.modelsEntity.appendChild(modelBoundingBoxEntity);
+        modelBoundingBoxEntity.classList.add("modelBoundingBox");
+        //console.log("modelBoundingBoxEntity", modelBoundingBoxEntity);
 
         const meshTree = {};
         const allVariants = {}; // "path.to.mesh": ["each", "possible", "variant"]
@@ -768,6 +772,11 @@
           model,
         });
         this.selectModel(name);
+      };
+      modelEntity.addEventListener("model-loaded", () => {
+        const v = modelEntity.object3D.worldToLocal(new THREE.Vector3());
+        //console.log(v.toArray());
+        onModelEntityLoaded();
       });
       this.modelsEntity.appendChild(modelEntity);
     },
@@ -1266,7 +1275,7 @@
         return;
       }
 
-      const { size, center, box } = this._getModel();
+      const { size, center } = this._getModel();
 
       let newHasSquashControlPoint = false;
       let controlPointColliderIndex;

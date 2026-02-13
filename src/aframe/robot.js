@@ -226,7 +226,7 @@
       delete this.attrValueProxy[key];
     },
     _flushToDOM: function () {
-      this.el.flushToDOM();
+      this.flushToDOM();
       if (this.getIsSelectedInInspector()) {
         AFRAME.INSPECTOR.selectEntity(this.el);
       }
@@ -244,7 +244,7 @@
         if (this.data[diffKey] == undefined) {
           return;
         }
-        //console.log("update", { [diffKey]: this.data[diffKey] });
+        // console.log("update", { [diffKey]: this.data[diffKey] });
 
         if (diffKey.startsWith(this._anglePrefix)) {
           const [_, type, index] = diffKey.split("_");
@@ -321,6 +321,9 @@
         debugEntity.object3D.visible = showDebug;
       });
       this._updateData("showDebug", showDebug);
+    },
+    toggleShowDebug: function () {
+      this.setShowDebug(!this.data.showDebug);
     },
     // DEBUG END
   });

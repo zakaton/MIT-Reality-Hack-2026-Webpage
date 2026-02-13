@@ -9,6 +9,7 @@
     <script src="./src/aframe/power-pet.js"></script>
     <script src="./src/aframe/robot.js"></script>
     <script src="./src/aframe/recenter-listener.js"></script>
+    <script src="./src/aframe/robot-touch-controls.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.6.1/dist/aframe-extras.min.js"></script>
     <script src="./src/socket.io/socket.io.min.js"></script>
     <script src="./src/script.js" type="module"></script>
@@ -91,6 +92,7 @@
           light="defaultLightsEnabled: true;"
           grabbable-listener
           device-orientation-permission-ui="enabled: false"
+          real-world-meshing="meshMixin: realWorldMeshMixin; meshesEnabled: false; planeMixin: realWorldPlaneMixin; planesEnabled: true; filterLabels: floor, table, desk, storage, other, plant, screen, lamp, couch, bed, screen;"
         >
           <a-assets>
             <a-asset-item
@@ -103,6 +105,17 @@
             ></a-asset-item>
           </a-assets>
 
+          <a-mixin
+            id="realWorldPlaneMixin"
+            visible="false"
+            class="surface"
+          ></a-mixin>
+          <a-mixin
+            id="realWorldMeshMixin"
+            visible="false"
+            class="surface"
+          ></a-mixin>
+
           <a-light type="ambient"></a-light>
 
           <a-camera
@@ -114,9 +127,11 @@
 
           <a-entity
             id="robot"
+            class="placeable"
             robot="showDebug: true;"
             rotation="0 180 0"
             position="0 0.8 -0.3"
+            anchorable
           >
             <a-entity class="debug" visible="true">
               <a-box
@@ -194,7 +209,7 @@
                     <a-entity
                       position="0 -0.05 0.01"
                       id="powerPet"
-                      power-pet="model: dogModel;"
+                      power-pet="model: dogModel; showSquashCollider: false; showSquashCenter: false; showSquashControlPoint: false; showLookAt: false; showModelBoundingBox: false;"
                     ></a-entity>
                   </a-entity>
                 </a-entity>
@@ -216,8 +231,7 @@
           <a-entity
             id="leftController"
             meta-touch-controls="hand: left"
-            laser-controls="hand: left"
-            raycaster="objects: [data-world-mesh]; far: 5"
+            robot-touch-controls
           >
             <a-entity
               position="0.006 0 -0.02"
@@ -228,8 +242,7 @@
           <a-entity
             id="rightController"
             meta-touch-controls="hand: right"
-            laser-controls="hand: right"
-            raycaster="objects: [data-world-mesh]; far: 5"
+            robot-touch-controls
           >
             <a-entity
               position="-0.006 0 -0.02"

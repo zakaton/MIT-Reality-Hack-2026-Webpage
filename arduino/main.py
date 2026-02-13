@@ -123,17 +123,32 @@ def on_update_state(client, data, notify=True):
         ui.send_message("stateDiff", diff)
 
 
+clients = []
+
+
 def on_connect(client):
     # print(f"on_connect: {client}")
-    ui.send_message("clientJoined", {"client": client})
+    if client not in clients:
+        clients.append(client)
+        ui.send_message("clientJoin", {"client": client})
 
 
 def on_disconnect(client):
     # print(f"on_disconnect: {client}")
+    if client in clients:
+        clients.remove(client)
+
     if client in state:
         del state[client]
         ui.send_message("stateDiff", {client: None})
+
     ui.send_message("clientExit", {"client": client})
+
+
+def on_get_clients(client, data):
+    # print("on_get_clients")
+    # print(data)
+    ui.send_message("clients", clients, client)
 
 
 # Handle socket messages (like in Code Scanner example)
@@ -147,6 +162,7 @@ ui.on_message("setState", on_set_state)
 ui.on_message("updateState", on_update_state)
 ui.on_connect(on_connect)
 ui.on_disconnect(on_disconnect)
+ui.on_message("getClients", on_get_clients)
 
 # Start the application
 App.run()
