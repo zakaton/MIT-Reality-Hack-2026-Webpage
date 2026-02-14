@@ -66,7 +66,11 @@
 
   AFRAME.registerComponent("robot-touch-controls", {
     schema: {
-      raycasterObjects: { type: "string", default: "[data-world-mesh]" },
+      raycasterObjects: {
+        type: "string",
+        default:
+          "[data-world-mesh='table'],[data-world-mesh='floor'],[data-world-mesh='desk']",
+      },
       raycasterFar: { type: "number", default: 5 },
     },
     dependencies: ["meta-touch-controls"],

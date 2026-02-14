@@ -196,7 +196,11 @@
       lookAtOffsetMin: { type: "vec2", default: { x: -0.1, y: -0.1 } },
       lookAtOffsetMax: { type: "vec2", default: { x: 0.1, y: 0.1 } },
 
+      lookableAngleMin: { type: "vec2", default: { x: -1, y: -1 } },
+      lookableAngleMax: { type: "vec2", default: { x: 1, y: 1 } },
+
       lookableSelector: { type: "string", default: "power-pet-lookable" },
+      lookAround: { type: "boolean", default: true },
     },
 
     init: function () {
@@ -220,12 +224,20 @@
       this._tickSquashAnimation(...arguments);
       this._tickPupils(...arguments);
       this._tickLookAt(...arguments);
-      this._tickLookables(...arguments);
+      if (this.data.lookAround) {
+        this._tickLookables(...arguments);
+      }
     },
 
     // UTILS START
     _initUtils: function () {
       this._worldToLocalScale = new THREE.Vector3();
+    },
+    _getVectorAngles: function (direction) {
+      const { x, y, z } = direction;
+      const yaw = Math.atan2(x, z);
+      const pitch = Math.atan2(y, Math.sqrt(x * x + z * z));
+      return { yaw, pitch };
     },
     worldToLocal: function (object3D, vector3, excludeScale = false) {
       //console.log("worldToLocal", object3D, vector3);
@@ -426,10 +438,19 @@
             case "lookAtOffsetAngleMax":
               this.setLookAtOffsetAngleMax(this.data.lookAtOffsetAngleMax);
               break;
+            case "lookableAngleMin":
+              this.setLookableAngleMin(this.data.lookableAngleMin);
+              break;
+            case "lookableAngleMax":
+              this.setLookableAngleMax(this.data.lookableAngleMax);
+              break;
             case "lookableSelector":
               if (this._updateCalledOnce) {
                 this.setLookableSelector(this.data.lookableSelector);
               }
+              break;
+            case "lookAround":
+              this.setLookAround(this.data.lookAround);
               break;
             default:
               console.warn(`uncaught diffKey "${diffKey}"`);
@@ -690,7 +711,7 @@
           "position",
           pupilCenter.toArray().join(" ")
         );
-        console.log("pupilCenter", pupilCenter);
+        //console.log("pupilCenter", pupilCenter);
         pupilCenterEntity.classList.add("pupilCenter");
         modelEntity.appendChild(pupilCenterEntity);
 
@@ -1881,10 +1902,7 @@
       this._updateData("showLookAtPupils", showLookAtPupils);
     },
 
-    _getLookAtMetadata: function (pupilNode, trackedNode) {
-      // FILL - reuse for metadata on nearby objects
-    },
-    _updateLookAtPosition: function (node, lookAtPosition) {
+    _updateLookAtPosition: function (pupilNode, lookAtPosition) {
       lookAtPosition = lookAtPosition ?? this.data.lookAtPosition;
       //console.log("_updateLookAtPosition", node.path, lookAtPosition);
       const {
@@ -1894,22 +1912,20 @@
         localLookAtPosition,
         normalizedLocalLookAtPosition,
         path,
-      } = node;
+      } = pupilNode;
 
       _lookAtPosition.copy(lookAtPosition);
       localLookAtPosition.copy(lookAtPosition);
       this.worldToLocal(pupilEntity.object3D, localLookAtPosition);
       // console.log("localLookAtPosition", localLookAtPosition);
 
-      node.lookAtDistance = localLookAtPosition.length();
-      node.lastTimeLookAtUpdated = this.el.sceneEl.time;
+      pupilNode.lookAtDistance = localLookAtPosition.length();
 
       normalizedLocalLookAtPosition.copy(localLookAtPosition).normalize();
 
-      const dir = normalizedLocalLookAtPosition;
-      const yaw = Math.atan2(dir.x, dir.z);
-      const pitch = Math.atan2(dir.y, Math.sqrt(dir.x * dir.x + dir.z * dir.z));
-
+      const { yaw, pitch } = this._getVectorAngles(
+        normalizedLocalLookAtPosition
+      );
       const { rotation } = pupilShowEntity.object3D;
       rotation.x = -pitch;
       rotation.y = yaw;
@@ -1969,11 +1985,11 @@
       }
 
       const pupilNodes = this._getPupilNodes();
-      pupilNodes.forEach((node) => {
-        if (!this._setLookAtPositionWhenInvisible && !node.mesh.visible) {
+      pupilNodes.forEach((pupilNode) => {
+        if (!this._setLookAtPositionWhenInvisible && !pupilNode.mesh.visible) {
           return;
         }
-        this._updateLookAtPosition(node, lookAtPosition);
+        this._updateLookAtPosition(pupilNode, lookAtPosition);
       });
       this._updateData("lookAtPosition", lookAtPosition);
     },
@@ -2040,13 +2056,34 @@
     // LOOKAT END
 
     // LOOKABLES START
-    _tickLookablesInterval: 200,
+    setLookAround: function (lookAround) {
+      //console.log("setLookAround", lookAround);
+      this._updateData("lookAround", lookAround);
+    },
     _initLookables: function () {
-      _tickLookables = this._tickLookables = AFRAME.utils.throttleTick(
-        this._tickLookables,
-        this._tickLookablesInterval,
+      this._tickUpdateLookables = AFRAME.utils.throttleTick(
+        this._tickUpdateLookables,
+        this._tickUpdateLookablesInterval,
         this
       );
+      this._tickLookAtLookable = AFRAME.utils.throttleTick(
+        this._tickLookAtLookable,
+        this._tickLookAtLookableInterval,
+        this
+      );
+
+      this._worldMeshLookable = {
+        entity: null,
+        position: new THREE.Vector3(),
+        localPosition: new THREE.Vector3(),
+        distance: 0,
+        normalizedLocalPosition: new THREE.Vector3(),
+        yaw: 0,
+        pitch: 0,
+        yawInterpolation: 0,
+        pitchInterpolation: 0,
+        focusStartTime: 0,
+      };
 
       this._lookables = new Map();
 
@@ -2080,6 +2117,10 @@
       });
       this._observeLookables();
     },
+    _tickLookables: function (time, timeDelta) {
+      this._tickUpdateLookables(...arguments);
+      this._tickLookAtLookable(...arguments);
+    },
     _removeLookables: function () {
       this._stopObservingLookables();
     },
@@ -2102,30 +2143,34 @@
       this._lookableObserver.disconnect();
     },
 
-    _addLookable: function (lookable) {
-      //console.log("_addLookable", lookable);
-      if (this._lookables.has(lookable)) {
-        //console.log("already added lookable", lookable);
+    _addLookable: function (lookableEntity) {
+      //console.log("_addLookable", lookableEntity);
+      if (this._lookables.has(lookableEntity)) {
+        //console.log("already added lookable", lookableEntity);
         return;
       }
-      this._lookables.set(lookable, {
+      this._lookables.set(lookableEntity, {
+        entity: lookableEntity,
         position: new THREE.Vector3(),
         localPosition: new THREE.Vector3(),
-        lastTimeUpdated: 0,
+        distance: 0,
         normalizedLocalPosition: new THREE.Vector3(),
         yaw: 0,
         pitch: 0,
+        yawInterpolation: 0,
+        pitchInterpolation: 0,
+        focusStartTime: 0,
       });
-      console.log("added lookable", lookable);
+      //console.log("added lookable", lookableEntity);
     },
-    _removeLookable: function (lookable) {
-      //console.log("_removeLookable", lookable);
-      if (!this._lookables.has(lookable)) {
-        //console.log("lookable not found");
+    _removeLookable: function (lookableEntity) {
+      //console.log("_removeLookable", lookableEntity);
+      if (!this._lookables.has(lookableEntity)) {
+        //console.log("lookableEntity not found");
         return;
       }
-      this._lookables.delete(lookable);
-      console.log("removed lookable", lookable);
+      this._lookables.delete(lookableEntity);
+      //console.log("removed lookable", lookableEntity);
     },
 
     _updateLookableList: function (lookableSelector) {
@@ -2145,8 +2190,121 @@
       this._updateData("lookableSelector", lookableSelector);
     },
 
-    _tickLookables: function (time, timeDelta) {
-      // FILL - update lookables positions
+    setLookableAngleMin: function (lookableAngleMin) {
+      lookableAngleMin = Object.assign(
+        {},
+        this.data.lookableAngleMax,
+        lookableAngleMin
+      );
+      //console.log("setLookableAngleMin", lookableAngleMin);
+      this.setLookAtPosition();
+      this._updateData("lookableAngleMin", lookableAngleMin);
+    },
+    setLookableAngleMax: function (lookableAngleMax) {
+      lookableAngleMax = Object.assign(
+        {},
+        this.data.lookableAngleMax,
+        lookableAngleMax
+      );
+      //console.log("setLookableAngleMax", lookableAngleMax);
+      this.setLookAtPosition();
+      this._updateData("lookableAngleMax", lookableAngleMax);
+    },
+
+    _getPupilCenterEntity: function () {
+      return this._getModel()?.pupilCenterEntity;
+    },
+    _updateLookable: function (lookable) {
+      const pupilCenterEntity = this._getPupilCenterEntity();
+      const { entity, position, localPosition, normalizedLocalPosition } =
+        lookable;
+
+      entity.object3D.getWorldPosition(position);
+      localPosition.copy(position);
+      this.worldToLocal(pupilCenterEntity.object3D, localPosition);
+
+      lookable.distance = localPosition.length();
+
+      normalizedLocalPosition.copy(localPosition).normalize();
+
+      const { yaw, pitch } = this._getVectorAngles(normalizedLocalPosition);
+      Object.assign(lookable, { yaw, pitch });
+
+      let yawInterpolation = THREE.MathUtils.inverseLerp(
+        this.data.lookableAngleMin.x,
+        this.data.lookableAngleMax.x,
+        -yaw
+      );
+      yawInterpolation -= 0.5;
+      yawInterpolation *= 2;
+      // yawInterpolation = THREE.MathUtils.clamp(yawInterpolation, -1, 1);
+
+      let pitchInterpolation = THREE.MathUtils.inverseLerp(
+        this.data.lookableAngleMin.y,
+        this.data.lookableAngleMax.y,
+        pitch
+      );
+      pitchInterpolation -= 0.5;
+      pitchInterpolation *= 2;
+      // pitchInterpolation = THREE.MathUtils.clamp(pitchInterpolation, -1, 1);
+
+      const isInView =
+        Math.abs(yawInterpolation) <= 1 && Math.abs(pitchInterpolation) <= 1;
+
+      Object.assign(lookable, {
+        yawInterpolation,
+        pitchInterpolation,
+        isInView,
+      });
+    },
+    _focusOnLookable: function (lookable) {
+      //console.log("_focusOnLookable", lookable);
+      this._focuedLookable = lookable ?? this._updateWorldMeshLookable();
+      if (this._focuedLookable) {
+        this._focuedLookable.focusStartTime = this.el.sceneEl.time;
+      }
+    },
+    _tickUpdateLookablesInterval: 200,
+    _tickUpdateLookables: function (time, timeDelta) {
+      this._updateLookables();
+    },
+    _updateLookables: function () {
+      if (!this._isModelLoaded()) {
+        return;
+      }
+      this._lookables.forEach((lookable) => {
+        this._updateLookable(lookable);
+      });
+
+      const sortedLookables = Array.from(this._lookables)
+        .map(([entity, lookable]) => lookable)
+        .filter((lookable) => lookable.isInView)
+        .sort((a, b) => a.distance - b.distance);
+
+      let closestLookable = sortedLookables[0];
+
+      if (sortedLookables.length > 1) {
+        // FILL - focus on another lookable if looked at for too long
+        //console.log(closestLookable.focusStartTime);
+      }
+      this._focusOnLookable(closestLookable);
+    },
+
+    _updateWorldMeshLookable: function () {
+      // FILL - raycast to mesh
+      // return this._worldMeshLookable if found
+    },
+    _tickLookAtLookableInterval: 100,
+    _tickLookAtLookable: function (time, timeDelta) {
+      this._lookAtLookable();
+    },
+    _lookAtLookable: function () {
+      if (!this._focuedLookable) {
+        return;
+      }
+      // console.log("_lookAtLookable");
+      // FILL
+      // this.setLookAtPosition(position)
     },
     // LOOKABLES END
   });
