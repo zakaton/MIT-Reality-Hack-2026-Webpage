@@ -220,8 +220,8 @@
       lookableWanderTickerMin: { type: "number", default: 500 },
       lookableWanderTickerMax: { type: "number", default: 2000 },
 
-      lookAtLookableNoiseMin: { type: "number", default: 0.01 },
-      lookAtLookableNoiseMax: { type: "number", default: 0.03 },
+      lookAtLookableNoiseMin: { type: "number", default: 0.005 },
+      lookAtLookableNoiseMax: { type: "number", default: 0.015 },
     },
 
     init: function () {
@@ -765,6 +765,8 @@
         //console.log("pupilNodes", pupilNodes);
 
         const pupilCenterEntity = document.createElement("a-entity");
+        const pupilCenterLookAtEntity = document.createElement("a-entity");
+        pupilCenterEntity.appendChild(pupilCenterLookAtEntity);
 
         const pupilCenter = new THREE.Vector3();
         pupilNodes.forEach((pupilNode) => {
@@ -841,6 +843,7 @@
           variants,
           variantsArray,
           pupilCenterEntity,
+          pupilCenterLookAtEntity,
           pupilCenter,
           pupils,
           pupilNodes,
@@ -2337,6 +2340,9 @@
     _getPupilCenterEntity: function () {
       return this._getModel()?.pupilCenterEntity;
     },
+    _getPupilCenterLookAtEntity: function () {
+      return this._getModel()?.pupilCenterLookAtEntity;
+    },
     _updateLookable: function (lookable) {
       const pupilCenterEntity = this._getPupilCenterEntity();
       const { entity, position, localPosition, normalizedLocalPosition } =
@@ -2477,15 +2483,18 @@
       if (!this._isModelLoaded()) {
         return;
       }
+      const lookable = this._focusedLookable;
       const ticker = this._lookAtLookableTicker;
 
       ticker.tick();
 
       if (ticker.isDone) {
         const position = this._lookAtLookablePosition;
-        position.copy(this._focusedLookable.position);
+        position.copy(lookable.position);
 
-        const pupilCenterEntity = this._getPupilCenterEntity();
+        const pupilCenterLookAtEntity = this._getPupilCenterLookAtEntity();
+        pupilCenterLookAtEntity.object3D.lookAt(position);
+
         const noise = this._lookAtLookableNoise;
         noise
           .set(1, 0, 0)
@@ -2500,7 +2509,7 @@
             this._lookAtLookableAxisAngle,
             THREE.MathUtils.randFloat(0, 2 * Math.PI)
           )
-          .applyQuaternion(pupilCenterEntity.object3D.quaternion);
+          .applyQuaternion(pupilCenterLookAtEntity.object3D.quaternion);
         position.add(noise);
         // console.log("_lookAtLookable");
         this.setLookAtPosition(position);
