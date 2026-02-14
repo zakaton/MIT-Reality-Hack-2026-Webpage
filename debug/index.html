@@ -124,7 +124,7 @@
 
           <a-entity
             id="powerPet"
-            power-pet="showSquashCollider: false; showSquashCenter: false; showSquashControlPoint: false; showLookAt: true; showModelBoundingBox: false;"
+            power-pet="showSquashCollider: false; showSquashCenter: false; showSquashControlPoint: false; showLookAt: true; showLookAtPupils: true; showModelBoundingBox: false;"
             position="0 1.1 -0.4"
             rotation="0 180 0"
           ></a-entity>
@@ -139,7 +139,7 @@
 
           <a-box
             id="lookableTest"
-            _power-pet-lookable
+            power-pet-lookable
             position="-0.2 1.2 -0.2"
             scale="0.05 0.05 0.05"
           ></a-box>
@@ -213,10 +213,10 @@
               height="100"
               data-input
               value="0"
-              data-min-x="1"
-              data-min-y="-1"
-              data-max-x="-1"
-              data-max-y="1"
+              data-min-x="0.5"
+              data-min-y="-0.5"
+              data-max-x="-0.5"
+              data-max-y="0.5"
             ></canvas>
           </label>
         </template>

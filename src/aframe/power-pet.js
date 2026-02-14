@@ -708,10 +708,6 @@
 
                 const pupilShowEntity = document.createElement("a-entity");
                 pupilShowEntity.classList.add("pupilShow");
-                pupilShowEntity.setAttribute(
-                  "visible",
-                  this.data.showLookAtPupils
-                );
                 pupilEntity.appendChild(pupilShowEntity);
 
                 const pupilShowCone = document.createElement("a-cone");
@@ -1090,6 +1086,9 @@
           if (child.isLast && isNaN(value)) {
             const visible = name == value;
             child.mesh.visible = visible;
+            if (child.isPupil) {
+              this._updateShowLookAtPupil(child);
+            }
             if (visible && child.isPupil) {
               if (!this._setPupilPropertyWhenInvisible) {
                 this._updateTextureMatrix(child);
@@ -1977,25 +1976,26 @@
     },
 
     _setLookAtPositionWhenInvisible: false,
-    _updateShowLookAt: function (node, showLookAt) {
-      showLookAt = showLookAt ?? this.data.showLookAt;
-      //console.log("_updateShowLookAt", node, { showLookAt });
-      const { pupilShowEntity } = node;
-      pupilShowEntity.object3D.visible = showLookAt;
-    },
+
     setShowLookAt: function (showLookAt) {
       //console.log("setShowLookAt", showLookAt);
       this._lookAtEntity.object3D.visible = showLookAt;
       this._updateData("showLookAt", showLookAt);
     },
+    _updateShowLookAtPupil: function (node, showLookAtPupil) {
+      showLookAtPupil = showLookAtPupil ?? this.data.showLookAtPupils;
+      showLookAtPupil = showLookAtPupil && node.mesh.visible;
+      // console.log("_updateShowLookAtPupil", node.mesh.name, {
+      //   showLookAtPupil,
+      // });
+      const { pupilShowEntity } = node;
+      pupilShowEntity.object3D.visible = showLookAtPupil;
+    },
     setShowLookAtPupils: function (showLookAtPupils) {
       //console.log("setShowLookAtPupils", showLookAtPupils);
       const pupilNodes = this._getPupilNodes();
       pupilNodes.forEach((node) => {
-        if (!this._setLookAtPositionWhenInvisible && !node.mesh.visible) {
-          return;
-        }
-        this._updateShowLookAt(node, showLookAt);
+        this._updateShowLookAtPupil(node, showLookAtPupils);
       });
       this._updateData("showLookAtPupils", showLookAtPupils);
     },
