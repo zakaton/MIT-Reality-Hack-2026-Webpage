@@ -114,7 +114,7 @@
       this.el.sceneEl.addEventListener("exit-vr", this.onExitXr.bind(this));
     },
     onEnterXr: function (event) {
-      //   console.log(event);
+      // console.log(event);
       this.isInXr = true;
       if (this.isDominantHand) {
         this.setMarkerVisible(false);
@@ -128,6 +128,57 @@
     // VR END
 
     tick: function (time, timeDelta) {
+      this._tickRaycaster(...arguments);
+      this._tickController(...arguments);
+    },
+
+    _tickController: function (time, timeDelta) {
+      if (!this.targetEntity) {
+        return;
+      }
+      if (!this.system.isActive) {
+        return;
+      }
+      const { x, y } = this.thumbstick;
+      if (x == 0 && y == 0) {
+        return;
+      }
+      // console.log({ x, y });
+
+      const { object3D } = this.targetEntity;
+      if (object3D.rotation.order != "YXZ") {
+        object3D.rotation.reorder("YXZ");
+      }
+
+      const timeDeltaScaler = timeDelta / 1000;
+
+      const isXDominant = Math.abs(x) > Math.abs(y);
+      const scalars = this._thumbstickMovedScalars;
+      if (this.isDominantHand) {
+        if (isXDominant) {
+          const yawOffset = x * scalars.yaw * timeDeltaScaler;
+          // console.log({ yawOffset });
+          object3D.rotation.y += yawOffset;
+        } else {
+          const pitchOffset = y * scalars.pitch * timeDeltaScaler;
+          // console.log({ pitchOffset });
+          object3D.rotation.x += pitchOffset;
+        }
+      } else {
+        if (isXDominant) {
+          const rollOffset = x * scalars.roll * timeDeltaScaler;
+          // console.log({ rollOffset });
+          object3D.rotation.z += rollOffset;
+        } else {
+          const yOffset = y * scalars.y * timeDeltaScaler;
+          // console.log({ yOffset });
+          object3D.position.y += yOffset;
+        }
+      }
+    },
+
+    // RAYCASTER START
+    _tickRaycaster: function (time, timeDelta) {
       const raycaster = this.el.components.raycaster;
       if (!raycaster) return;
 
@@ -139,8 +190,6 @@
 
       this.setMarkerPosition(point);
     },
-
-    // RAYCASTER START
     _initRaycaster: function () {
       if (this.hand == "left") {
         return;
@@ -204,6 +253,8 @@
       this.el.addEventListener("bbuttondown", this.onBButtonDown.bind(this));
       this.el.addEventListener("xbuttondown", this.onXButtonDown.bind(this));
       this.el.addEventListener("ybuttondown", this.onYButtonDown.bind(this));
+
+      this.thumbstick = { x: 0, y: 0 };
       this.el.addEventListener(
         "thumbstickmoved",
         this.onThumbstickMoved.bind(this)
@@ -235,47 +286,15 @@
       this.onLowerButton(event);
     },
     _thumbstickMovedScalars: {
-      yaw: -0.03,
-      pitch: 0.03,
-      roll: -0.03,
-      y: -0.003,
+      yaw: -0.7,
+      pitch: 0.5,
+      roll: -0.5,
+      y: -0.05,
     },
     onThumbstickMoved: function (event) {
-      // console.log("onThumbstickMoved");
-      if (!this.targetEntity) {
-        return;
-      }
-      if (!this.system.isActive) {
-        return;
-      }
-      const { object3D } = this.targetEntity;
-      if (object3D.rotation.order != "YXZ") {
-        object3D.rotation.reorder("YXZ");
-      }
       const { x, y } = event.detail;
-      const isXDominant = Math.abs(x) > Math.abs(y);
-      const scalars = this._thumbstickMovedScalars;
-      if (this.isDominantHand) {
-        if (isXDominant) {
-          const yawOffset = x * scalars.yaw;
-          // console.log({ yawOffset });
-          object3D.rotation.y += yawOffset;
-        } else {
-          const pitchOffset = y * scalars.pitch;
-          // console.log({ pitchOffset });
-          object3D.rotation.x += pitchOffset;
-        }
-      } else {
-        if (isXDominant) {
-          const rollOffset = x * scalars.roll;
-          // console.log({ rollOffset });
-          object3D.rotation.z += rollOffset;
-        } else {
-          const yOffset = y * scalars.y;
-          // console.log({ yOffset });
-          object3D.position.y += yOffset;
-        }
-      }
+      Object.assign(this.thumbstick, { x, y });
+      // console.log("onThumbstickMoved", this.thumbstick);
     },
 
     onLowerButton: function (event) {
