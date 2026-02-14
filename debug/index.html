@@ -124,7 +124,7 @@
 
           <a-entity
             id="powerPet"
-            power-pet="showSquashCollider: false; showSquashCenter: false; showSquashControlPoint: false; showLookAt: false; showModelBoundingBox: false;"
+            power-pet="showSquashCollider: false; showSquashCenter: false; showSquashControlPoint: false; showLookAt: true; showModelBoundingBox: false;"
             position="0 1.1 -0.4"
             rotation="0 180 0"
           ></a-entity>
@@ -139,7 +139,7 @@
 
           <a-box
             id="lookableTest"
-            power-pet-lookable
+            _power-pet-lookable
             position="-0.2 1.2 -0.2"
             scale="0.05 0.05 0.05"
           ></a-box>
@@ -154,6 +154,14 @@
           >
             <a-entity gltf-model="#anchorModel"></a-entity>
           </a-entity>
+
+          <a-plane
+            data-world-mesh
+            color="yellow"
+            rotation="0 180 0"
+            position="0 1 1"
+            scale="4 4 1"
+          ></a-plane>
 
           <a-entity
             id="leftController"

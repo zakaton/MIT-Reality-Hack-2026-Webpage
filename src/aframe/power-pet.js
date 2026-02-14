@@ -196,8 +196,8 @@
         type: "vec2",
         default: { x: Math.PI / 2, y: Math.PI / 2 },
       },
-      lookAtOffsetMin: { type: "vec2", default: { x: -0.1, y: -0.1 } },
-      lookAtOffsetMax: { type: "vec2", default: { x: 0.1, y: 0.1 } },
+      lookAtOffsetMin: { type: "vec2", default: { x: -0.05, y: -0.1 } },
+      lookAtOffsetMax: { type: "vec2", default: { x: 0.05, y: 0.1 } },
 
       lookableAngleMin: { type: "vec2", default: { x: -1, y: -1 } },
       lookableAngleMax: { type: "vec2", default: { x: 1, y: 1 } },
@@ -215,13 +215,18 @@
       lookableAsideTickerMax: { type: "number", default: 1000 },
 
       lookAtLookableTickerMin: { type: "number", default: 50 },
-      lookAtLookableTickerMax: { type: "number", default: 500 },
+      lookAtLookableTickerMax: { type: "number", default: 800 },
 
-      lookableWanderTickerMin: { type: "number", default: 500 },
-      lookableWanderTickerMax: { type: "number", default: 2000 },
+      lookableWorldMeshTickerMin: { type: "number", default: 500 },
+      lookableWorldMeshTickerMax: { type: "number", default: 2000 },
 
-      lookAtLookableNoiseMin: { type: "number", default: 0.005 },
-      lookAtLookableNoiseMax: { type: "number", default: 0.015 },
+      lookAtLookableNoiseMin: { type: "number", default: 0.02 },
+      lookAtLookableNoiseMax: { type: "number", default: 0.1 },
+
+      isModelFacingBack: { type: "boolean", default: true },
+
+      lookableWorldMeshAngleMin: { type: "vec2", default: { x: -1, y: -0.2 } },
+      lookableWorldMeshAngleMax: { type: "vec2", default: { x: 1, y: 1 } },
     },
 
     init: function () {
@@ -465,6 +470,17 @@
             case "lookableAngleMax":
               this.setLookableAngleMax(this.data.lookableAngleMax);
               break;
+            case "lookableWorldMeshAngleMin":
+              this.setLookableWorldMeshAngleMin(
+                this.data.lookableWorldMeshAngleMin
+              );
+              break;
+            case "lookableWorldMeshAngleMax":
+              this.setLookableWorldMeshAngleMax(
+                this.data.lookableWorldMeshAngleMax
+              );
+              break;
+
             case "lookableDistanceMin":
               this.setLookableDistanceMin(this.data.lookableDistanceMin);
               break;
@@ -491,14 +507,14 @@
             case "lookableAsideTickerMax":
               this.setLookableAsideTickerMax(this.data.lookableAsideTickerMax);
               break;
-            case "lookableWanderTickerMin":
-              this.setLookableWanderTickerMin(
-                this.data.lookableWanderTickerMin
+            case "lookableWorldMeshTickerMin":
+              this.setLookableWorldMeshTickerMin(
+                this.data.lookableWorldMeshTickerMin
               );
               break;
-            case "lookableWanderTickerMax":
-              this.setLookableWanderTickerMax(
-                this.data.lookableWanderTickerMax
+            case "lookableWorldMeshTickerMax":
+              this.setLookableWorldMeshTickerMax(
+                this.data.lookableWorldMeshTickerMax
               );
               break;
             case "lookAtLookableTickerMin":
@@ -517,6 +533,9 @@
             case "lookAtLookableNoiseMax":
               this.setLookAtLookableNoiseMax(this.data.lookAtLookableNoiseMax);
               break;
+            case "isModelFacingBack":
+              this.setIsModelFacingBack(this.data.isModelFacingBack);
+              break;
             default:
               console.warn(`uncaught diffKey "${diffKey}"`);
               break;
@@ -530,8 +549,19 @@
     _initModel: function () {
       this.models = {};
       this.modelsEntity = document.createElement("a-entity");
-      this.modelsEntity.setAttribute("rotation", "0 180 0");
+      this.modelsEntity.setAttribute(
+        "rotation",
+        `0 ${this.data.isModelFacingBack ? 180 : 0} 0`
+      );
       this.modelsEntity.classList.add("models");
+    },
+    setIsModelFacingBack: function (isModelFacingBack) {
+      //console.log("setIsModelFacingBack", isModelFacingBack);
+      this.modelsEntity.setAttribute(
+        "rotation",
+        `0 ${isModelFacingBack ? 180 : 0} 0`
+      );
+      this._updateData("isModelFacingBack", isModelFacingBack);
     },
     _loadModel: function (name) {
       //console.log("loadModel", name);
@@ -2155,13 +2185,19 @@
       this._updateData("lookableAsideTickerMax", lookableAsideTickerMax);
     },
 
-    setLookableWanderTickerMin: function (lookableWanderTickerMin) {
-      //console.log("setLookableWanderTickerMin", lookableWanderTickerMin);
-      this._updateData("lookableWanderTickerMin", lookableWanderTickerMin);
+    setLookableWorldMeshTickerMin: function (lookableWorldMeshTickerMin) {
+      //console.log("setLookableWorldMeshTickerMin", lookableWorldMeshTickerMin);
+      this._updateData(
+        "lookableWorldMeshTickerMin",
+        lookableWorldMeshTickerMin
+      );
     },
-    setLookableWanderTickerMax: function (lookableWanderTickerMax) {
-      //console.log("setLookableWanderTickerMax", lookableWanderTickerMax);
-      this._updateData("lookableWanderTickerMax", lookableWanderTickerMax);
+    setLookableWorldMeshTickerMax: function (lookableWorldMeshTickerMax) {
+      //console.log("setLookableWorldMeshTickerMax", lookableWorldMeshTickerMax);
+      this._updateData(
+        "lookableWorldMeshTickerMax",
+        lookableWorldMeshTickerMax
+      );
     },
 
     setLookAtLookableTickerMin: function (lookAtLookableTickerMin) {
@@ -2185,6 +2221,7 @@
     _initLookables: function () {
       this._lookAtLookableAxisAngle = new THREE.Vector3(0, 0, 1);
       this._lookAtLookablePosition = new THREE.Vector3();
+      this._lookAtLookableQuaternion = new THREE.Quaternion();
       this._lookAtLookableNoise = new THREE.Vector3();
 
       this._tickUpdateLookables = AFRAME.utils.throttleTick(
@@ -2209,9 +2246,14 @@
         pitchInterpolation: 0,
         score: -Infinity,
       };
+      this._worldMeshEntities = [];
+      this._worldMeshRaycaster = new THREE.Raycaster();
+      this._worldMeshRaycasterDirection = new THREE.Vector3();
+      this._worldMeshRaycasterOrigin = new THREE.Vector3();
+      this._worldMeshRaycasterQuaternion = new THREE.Quaternion();
+      this._worldMeshRaycasterEuler = new THREE.Euler(0, 0, 0, "YXZ");
 
       this._lookables = new Map();
-
       this._lookableObserver = new MutationObserver((mutations) => {
         //console.log("mutations", mutations);
         for (const mutation of mutations) {
@@ -2223,17 +2265,31 @@
                 if (lookable.hasAttribute(this.data.lookableSelector)) {
                   this._addLookable(lookable);
                 }
+
+                if ("worldMesh" in lookable.dataset) {
+                  this._addWorldMeshEntity(lookable);
+                }
               });
               removedNodes.forEach((lookable) => {
                 this._removeLookable(lookable);
+                this._removeWorldMeshEntity(lookable);
               });
               break;
             case "attributes":
-              if (attributeName === this.data.lookableSelector) {
-                if (target.hasAttribute(this.data.lookableSelector)) {
-                  this._addLookable(target);
-                } else {
-                  this._removeLookable(target);
+              {
+                const lookable = target;
+                if (attributeName === this.data.lookableSelector) {
+                  if (lookable.hasAttribute(this.data.lookableSelector)) {
+                    this._addLookable(lookable);
+                  } else {
+                    this._removeLookable(lookable);
+                  }
+
+                  if ("worldMesh" in lookable.dataset) {
+                    this._addWorldMeshEntity(lookable);
+                  } else {
+                    this._removeWorldMeshEntity(lookable);
+                  }
                 }
               }
               break;
@@ -2253,18 +2309,22 @@
     _observeLookables: function (lookableSelector) {
       this._stopObservingLookables();
       lookableSelector = lookableSelector ?? this.data.lookableSelector;
-      console.log("_observeLookables", { lookableSelector });
+      //console.log("_observeLookables", { lookableSelector });
       this._lookableObserver.observe(this.el.sceneEl, {
         subtree: true,
         attributes: true,
         childList: true,
-        attributeFilter: [lookableSelector],
+        attributeFilter: [lookableSelector, "data-world-mesh"],
       });
       this._updateLookableList(lookableSelector);
+      this._updateWorldMeshLookableList();
     },
     _stopObservingLookables: function () {
-      console.log("_stopObservingLookables");
+      //console.log("_stopObservingLookables");
       this._lookables.forEach((lookable) => this._removeLookable(lookable));
+      this._worldMeshEntities.forEach((worldMeshEntity) =>
+        this._removeWorldMeshEntity(worldMeshEntity)
+      );
       this._lookableObserver.disconnect();
     },
 
@@ -2310,6 +2370,14 @@
         this._addLookable(lookable);
       });
     },
+    _updateWorldMeshLookableList: function () {
+      const worldMeshEntities =
+        this.el.sceneEl.querySelectorAll("[data-world-mesh]");
+      //console.log("worldMeshEntities", worldMeshEntities);
+      worldMeshEntities.forEach((worldMeshEntity) => {
+        this._addWorldMeshEntity(worldMeshEntity);
+      });
+    },
     setLookableSelector: function (lookableSelector) {
       //console.log("setLookableSelector", lookableSelector);
       this._observeLookables(lookableSelector);
@@ -2337,11 +2405,35 @@
       this._updateData("lookableAngleMax", lookableAngleMax);
     },
 
+    setLookableWorldMeshAngleMin: function (lookableWorldMeshAngleMin) {
+      lookableWorldMeshAngleMin = Object.assign(
+        {},
+        this.data.lookableWorldMeshAngleMax,
+        lookableWorldMeshAngleMin
+      );
+      //console.log("setLookableWorldMeshAngleMin", lookableWorldMeshAngleMin);
+      this.setLookAtPosition();
+      this._updateData("lookableWorldMeshAngleMin", lookableWorldMeshAngleMin);
+    },
+    setLookableWorldMeshAngleMax: function (lookableWorldMeshAngleMax) {
+      lookableWorldMeshAngleMax = Object.assign(
+        {},
+        this.data.lookableWorldMeshAngleMax,
+        lookableWorldMeshAngleMax
+      );
+      //console.log("setLookableWorldMeshAngleMax", lookableWorldMeshAngleMax);
+      this.setLookAtPosition();
+      this._updateData("lookableWorldMeshAngleMax", lookableWorldMeshAngleMax);
+    },
+
     _getPupilCenterEntity: function () {
       return this._getModel()?.pupilCenterEntity;
     },
     _getPupilCenterLookAtEntity: function () {
       return this._getModel()?.pupilCenterLookAtEntity;
+    },
+    _getPupilCenter: function () {
+      return this._getModel()?.pupilCenter;
     },
     _updateLookable: function (lookable) {
       const pupilCenterEntity = this._getPupilCenterEntity();
@@ -2468,10 +2560,103 @@
       this._focusOnLookable(closestLookable);
     },
 
+    _addWorldMeshEntity: function (entity) {
+      if (this._worldMeshEntities.includes(entity)) {
+        return;
+      }
+      //console.log("_addWorldMeshEntity", entity);
+      this._worldMeshEntities.push(entity);
+    },
+    _removeWorldMeshEntity: function (entity) {
+      if (!this._worldMeshEntities.includes(entity)) {
+        return;
+      }
+      //console.log("_removeWorldMeshEntity", entity);
+      this._worldMeshEntities.splice(
+        this._worldMeshEntities.indexOf(entity),
+        1
+      );
+    },
     _updateWorldMeshLookable: function () {
+      if (this._worldMeshEntities.length == 0) {
+        return;
+      }
+
+      const lookable = this._worldMeshLookable;
+
       const ticker = this._updateWorldMeshLookableTicker;
-      // FILL - raycast to mesh
-      // return this._worldMeshLookable if found
+      if (ticker.isDone) {
+        ticker.waitRandom(
+          this.data.lookableWorldMeshTickerMin,
+          this.data.lookableWorldMeshTickerMax
+        );
+      }
+      ticker.tick();
+      if (!ticker.isDone && lookable.entity) {
+        return lookable;
+      }
+
+      const {
+        _worldMeshRaycaster: raycaster,
+        _worldMeshRaycasterDirection: direction,
+        _worldMeshRaycasterOrigin: origin,
+        _worldMeshRaycasterQuaternion: quaternion,
+        _worldMeshRaycasterEuler: euler,
+      } = this;
+
+      const pupilCenterEntity = this._getPupilCenterEntity();
+      pupilCenterEntity.object3D.getWorldPosition(origin);
+
+      direction.set(0, 0, this.data.isModelFacingBack ? 1 : -1);
+
+      const pitch = THREE.MathUtils.randFloat(
+        this.data.lookableWorldMeshAngleMin.y,
+        this.data.lookableWorldMeshAngleMax.y
+      );
+      euler.x = -pitch;
+
+      const yaw = THREE.MathUtils.randFloat(
+        this.data.lookableWorldMeshAngleMin.x,
+        this.data.lookableWorldMeshAngleMax.x
+      );
+      euler.y = yaw;
+      direction.applyEuler(euler);
+
+      // console.log({ pitch, yaw });
+
+      pupilCenterEntity.object3D.getWorldQuaternion(quaternion);
+      direction.applyQuaternion(quaternion);
+
+      raycaster.set(origin, direction);
+      const worldMeshObjects = this._worldMeshEntities.map(
+        (entity) => entity.object3D
+      );
+      const hits = raycaster.intersectObjects(worldMeshObjects, true);
+      if (hits.length == 0) {
+        return;
+      }
+
+      const { distance, point, normal, object } = hits[0];
+      let distanceInterpolation = THREE.MathUtils.inverseLerp(
+        this.data.lookableDistanceMin,
+        this.data.lookableDistanceMax,
+        distance
+      );
+      distanceInterpolation = THREE.MathUtils.clamp(
+        distanceInterpolation,
+        0,
+        1
+      );
+      //console.log(distance, point);
+      Object.assign(lookable, {
+        pitch,
+        yaw,
+        distance,
+        entity: object.el,
+        distanceInterpolation,
+      });
+      lookable.position.copy(point);
+      return lookable;
     },
     _tickLookAtLookable: function (time, timeDelta) {
       this._lookAtLookable();
@@ -2495,21 +2680,27 @@
         const pupilCenterLookAtEntity = this._getPupilCenterLookAtEntity();
         pupilCenterLookAtEntity.object3D.lookAt(position);
 
+        const quaternion = this._lookAtLookableQuaternion;
+        pupilCenterLookAtEntity.object3D.getWorldQuaternion(quaternion);
+
+        const { distanceInterpolation, distance } = lookable;
+
         const noise = this._lookAtLookableNoise;
+        const noiseLength =
+          THREE.MathUtils.lerp(
+            this.data.lookAtLookableNoiseMin,
+            this.data.lookAtLookableNoiseMax,
+            ticker.randomInterpolation
+          ) * distanceInterpolation;
+        // console.log({ noiseLength });
         noise
           .set(1, 0, 0)
-          .setLength(
-            THREE.MathUtils.lerp(
-              this.data.lookAtLookableNoiseMin,
-              this.data.lookAtLookableNoiseMax,
-              ticker.randomInterpolation
-            )
-          )
+          .setLength(noiseLength)
           .applyAxisAngle(
             this._lookAtLookableAxisAngle,
             THREE.MathUtils.randFloat(0, 2 * Math.PI)
           )
-          .applyQuaternion(pupilCenterLookAtEntity.object3D.quaternion);
+          .applyQuaternion(quaternion);
         position.add(noise);
         // console.log("_lookAtLookable");
         this.setLookAtPosition(position);

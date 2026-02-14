@@ -527,13 +527,18 @@ class UnoQ {
     this.#socket.emit("getState", {});
     await promise;
   }
-  async setState(newState) {
+  setState(newState) {
     if (!this.isConnected) {
       return;
     }
-    const promise = this.waitForEvent("state");
     this.#socket.emit("setState", newState);
-    await promise;
+  }
+  setClientState(newState, client = this.id) {
+    if (!this.clients.includes(client)) {
+      console.error(`client "${client}" not found`);
+      return;
+    }
+    this.setState({ [client]: newState });
   }
 
   #onStateDiff(stateDiff) {

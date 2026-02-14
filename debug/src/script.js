@@ -13,14 +13,6 @@ const toggleInspector = () => {
   } else {
     AFRAME.scenes[0].components.inspector.openInspector();
   }
-  setTimeout(() => {
-    const localTransformCheckbox = document.querySelector(
-      ".local-transform input"
-    );
-    if (getIsInspectorOpen() && !localTransformCheckbox.checked) {
-      localTransformCheckbox.click();
-    }
-  }, 50);
 };
 const openInspectorButton = document.getElementById("openInspector");
 openInspectorButton.addEventListener("click", () => {
