@@ -2,6 +2,9 @@
   /** @type {import("three")} */
   const THREE = window.THREE;
 
+  /** @type {import("./Ticker")} */
+  const Ticker = window.Ticker;
+
   /** @typedef {import("three").Mesh} Mesh */
   /** @typedef {import("three").Texture} Texture */
 
@@ -199,8 +202,26 @@
       lookableAngleMin: { type: "vec2", default: { x: -1, y: -1 } },
       lookableAngleMax: { type: "vec2", default: { x: 1, y: 1 } },
 
+      lookableDistanceMin: { type: "number", default: 0.05 },
+      lookableDistanceMax: { type: "number", default: 0.5 },
+
       lookableSelector: { type: "string", default: "power-pet-lookable" },
       lookAround: { type: "boolean", default: true },
+
+      lookableTickerMin: { type: "number", default: 2000 },
+      lookableTickerMax: { type: "number", default: 3000 },
+
+      lookableAsideTickerMin: { type: "number", default: 500 },
+      lookableAsideTickerMax: { type: "number", default: 1000 },
+
+      lookAtLookableTickerMin: { type: "number", default: 50 },
+      lookAtLookableTickerMax: { type: "number", default: 500 },
+
+      lookableWanderTickerMin: { type: "number", default: 500 },
+      lookableWanderTickerMax: { type: "number", default: 2000 },
+
+      lookAtLookableNoiseMin: { type: "number", default: 0.01 },
+      lookAtLookableNoiseMax: { type: "number", default: 0.03 },
     },
 
     init: function () {
@@ -444,6 +465,12 @@
             case "lookableAngleMax":
               this.setLookableAngleMax(this.data.lookableAngleMax);
               break;
+            case "lookableDistanceMin":
+              this.setLookableDistanceMin(this.data.lookableDistanceMin);
+              break;
+            case "lookableDistanceMax":
+              this.setLookableDistanceMax(this.data.lookableDistanceMax);
+              break;
             case "lookableSelector":
               if (this._updateCalledOnce) {
                 this.setLookableSelector(this.data.lookableSelector);
@@ -451,6 +478,44 @@
               break;
             case "lookAround":
               this.setLookAround(this.data.lookAround);
+              break;
+            case "lookableTickerMin":
+              this.setLookableTickerMin(this.data.lookableTickerMin);
+              break;
+            case "lookableTickerMax":
+              this.setLookableTickerMax(this.data.lookableTickerMax);
+              break;
+            case "lookableAsideTickerMin":
+              this.setLookableAsideTickerMin(this.data.lookableAsideTickerMin);
+              break;
+            case "lookableAsideTickerMax":
+              this.setLookableAsideTickerMax(this.data.lookableAsideTickerMax);
+              break;
+            case "lookableWanderTickerMin":
+              this.setLookableWanderTickerMin(
+                this.data.lookableWanderTickerMin
+              );
+              break;
+            case "lookableWanderTickerMax":
+              this.setLookableWanderTickerMax(
+                this.data.lookableWanderTickerMax
+              );
+              break;
+            case "lookAtLookableTickerMin":
+              this.setLookAtLookableTickerMin(
+                this.data.lookAtLookableTickerMin
+              );
+              break;
+            case "lookAtLookableTickerMax":
+              this.setLookAtLookableTickerMax(
+                this.data.lookAtLookableTickerMax
+              );
+              break;
+            case "lookAtLookableNoiseMin":
+              this.setLookAtLookableNoiseMin(this.data.lookAtLookableNoiseMin);
+              break;
+            case "lookAtLookableNoiseMax":
+              this.setLookAtLookableNoiseMax(this.data.lookAtLookableNoiseMax);
               break;
             default:
               console.warn(`uncaught diffKey "${diffKey}"`);
@@ -2060,29 +2125,86 @@
       //console.log("setLookAround", lookAround);
       this._updateData("lookAround", lookAround);
     },
+    setLookableDistanceMin: function (lookableDistanceMin) {
+      //console.log("setLookableDistanceMin", lookableDistanceMin);
+      this._updateData("lookableDistanceMin", lookableDistanceMin);
+    },
+    setLookableDistanceMax: function (lookableDistanceMax) {
+      //console.log("setLookableDistanceMax", lookableDistanceMax);
+      this._updateData("lookableDistanceMax", lookableDistanceMax);
+    },
+
+    setLookableTickerMin: function (lookableTickerMin) {
+      //console.log("setLookableTickerMin", lookableTickerMin);
+      this._updateData("lookableTickerMin", lookableTickerMin);
+    },
+    setLookableTickerMax: function (lookableTickerMax) {
+      //console.log("setLookableTickerMax", lookableTickerMax);
+      this._updateData("lookableTickerMax", lookableTickerMax);
+    },
+
+    setLookableAsideTickerMin: function (lookableAsideTickerMin) {
+      //console.log("setLookableAsideTickerMin", lookableAsideTickerMin);
+      this._updateData("lookableAsideTickerMin", lookableAsideTickerMin);
+    },
+    setLookableAsideTickerMax: function (lookableAsideTickerMax) {
+      //console.log("setLookableAsideTickerMax", lookableAsideTickerMax);
+      this._updateData("lookableAsideTickerMax", lookableAsideTickerMax);
+    },
+
+    setLookableWanderTickerMin: function (lookableWanderTickerMin) {
+      //console.log("setLookableWanderTickerMin", lookableWanderTickerMin);
+      this._updateData("lookableWanderTickerMin", lookableWanderTickerMin);
+    },
+    setLookableWanderTickerMax: function (lookableWanderTickerMax) {
+      //console.log("setLookableWanderTickerMax", lookableWanderTickerMax);
+      this._updateData("lookableWanderTickerMax", lookableWanderTickerMax);
+    },
+
+    setLookAtLookableTickerMin: function (lookAtLookableTickerMin) {
+      //console.log("setLookAtLookableTickerMin", lookAtLookableTickerMin);
+      this._updateData("lookAtLookableTickerMin", lookAtLookableTickerMin);
+    },
+    setLookAtLookableTickerMax: function (lookAtLookableTickerMax) {
+      //console.log("setLookAtLookableTickerMax", lookAtLookableTickerMax);
+      this._updateData("lookAtLookableTickerMax", lookAtLookableTickerMax);
+    },
+
+    setLookAtLookableNoiseMin: function (lookAtLookableNoiseMin) {
+      //console.log("setLookAtLookableNoiseMin", lookAtLookableNoiseMin);
+      this._updateData("lookAtLookableNoiseMin", lookAtLookableNoiseMin);
+    },
+    setLookAtLookableNoiseMax: function (lookAtLookableNoiseMax) {
+      //console.log("setLookAtLookableNoiseMax", lookAtLookableNoiseMax);
+      this._updateData("lookAtLookableNoiseMax", lookAtLookableNoiseMax);
+    },
+
     _initLookables: function () {
+      this._lookAtLookableAxisAngle = new THREE.Vector3(0, 0, 1);
+      this._lookAtLookablePosition = new THREE.Vector3();
+      this._lookAtLookableNoise = new THREE.Vector3();
+
       this._tickUpdateLookables = AFRAME.utils.throttleTick(
         this._tickUpdateLookables,
         this._tickUpdateLookablesInterval,
         this
       );
-      this._tickLookAtLookable = AFRAME.utils.throttleTick(
-        this._tickLookAtLookable,
-        this._tickLookAtLookableInterval,
-        this
-      );
+      this._updateLookablesTicker = new Ticker();
+      this._updateWorldMeshLookableTicker = new Ticker();
+      this._lookAtLookableTicker = new Ticker();
 
       this._worldMeshLookable = {
         entity: null,
         position: new THREE.Vector3(),
         localPosition: new THREE.Vector3(),
-        distance: 0,
+        distance: Infinity,
+        distanceInterpolation: 0,
         normalizedLocalPosition: new THREE.Vector3(),
         yaw: 0,
         pitch: 0,
         yawInterpolation: 0,
         pitchInterpolation: 0,
-        focusStartTime: 0,
+        score: -Infinity,
       };
 
       this._lookables = new Map();
@@ -2153,13 +2275,14 @@
         entity: lookableEntity,
         position: new THREE.Vector3(),
         localPosition: new THREE.Vector3(),
-        distance: 0,
+        distance: Infinity,
+        distanceInterpolation: 0,
         normalizedLocalPosition: new THREE.Vector3(),
         yaw: 0,
         pitch: 0,
         yawInterpolation: 0,
         pitchInterpolation: 0,
-        focusStartTime: 0,
+        score: -Infinity,
       });
       //console.log("added lookable", lookableEntity);
     },
@@ -2223,7 +2346,17 @@
       localPosition.copy(position);
       this.worldToLocal(pupilCenterEntity.object3D, localPosition);
 
-      lookable.distance = localPosition.length();
+      const distance = localPosition.length();
+      let distanceInterpolation = THREE.MathUtils.inverseLerp(
+        this.data.lookableDistanceMin,
+        this.data.lookableDistanceMax,
+        distance
+      );
+      distanceInterpolation = THREE.MathUtils.clamp(
+        distanceInterpolation,
+        0,
+        1
+      );
 
       normalizedLocalPosition.copy(localPosition).normalize();
 
@@ -2249,20 +2382,30 @@
       // pitchInterpolation = THREE.MathUtils.clamp(pitchInterpolation, -1, 1);
 
       const isInView =
-        Math.abs(yawInterpolation) <= 1 && Math.abs(pitchInterpolation) <= 1;
+        distanceInterpolation >= 0 &&
+        Math.abs(yawInterpolation) <= 1 &&
+        Math.abs(pitchInterpolation) <= 1;
+
+      let score = -Infinity;
+      if (isInView) {
+        score =
+          (1 - yawInterpolation) *
+          (1 - pitchInterpolation) *
+          (1 - distanceInterpolation);
+      }
 
       Object.assign(lookable, {
+        distance,
         yawInterpolation,
         pitchInterpolation,
         isInView,
+        score,
+        distanceInterpolation,
       });
     },
     _focusOnLookable: function (lookable) {
-      //console.log("_focusOnLookable", lookable);
-      this._focuedLookable = lookable ?? this._updateWorldMeshLookable();
-      if (this._focuedLookable) {
-        this._focuedLookable.focusStartTime = this.el.sceneEl.time;
-      }
+      // console.log("_focusOnLookable", lookable);
+      this._focusedLookable = lookable ?? this._updateWorldMeshLookable();
     },
     _tickUpdateLookablesInterval: 200,
     _tickUpdateLookables: function (time, timeDelta) {
@@ -2279,32 +2422,94 @@
       const sortedLookables = Array.from(this._lookables)
         .map(([entity, lookable]) => lookable)
         .filter((lookable) => lookable.isInView)
-        .sort((a, b) => a.distance - b.distance);
+        .sort((a, b) => b.score - a.score);
 
       let closestLookable = sortedLookables[0];
 
+      const ticker = this._updateLookablesTicker;
+
       if (sortedLookables.length > 1) {
-        // FILL - focus on another lookable if looked at for too long
-        //console.log(closestLookable.focusStartTime);
+        if (this.asideLookable) {
+        } else {
+          if (ticker.isDone) {
+            ticker.waitRandom(
+              this.data.lookableTickerMin,
+              this.data.lookableTickerMax
+            );
+          }
+        }
+        ticker.tick();
+        if (ticker.isDone) {
+          if (this.asideLookable) {
+            delete this.asideLookable;
+          } else {
+            this.asideLookable =
+              sortedLookables[
+                THREE.MathUtils.randInt(1, sortedLookables.length - 1)
+              ];
+            closestLookable = this.asideLookable;
+            ticker.waitRandom(
+              this.data.lookableAsideTickerMin,
+              this.data.lookableAsideTickerMax
+            );
+          }
+        }
+        closestLookable = this.asideLookable ?? closestLookable;
+      } else {
+        delete this.asideLookable;
+        ticker.stop();
       }
       this._focusOnLookable(closestLookable);
     },
 
     _updateWorldMeshLookable: function () {
+      const ticker = this._updateWorldMeshLookableTicker;
       // FILL - raycast to mesh
       // return this._worldMeshLookable if found
     },
-    _tickLookAtLookableInterval: 100,
     _tickLookAtLookable: function (time, timeDelta) {
       this._lookAtLookable();
     },
     _lookAtLookable: function () {
-      if (!this._focuedLookable) {
+      if (!this._focusedLookable) {
         return;
       }
-      // console.log("_lookAtLookable");
-      // FILL
-      // this.setLookAtPosition(position)
+      if (!this._isModelLoaded()) {
+        return;
+      }
+      const ticker = this._lookAtLookableTicker;
+
+      ticker.tick();
+
+      if (ticker.isDone) {
+        const position = this._lookAtLookablePosition;
+        position.copy(this._focusedLookable.position);
+
+        const pupilCenterEntity = this._getPupilCenterEntity();
+        const noise = this._lookAtLookableNoise;
+        noise
+          .set(1, 0, 0)
+          .setLength(
+            THREE.MathUtils.lerp(
+              this.data.lookAtLookableNoiseMin,
+              this.data.lookAtLookableNoiseMax,
+              ticker.randomInterpolation
+            )
+          )
+          .applyAxisAngle(
+            this._lookAtLookableAxisAngle,
+            THREE.MathUtils.randFloat(0, 2 * Math.PI)
+          )
+          .applyQuaternion(pupilCenterEntity.object3D.quaternion);
+        position.add(noise);
+        // console.log("_lookAtLookable");
+        this.setLookAtPosition(position);
+
+        ticker.waitRandom(
+          this.data.lookAtLookableTickerMin,
+          this.data.lookAtLookableTickerMax
+        );
+      }
     },
     // LOOKABLES END
   });
