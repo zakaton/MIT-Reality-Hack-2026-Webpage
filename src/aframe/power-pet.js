@@ -221,7 +221,7 @@
       lookableWorldMeshTickerMax: { type: "number", default: 2300 },
 
       lookAtLookableNoiseMin: { type: "number", default: 0.01 },
-      lookAtLookableNoiseMax: { type: "number", default: 0.1 },
+      lookAtLookableNoiseMax: { type: "number", default: 0.08 },
 
       isModelFacingBack: { type: "boolean", default: true },
 
