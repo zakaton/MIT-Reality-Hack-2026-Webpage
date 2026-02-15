@@ -923,6 +923,19 @@
         const eyesCloseArray = this.sortObjectEntries(eyesClose);
         //console.log("eyesCloseArray", eyesCloseArray);
 
+        const eyesOpen = {};
+        if (this._includeNullPathInEyeSchema) {
+          eyesOpen[""] = "default";
+        }
+        this._traverseTree(eyes, (subTree, path, isHead) => {
+          if (!isHead || subTree.isLast) {
+            return;
+          }
+          eyesOpen[path] = "default";
+          return true;
+        });
+        //console.log("eyesOpen", eyesOpen);
+
         const pupils = meshTree[this.data.pupilName] ?? {};
         //console.log("pupils", pupils);
 
@@ -1030,6 +1043,7 @@
           eyes,
           eyeNodes,
           eyesCloseArray,
+          eyesOpen,
         };
         // console.log("model", model);
         this.models[name] = model;
@@ -1216,8 +1230,7 @@
 
       const isEye = path.startsWith(this.data.eyeName);
       if (isEye) {
-        const close = value == "close";
-        this._setEyeClose(path, close);
+        this._setEyeClose(path, value);
       }
 
       if (node.isLast) {
@@ -2906,6 +2919,9 @@
     _getEyesCloseArray: function () {
       return this._getModel()?.eyesCloseArray ?? [];
     },
+    _getEyesOpen: function () {
+      return this._getModel()?.eyesOpen ?? {};
+    },
     _setEyesClose: function () {
       const eyesCloseArray = structuredClone(this._getEyesCloseArray());
       eyesCloseArray.forEach(([key, close]) => {
@@ -2942,9 +2958,14 @@
       return path;
     },
 
-    _setEyeClose: function (path, close) {
+    _setEyeClose: function (path, value) {
+      const close = value == this.data.eyeCloseName;
       path = this._sanitizeEyeClosePath(path);
       // console.log({ path, close });
+      const eyesOpen = this._getEyesOpen();
+      if (!close) {
+        eyesOpen[path] = value;
+      }
       this._updateValue({
         prefix: this._eyeClosePrefix,
         path,
@@ -2957,13 +2978,19 @@
     },
     setEyeClose: function (path, close) {
       path = this._sanitizeEyeClosePath(path);
-      if (path == "") {
-        path = this.data.eyeName;
+
+      let variantPath = path;
+      if (variantPath == "") {
+        variantPath = this.data.eyeName;
       } else {
-        path = [this.data.eyeName, path].join(".");
+        variantPath = [this.data.eyeName, variantPath].join(".");
       }
-      //console.log({ path, close });
-      this.selectVariant(path, close ? "close" : "default");
+      const eyesOpen = this._getEyesOpen();
+
+      this.selectVariant(
+        variantPath,
+        close ? this.data.eyeCloseName : eyesOpen[path]
+      );
     },
     _tickEyes: function (time, timeDelta) {
       // FILL
@@ -2971,11 +2998,14 @@
     blink: function (dur = 0) {
       // FILL
     },
+    setEyesClose: function (close) {
+      this.setEyeClose("", close);
+    },
     closeEyes: function () {
-      // FILL
+      this.setEyesClose(true);
     },
     openEyes: function () {
-      // FILL
+      this.setEyesClose(false);
     },
     // EYES END
   });
