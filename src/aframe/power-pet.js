@@ -184,6 +184,8 @@
       turn: { type: "number", default: 0 },
 
       pupilName: { type: "string", default: "pupil" },
+      eyeName: { type: "string", default: "eye" },
+      eyeCloseName: { type: "string", default: "close" },
 
       showLookAtPupils: { type: "boolean", default: false },
       showLookAt: { type: "boolean", default: false },
@@ -237,6 +239,7 @@
       this._initPupils();
       this._initLookAt();
       this._initLookables();
+      this._initEyes();
       this.system._add(this);
     },
     remove: function () {
@@ -253,6 +256,7 @@
       if (this.data.lookAround) {
         this._tickLookables(...arguments);
       }
+      this._tickEyes(...arguments);
     },
 
     // UTILS START
@@ -319,6 +323,31 @@
         AFRAME.INSPECTOR.selectEntity(this.el);
       }
     },
+    _updateValue: function ({
+      prefix,
+      path,
+      values,
+      value,
+      eventName,
+      valuesArray,
+      shouldFlushToDOM,
+      detail,
+    }) {
+      if (path in values) {
+        values[path] = structuredClone(value);
+        valuesArray.find(([key, _]) => key == path)[1] = value;
+      }
+
+      const dataPath = prefix + path;
+      if (dataPath in this.schema) {
+        this._updateData(dataPath, value, shouldFlushToDOM, detail);
+        this.el.emit(`power-pet-${eventName}`, {
+          name: this.selectedName,
+          path,
+          value,
+        });
+      }
+    },
 
     _walkTree: function (path, tree, filterCallback) {
       let treeWalker = tree;
@@ -358,6 +387,75 @@
         }
       });
     },
+    _sanitizePath: function (path, prefix, name) {
+      path = path ?? "";
+      if (path.startsWith(prefix)) {
+        path = path.replace(prefix, "");
+      }
+      if (path.startsWith(name)) {
+        path = path.replace(name, "");
+      }
+      if (path.startsWith(".")) {
+        path = path.replace(".", "");
+      }
+      return path;
+    },
+    _setNodeProperty: function (path, value, callback, options) {
+      const {
+        prefix,
+        values,
+        valuesArray,
+        eventName,
+        defaultValue,
+        clamp,
+        name,
+        nodes,
+        isProperty,
+        setPropertyWhenInvisible,
+      } = options;
+      path = this._sanitizePath(path, prefix, name);
+      value = value ?? defaultValue;
+      if (clamp) {
+        value = clamp(value);
+      }
+      //console.log("_setProperty", path, value, { prefix });
+      if (!this.getIsModelSelected()) {
+        console.warn("no model selected");
+        return;
+      }
+
+      const node = this._walkTree(path, nodes);
+      if (!node) {
+        return;
+      }
+      //console.log("node", node);
+
+      if (node.isLast && node[isProperty]) {
+        if (setPropertyWhenInvisible || node.mesh.visible) {
+          callback(node);
+        }
+      } else {
+        const children = Object.entries(node);
+        children.forEach(([name, childNode]) => {
+          this._setNodeProperty(
+            [path, name].join("."),
+            value,
+            callback,
+            options
+          );
+        });
+      }
+
+      this._updateValue({
+        prefix,
+        path,
+        values,
+        value,
+        eventName,
+        valuesArray,
+        shouldFlushToDOM: false,
+      });
+    },
     // UTILS END
 
     update: function (oldData) {
@@ -380,6 +478,8 @@
           this.setPupilScale(diffKey, this.data[diffKey]);
         } else if (diffKey.startsWith(this._pupilRotationPrefix)) {
           this.setPupilRotation(diffKey, this.data[diffKey]);
+        } else if (diffKey.startsWith(this._eyeClosePrefix)) {
+          this.setEyeClose(diffKey, this.data[diffKey]);
         } else {
           switch (diffKey) {
             case "model":
@@ -440,6 +540,10 @@
               this.setTurn(this.data.turn);
               break;
             case "pupilName":
+              break;
+            case "eyeName":
+              break;
+            case "eyeCloseName":
               break;
             case "showLookAt":
               this.setShowLookAt(this.data.showLookAt);
@@ -656,6 +760,10 @@
           //console.log("mesh", meshPath, { uvCount });
 
           const isPupil = path.startsWith(this.data.pupilName);
+          const isEye = path.startsWith(this.data.eyeName);
+          const isEyeClose = path
+            .toLowerCase()
+            .endsWith(this.data.eyeCloseName);
 
           const onMeshSegment = (meshTree, index = 0) => {
             const _path = meshPath.slice(0, index + 1).join(".");
@@ -675,6 +783,8 @@
                 modelEntity,
                 modelBoundingBoxEntity,
                 path,
+                isEye,
+                isEyeClose,
               };
               meshTree[segment] = meshTreeNode;
               if (isPupil) {
@@ -728,6 +838,13 @@
                   new THREE.Vector3();
                 meshTreeNode.lookAtDistance = 0;
               }
+
+              if (isEye) {
+                meshTreeNode.eyePath = path.replace(
+                  this.data.eyeName + ".",
+                  ""
+                );
+              }
             } else {
               if (!meshTree[segment]) {
                 meshTree[segment] = {};
@@ -774,6 +891,37 @@
 
         const variantsArray = this.sortObjectEntries(variants);
         //console.log("variantsArray", variantsArray);
+
+        const eyes = meshTree[this.data.eyeName] ?? {};
+        //console.log("eyes", eyes);
+
+        const eyeNodes = [];
+        this._traverseTree(eyes, (subTree, path, isHead) => {
+          if (!isHead) {
+            return;
+          }
+          if (subTree.isLast) {
+            eyeNodes.push(subTree);
+          }
+          return true;
+        });
+        //console.log("eyeNodes", eyeNodes);
+
+        const eyesClose = {};
+        if (this._includeNullPathInEyeSchema) {
+          eyesClose[""] = false;
+        }
+        this._traverseTree(eyes, (subTree, path, isHead) => {
+          if (!isHead || subTree.isLast) {
+            return;
+          }
+          eyesClose[path] = false;
+          return true;
+        });
+        //console.log("eyesClose", eyesClose);
+
+        const eyesCloseArray = this.sortObjectEntries(eyesClose);
+        //console.log("eyesCloseArray", eyesCloseArray);
 
         const pupils = meshTree[this.data.pupilName] ?? {};
         //console.log("pupils", pupils);
@@ -879,6 +1027,9 @@
           pupilScalesArray,
           pupilRotations,
           pupilRotationsArray,
+          eyes,
+          eyeNodes,
+          eyesCloseArray,
         };
         // console.log("model", model);
         this.models[name] = model;
@@ -965,11 +1116,13 @@
       const pupilOffsetSchema = this._getPupilOffsetSchema();
       const pupilScaleSchema = this._getPupilScaleSchema();
       const pupilRotationSchema = this._getPupilRotationSchema();
+      const eyesCloseSchema = this._getEyesCloseSchema();
       const extensionSchema = {
         ...variantSchema,
         ...pupilOffsetSchema,
         ...pupilScaleSchema,
         ...pupilRotationSchema,
+        ...eyesCloseSchema,
       };
       //console.log("extensionSchema", extensionSchema);
       this.extendSchema(extensionSchema);
@@ -977,6 +1130,7 @@
       this._setPupilOffsets();
       this._setPupilScales();
       this._setPupilRotations();
+      this._setEyesClose();
       this._flushToDOM();
     },
     // SCHEMA END
@@ -1027,14 +1181,13 @@
       if (value == undefined) {
         return;
       }
-      // console.log("selectVariant", { path, value });
+      //console.log("selectVariant", { path, value });
       if (!this.getIsModelSelected()) {
         console.warn("no model selected");
         return;
       }
 
-      const { variants, meshTree, pupilOffsets, pupilScales, pupilRotations } =
-        this._getModel();
+      const { variants, meshTree } = this._getModel();
 
       if (!this._includeNullPathInPupilSchema && path == "") {
         return;
@@ -1060,6 +1213,12 @@
         return;
       }
       //console.log("node", node);
+
+      const isEye = path.startsWith(this.data.eyeName);
+      if (isEye) {
+        const close = value == "close";
+        this._setEyeClose(path, close);
+      }
 
       if (node.isLast) {
         let channel = 0;
@@ -1633,66 +1792,13 @@
     },
     _setPupilPropertyWhenInvisible: true,
     _setPupilProperty: function (path, value, callback, options) {
-      const { prefix, values, valuesArray, eventName, defaultValue, clamp } =
-        options;
-      path = path ?? "";
-      if (path.startsWith(prefix)) {
-        path = path.replace(prefix, "");
-      }
-      if (path.startsWith(this.data.pupilName)) {
-        path = path.replace(this.data.pupilName + ".", "");
-      }
-      if (path.startsWith(".")) {
-        path = path.replace(".", "");
-      }
-      value = value ?? defaultValue;
-      if (clamp) {
-        value = clamp(value);
-      }
-      //console.log("_setPupilProperty", path, value, { prefix });
-      if (!this.getIsModelSelected()) {
-        console.warn("no model selected");
-        return;
-      }
-
-      const { pupils } = this._getModel();
-
-      const node = this._walkTree(path, pupils);
-      if (!node) {
-        return;
-      }
-      //console.log("node", node);
-
-      if (node.isLast && node.isPupil) {
-        if (this._setPupilPropertyWhenInvisible || node.mesh.visible) {
-          callback(node);
-        }
-      } else {
-        const children = Object.entries(node);
-        children.forEach(([name, childNode]) => {
-          this._setPupilProperty(
-            [path, name].join("."),
-            value,
-            callback,
-            options
-          );
-        });
-      }
-
-      if (path in values) {
-        values[path] = structuredClone(value);
-        valuesArray.find(([key, _]) => key == path)[1] = value;
-      }
-
-      const dataPath = prefix + path;
-      if (dataPath in this.schema) {
-        this._updateData(dataPath, value, false);
-        this.el.emit(`power-pet-${eventName}`, {
-          name: this.selectedName,
-          path,
-          value,
-        });
-      }
+      Object.assign(options, {
+        isProperty: "isPupil",
+        name: this.data.pupilName,
+        nodes: this._getPupils(),
+        setPropertyWhenInvisible: this._setPupilPropertyWhenInvisible,
+      });
+      this._setNodeProperty(path, value, callback, options);
     },
     _updateTextureMatrixDirectly: true,
     _updateTextureMatrix: function (node, values = {}) {
@@ -2745,5 +2851,132 @@
       this.setLookAtPosition(position);
     },
     // LOOKABLES END
+
+    // EYES START
+    _ignoreEyesWithNoSiblingsInSchema: true,
+    _onlyShowFirstLevelEyesInSchema: true,
+    _includeNullPathInEyeSchema: true,
+    _verifyEyeSchema: function (path) {
+      if (
+        this._onlyShowFirstLevelEyesInSchema ||
+        this._ignoreEyesWithNoSiblingsInSchema
+      ) {
+        const segments = path.split(".");
+        if (segments.length > 1) {
+          if (this._onlyShowFirstLevelEyesInSchema) {
+            return;
+          }
+          const parentPath = segments.slice(0, -1).join(".");
+          const siblingCount =
+            pupilOffsetsArray.filter(([path, _]) => path.startsWith(parentPath))
+              .length - 1;
+          if (siblingCount == 1) {
+            return;
+          }
+        }
+      }
+      return true;
+    },
+    _getEyes: function () {
+      return this._getModel()?.eyes ?? {};
+    },
+    _getEyeNodes: function () {
+      return this._getModel()?.eyeNodes ?? [];
+    },
+    _setEyePropertyWhenInvisible: true,
+    _setEyeProperty: function (path, value, callback, options) {
+      Object.assign(options, {
+        isProperty: "isEye",
+        name: this.data.eyeName,
+        nodes: this._getEyes(),
+        setPropertyWhenInvisible: this._setEyePropertyWhenInvisible,
+      });
+      this._setNodeProperty(path, value, callback, options);
+    },
+
+    _initEyes: function () {
+      this._blinkTicker = new Ticker();
+      // FILL
+    },
+
+    _eyeClosePrefix: "eyeClose_",
+    _getEyesClose: function () {
+      return this._getModel()?.eyesClose ?? {};
+    },
+    _getEyesCloseArray: function () {
+      return this._getModel()?.eyesCloseArray ?? [];
+    },
+    _setEyesClose: function () {
+      const eyesCloseArray = structuredClone(this._getEyesCloseArray());
+      eyesCloseArray.forEach(([key, close]) => {
+        this.setEyeClose(key, close);
+      });
+    },
+    _getEyesCloseSchema: function () {
+      // console.log("_getEyesCloseSchema");
+
+      const eyesCloseSchema = {};
+      const eyesCloseArray = this._getEyesCloseArray();
+
+      Object.keys(this.data)
+        .filter((key) => key.startsWith(this._eyeClosePrefix))
+        .forEach((key) => {
+          this._deleteDataKey(key);
+        });
+
+      eyesCloseArray.forEach(([path]) => {
+        if (!this._verifyEyeSchema(path)) {
+          return;
+        }
+
+        eyesCloseSchema[this._eyeClosePrefix + path] = {
+          type: "boolean",
+          default: false,
+        };
+      });
+
+      return eyesCloseSchema;
+    },
+    _sanitizeEyeClosePath: function (path) {
+      path = this._sanitizePath(path, this._eyeClosePrefix, this.data.eyeName);
+      return path;
+    },
+
+    _setEyeClose: function (path, close) {
+      path = this._sanitizeEyeClosePath(path);
+      // console.log({ path, close });
+      this._updateValue({
+        prefix: this._eyeClosePrefix,
+        path,
+        values: this._getEyesClose(),
+        value: close,
+        eventName: "eyeClose",
+        valuesArray: this._getEyesCloseArray(),
+        shouldFlushToDOM: false,
+      });
+    },
+    setEyeClose: function (path, close) {
+      path = this._sanitizeEyeClosePath(path);
+      if (path == "") {
+        path = this.data.eyeName;
+      } else {
+        path = [this.data.eyeName, path].join(".");
+      }
+      //console.log({ path, close });
+      this.selectVariant(path, close ? "close" : "default");
+    },
+    _tickEyes: function (time, timeDelta) {
+      // FILL
+    },
+    blink: function (dur = 0) {
+      // FILL
+    },
+    closeEyes: function () {
+      // FILL
+    },
+    openEyes: function () {
+      // FILL
+    },
+    // EYES END
   });
 }
