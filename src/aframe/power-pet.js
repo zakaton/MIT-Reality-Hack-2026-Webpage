@@ -196,8 +196,8 @@
         type: "vec2",
         default: { x: Math.PI / 2, y: Math.PI / 2 },
       },
-      lookAtOffsetMin: { type: "vec2", default: { x: -0.05, y: -0.1 } },
-      lookAtOffsetMax: { type: "vec2", default: { x: 0.05, y: 0.1 } },
+      lookAtOffsetMin: { type: "vec2", default: { x: -0.03, y: -0.1 } },
+      lookAtOffsetMax: { type: "vec2", default: { x: 0.03, y: 0.1 } },
 
       lookableAngleMin: { type: "vec2", default: { x: -1, y: -1 } },
       lookableAngleMax: { type: "vec2", default: { x: 1, y: 1 } },
@@ -208,19 +208,19 @@
       lookableSelector: { type: "string", default: "power-pet-lookable" },
       lookAround: { type: "boolean", default: true },
 
-      lookableTickerMin: { type: "number", default: 2000 },
-      lookableTickerMax: { type: "number", default: 3000 },
+      lookableTickerMin: { type: "number", default: 3000 },
+      lookableTickerMax: { type: "number", default: 5000 },
 
       lookableAsideTickerMin: { type: "number", default: 500 },
       lookableAsideTickerMax: { type: "number", default: 1000 },
 
-      lookAtLookableTickerMin: { type: "number", default: 50 },
-      lookAtLookableTickerMax: { type: "number", default: 800 },
+      lookAtLookableNoiseTickerMin: { type: "number", default: 100 },
+      lookAtLookableNoiseTickerMax: { type: "number", default: 800 },
 
-      lookableWorldMeshTickerMin: { type: "number", default: 500 },
-      lookableWorldMeshTickerMax: { type: "number", default: 2000 },
+      lookableWorldMeshTickerMin: { type: "number", default: 750 },
+      lookableWorldMeshTickerMax: { type: "number", default: 2300 },
 
-      lookAtLookableNoiseMin: { type: "number", default: 0.02 },
+      lookAtLookableNoiseMin: { type: "number", default: 0.01 },
       lookAtLookableNoiseMax: { type: "number", default: 0.1 },
 
       isModelFacingBack: { type: "boolean", default: true },
@@ -517,14 +517,14 @@
                 this.data.lookableWorldMeshTickerMax
               );
               break;
-            case "lookAtLookableTickerMin":
-              this.setLookAtLookableTickerMin(
-                this.data.lookAtLookableTickerMin
+            case "lookAtLookableNoiseTickerMin":
+              this.setLookAtLookableNoiseTickerMin(
+                this.data.lookAtLookableNoiseTickerMin
               );
               break;
-            case "lookAtLookableTickerMax":
-              this.setLookAtLookableTickerMax(
-                this.data.lookAtLookableTickerMax
+            case "lookAtLookableNoiseTickerMax":
+              this.setLookAtLookableNoiseTickerMax(
+                this.data.lookAtLookableNoiseTickerMax
               );
               break;
             case "lookAtLookableNoiseMin":
@@ -2208,13 +2208,19 @@
       );
     },
 
-    setLookAtLookableTickerMin: function (lookAtLookableTickerMin) {
-      //console.log("setLookAtLookableTickerMin", lookAtLookableTickerMin);
-      this._updateData("lookAtLookableTickerMin", lookAtLookableTickerMin);
+    setLookAtLookableNoiseTickerMin: function (lookAtLookableNoiseTickerMin) {
+      //console.log("setLookAtLookableNoiseTickerMin", lookAtLookableNoiseTickerMin);
+      this._updateData(
+        "lookAtLookableNoiseTickerMin",
+        lookAtLookableNoiseTickerMin
+      );
     },
-    setLookAtLookableTickerMax: function (lookAtLookableTickerMax) {
-      //console.log("setLookAtLookableTickerMax", lookAtLookableTickerMax);
-      this._updateData("lookAtLookableTickerMax", lookAtLookableTickerMax);
+    setLookAtLookableNoiseTickerMax: function (lookAtLookableNoiseTickerMax) {
+      //console.log("setLookAtLookableNoiseTickerMax", lookAtLookableNoiseTickerMax);
+      this._updateData(
+        "lookAtLookableNoiseTickerMax",
+        lookAtLookableNoiseTickerMax
+      );
     },
 
     setLookAtLookableNoiseMin: function (lookAtLookableNoiseMin) {
@@ -2226,7 +2232,14 @@
       this._updateData("lookAtLookableNoiseMax", lookAtLookableNoiseMax);
     },
 
+    _tickLookAtLookableInterval: 100,
     _initLookables: function () {
+      this._tickLookAtLookable = AFRAME.utils.throttleTick(
+        this._tickLookAtLookable,
+        this._tickLookAtLookableInterval,
+        this
+      );
+
       this._lookAtLookableAxisAngle = new THREE.Vector3(0, 0, 1);
       this._lookAtLookablePosition = new THREE.Vector3();
       this._lookAtLookableQuaternion = new THREE.Quaternion();
@@ -2239,7 +2252,7 @@
       );
       this._updateLookablesTicker = new Ticker();
       this._updateWorldMeshLookableTicker = new Ticker();
-      this._lookAtLookableTicker = new Ticker();
+      this._lookAtLookableNoiseTicker = new Ticker();
 
       this._worldMeshLookable = {
         entity: null,
@@ -2684,26 +2697,33 @@
       if (!this._isModelLoaded()) {
         return;
       }
+      // console.log("_lookAtLookable");
+
       const lookable = this._focusedLookable;
-      const ticker = this._lookAtLookableTicker;
 
+      const position = this._lookAtLookablePosition;
+      position.copy(lookable.position);
+
+      // TODO (optional) - use raycaster to look towards point, intersecting with lookable.entity at some hit[0].point
+
+      const pupilCenterLookAtEntity = this._getPupilCenterLookAtEntity();
+      pupilCenterLookAtEntity.object3D.lookAt(position);
+
+      const quaternion = this._lookAtLookableQuaternion;
+      pupilCenterLookAtEntity.object3D.getWorldQuaternion(quaternion);
+
+      const noise = this._lookAtLookableNoise;
+
+      const ticker = this._lookAtLookableNoiseTicker;
       ticker.tick();
-
       if (ticker.isDone) {
-        const position = this._lookAtLookablePosition;
-        position.copy(lookable.position);
+        ticker.waitRandom(
+          this.data.lookAtLookableNoiseTickerMin,
+          this.data.lookAtLookableNoiseTickerMax
+        );
 
-        // TODO (optional) - use raycaster to look towards point, intersecting with lookable.entity at some hit[0].point
+        const { distanceInterpolation } = lookable;
 
-        const pupilCenterLookAtEntity = this._getPupilCenterLookAtEntity();
-        pupilCenterLookAtEntity.object3D.lookAt(position);
-
-        const quaternion = this._lookAtLookableQuaternion;
-        pupilCenterLookAtEntity.object3D.getWorldQuaternion(quaternion);
-
-        const { distanceInterpolation, distance } = lookable;
-
-        const noise = this._lookAtLookableNoise;
         const noiseLength =
           THREE.MathUtils.lerp(
             this.data.lookAtLookableNoiseMin,
@@ -2719,15 +2739,10 @@
             THREE.MathUtils.randFloat(0, 2 * Math.PI)
           )
           .applyQuaternion(quaternion);
-        position.add(noise);
-        // console.log("_lookAtLookable");
-        this.setLookAtPosition(position);
-
-        ticker.waitRandom(
-          this.data.lookAtLookableTickerMin,
-          this.data.lookAtLookableTickerMax
-        );
       }
+
+      position.add(noise);
+      this.setLookAtPosition(position);
     },
     // LOOKABLES END
   });
