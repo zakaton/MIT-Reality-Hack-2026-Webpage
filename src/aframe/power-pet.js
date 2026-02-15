@@ -229,6 +229,13 @@
 
       lookableWorldMeshAngleMin: { type: "vec2", default: { x: -1, y: -0.2 } },
       lookableWorldMeshAngleMax: { type: "vec2", default: { x: 1, y: 1 } },
+
+      blinking: { type: "boolean", default: true },
+
+      blinkOpenTickerMin: { type: "number", default: 1000 },
+      blinkOpenTickerMax: { type: "number", default: 5000 },
+      blinkCloseTickerMin: { type: "number", default: 30 },
+      blinkCloseTickerMax: { type: "number", default: 200 },
     },
 
     init: function () {
@@ -639,6 +646,21 @@
               break;
             case "isModelFacingBack":
               this.setIsModelFacingBack(this.data.isModelFacingBack);
+              break;
+            case "blinking":
+              this.setBlinking(this.data.blinking);
+              break;
+            case "blinkOpenTickerMin":
+              this.setBlinkOpenTickerMin(this.data.blinkOpenTickerMin);
+              break;
+            case "blinkOpenTickerMax":
+              this.setBlinkOpenTickerMax(this.data.blinkOpenTickerMax);
+              break;
+            case "blinkCloseTickerMin":
+              this.setBlinkCloseTickerMin(this.data.blinkCloseTickerMin);
+              break;
+            case "blinkCloseTickerMax":
+              this.setBlinkCloseTickerMax(this.data.blinkCloseTickerMax);
               break;
             default:
               console.warn(`uncaught diffKey "${diffKey}"`);
@@ -2910,7 +2932,7 @@
 
     _initEyes: function () {
       this._blinkTicker = new Ticker();
-      // FILL
+      this._blinkSequence = [];
     },
 
     _eyeClosePrefix: "eyeClose_",
@@ -2987,7 +3009,7 @@
         value: close,
         eventName: "eyeClose",
         valuesArray: this._getEyesCloseArray(),
-        shouldFlushToDOM: false,
+        shouldFlushToDOM: true,
       });
 
       return value;
@@ -3004,13 +3026,8 @@
       //console.log({ path, variantPath, close });
       this.selectVariant(variantPath, close);
     },
-    _tickEyes: function (time, timeDelta) {
-      // FILL
-    },
-    blink: function (dur = 0) {
-      // FILL
-    },
     setEyesClose: function (close) {
+      //console.log("setEyesClose", { close });
       this.setEyeClose("", close);
     },
     closeEyes: function () {
@@ -3019,6 +3036,90 @@
     openEyes: function () {
       this.setEyesClose(false);
     },
+    _tickEyes: function (time, timeDelta) {
+      this._tickBlink(...arguments);
+    },
+    _tickBlink: function (time, timeDelta) {
+      if (!this.data.blinking) {
+        return;
+      }
+      const sequence = this._blinkSequence;
+
+      const ticker = this._blinkTicker;
+      if (ticker.isDone) {
+        if (this._isBlinking == undefined) {
+          this._isBlinking = false;
+        } else {
+          this._isBlinking = !this._isBlinking;
+        }
+
+        const segment = sequence.at(-1);
+        if (this._isBlinking) {
+          if (segment?.[0]) {
+            ticker.wait(segment[0]);
+          } else {
+            ticker.waitRandom(
+              this.data.blinkCloseTickerMin,
+              this.data.blinkCloseTickerMax
+            );
+          }
+        } else {
+          if (segment?.[1]) {
+            ticker.wait(segment[1]);
+            sequence.pop();
+          } else {
+            ticker.waitRandom(
+              this.data.blinkOpenTickerMin,
+              this.data.blinkOpenTickerMax
+            );
+          }
+        }
+        //console.log("isBlinking", this._isBlinking, ticker.duration);
+        this.setEyesClose(this._isBlinking);
+      }
+      ticker.tick();
+    },
+    blink: function () {
+      this.setBlinkSequence([]);
+    },
+    setBlinkSequence: function (..._sequence) {
+      const ticker = this._blinkTicker;
+      const sequence = this._blinkSequence;
+      ticker.stop();
+      sequence.length = 0;
+      sequence.push(..._sequence);
+    },
+    setBlinking: function (blinking) {
+      //console.log("setBlinking", blinking);
+      this._updateData("blinking", blinking);
+
+      const ticker = this._blinkTicker;
+      const sequence = this._blinkSequence;
+
+      if (!blinking) {
+        this._isBlinking = false;
+        ticker.stop();
+        sequence.length = 0;
+      }
+    },
+
+    setBlinkOpenTickerMin: function (blinkOpenTickerMin) {
+      //console.log("setBlinkOpenTickerMin", blinkOpenTickerMin);
+      this._updateData("blinkOpenTickerMin", blinkOpenTickerMin);
+    },
+    setBlinkOpenTickerMax: function (blinkOpenTickerMax) {
+      //console.log("setBlinkOpenTickerMax", blinkOpenTickerMax);
+      this._updateData("blinkOpenTickerMax", blinkOpenTickerMax);
+    },
+    setBlinkCloseTickerMin: function (blinkCloseTickerMin) {
+      //console.log("setBlinkCloseTickerMin", blinkCloseTickerMin);
+      this._updateData("blinkCloseTickerMin", blinkCloseTickerMin);
+    },
+    setBlinkCloseTickerMax: function (blinkCloseTickerMax) {
+      //console.log("setBlinkCloseTickerMax", blinkCloseTickerMax);
+      this._updateData("blinkCloseTickerMax", blinkCloseTickerMax);
+    },
+
     // EYES END
   });
 }
