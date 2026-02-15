@@ -566,7 +566,7 @@
     _loadModel: function (name) {
       //console.log("loadModel", name);
       if (!this.system.models[name]) {
-        console.log(`no model found for name "${name}"`);
+        console.warn(`no model found for name "${name}"`);
         return;
       }
       if (this.models[name]) {
@@ -901,7 +901,7 @@
     _autoUpdateSquashColliderCenter: false,
     selectModel: function (newName) {
       if (!this.system.models[newName]) {
-        console.log(`no model found with name "${newName}"`);
+        console.warn(`no model found with name "${newName}"`);
         return;
       }
       if (!this.models[newName]) {
@@ -1029,7 +1029,7 @@
       }
       // console.log("selectVariant", { path, value });
       if (!this.getIsModelSelected()) {
-        console.log("no model selected");
+        console.warn("no model selected");
         return;
       }
 
@@ -1651,7 +1651,7 @@
       }
       //console.log("_setPupilProperty", path, value, { prefix });
       if (!this.getIsModelSelected()) {
-        console.log("no model selected");
+        console.warn("no model selected");
         return;
       }
 
@@ -2118,7 +2118,9 @@
         lookAtOffsetMin
       );
       //console.log("setLookAtOffsetMin", lookAtOffsetMin);
-      this.setLookAtPosition();
+      if (this.data.lookAround) {
+        this.setLookAtPosition();
+      }
       this._updateData("lookAtOffsetMin", lookAtOffsetMin);
     },
     setLookAtOffsetMax: function (lookAtOffsetMax) {
@@ -2128,7 +2130,9 @@
         lookAtOffsetMax
       );
       //console.log("setLookAtOffsetMax", lookAtOffsetMax);
-      this.setLookAtPosition();
+      if (this.data.lookAround) {
+        this.setLookAtPosition();
+      }
       this._updateData("lookAtOffsetMax", lookAtOffsetMax);
     },
     setLookAtOffsetAngleMin: function (lookAtOffsetAngleMin) {
@@ -2138,7 +2142,9 @@
         lookAtOffsetAngleMin
       );
       //console.log("setLookAtOffsetAngleMin", lookAtOffsetAngleMin);
-      this.setLookAtPosition();
+      if (this.data.lookAround) {
+        this.setLookAtPosition();
+      }
       this._updateData("lookAtOffsetAngleMin", lookAtOffsetAngleMin);
     },
     setLookAtOffsetAngleMax: function (lookAtOffsetAngleMax) {
@@ -2148,7 +2154,9 @@
         lookAtOffsetAngleMax
       );
       //console.log("setLookAtOffsetAngleMax", lookAtOffsetAngleMax);
-      this.setLookAtPosition();
+      if (this.data.lookAround) {
+        this.setLookAtPosition();
+      }
       this._updateData("lookAtOffsetAngleMax", lookAtOffsetAngleMax);
     },
     // LOOKAT END
@@ -2391,7 +2399,9 @@
         lookableAngleMin
       );
       //console.log("setLookableAngleMin", lookableAngleMin);
-      this.setLookAtPosition();
+      if (this.data.lookAround) {
+        this.setLookAtPosition();
+      }
       this._updateData("lookableAngleMin", lookableAngleMin);
     },
     setLookableAngleMax: function (lookableAngleMax) {
@@ -2401,7 +2411,9 @@
         lookableAngleMax
       );
       //console.log("setLookableAngleMax", lookableAngleMax);
-      this.setLookAtPosition();
+      if (this.data.lookAround) {
+        this.setLookAtPosition();
+      }
       this._updateData("lookableAngleMax", lookableAngleMax);
     },
 
@@ -2412,7 +2424,9 @@
         lookableWorldMeshAngleMin
       );
       //console.log("setLookableWorldMeshAngleMin", lookableWorldMeshAngleMin);
-      this.setLookAtPosition();
+      if (this.data.lookAround) {
+        this.setLookAtPosition();
+      }
       this._updateData("lookableWorldMeshAngleMin", lookableWorldMeshAngleMin);
     },
     setLookableWorldMeshAngleMax: function (lookableWorldMeshAngleMax) {
@@ -2422,7 +2436,9 @@
         lookableWorldMeshAngleMax
       );
       //console.log("setLookableWorldMeshAngleMax", lookableWorldMeshAngleMax);
-      this.setLookAtPosition();
+      if (this.data.lookAround) {
+        this.setLookAtPosition();
+      }
       this._updateData("lookableWorldMeshAngleMax", lookableWorldMeshAngleMax);
     },
 
@@ -2676,6 +2692,8 @@
       if (ticker.isDone) {
         const position = this._lookAtLookablePosition;
         position.copy(lookable.position);
+
+        // TODO (optional) - use raycaster to look towards point, intersecting with lookable.entity at some hit[0].point
 
         const pupilCenterLookAtEntity = this._getPupilCenterLookAtEntity();
         pupilCenterLookAtEntity.object3D.lookAt(position);
