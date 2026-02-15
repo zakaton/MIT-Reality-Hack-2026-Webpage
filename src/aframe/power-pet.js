@@ -1228,9 +1228,10 @@
       }
       //console.log("node", node);
 
+      const _value = value;
       const isEye = path.startsWith(this.data.eyeName);
       if (isEye) {
-        this._setEyeClose(path, value);
+        value = this._setEyeClose(path, value);
       }
 
       if (node.isLast) {
@@ -1269,7 +1270,7 @@
               }
             }
           } else {
-            this.selectVariant([path, name].join("."), value);
+            this.selectVariant([path, name].join("."), _value);
           }
         });
       }
@@ -2958,14 +2959,27 @@
       return path;
     },
 
-    _setEyeClose: function (path, value) {
-      const close = value == this.data.eyeCloseName;
-      path = this._sanitizeEyeClosePath(path);
+    _setEyeClose: function (variantPath, close) {
+      const path = this._sanitizeEyeClosePath(variantPath);
       // console.log({ path, close });
+      const variants = this._getVariants();
       const eyesOpen = this._getEyesOpen();
+
+      let value;
+      if (typeof close == "string") {
+        value = close;
+        close = value == this.data.eyeCloseName;
+      } else if (typeof close == "boolean") {
+        value = close ? this.data.eyeCloseName : eyesOpen[path];
+      } else {
+        console.error(`uncaught type "${typeof close}" for close`, close);
+      }
+      value = value ?? variants[variantPath];
+
       if (!close) {
         eyesOpen[path] = value;
       }
+
       this._updateValue({
         prefix: this._eyeClosePrefix,
         path,
@@ -2975,6 +2989,8 @@
         valuesArray: this._getEyesCloseArray(),
         shouldFlushToDOM: false,
       });
+
+      return value;
     },
     setEyeClose: function (path, close) {
       path = this._sanitizeEyeClosePath(path);
@@ -2985,12 +3001,8 @@
       } else {
         variantPath = [this.data.eyeName, variantPath].join(".");
       }
-      const eyesOpen = this._getEyesOpen();
-
-      this.selectVariant(
-        variantPath,
-        close ? this.data.eyeCloseName : eyesOpen[path]
-      );
+      //console.log({ path, variantPath, close });
+      this.selectVariant(variantPath, close);
     },
     _tickEyes: function (time, timeDelta) {
       // FILL
