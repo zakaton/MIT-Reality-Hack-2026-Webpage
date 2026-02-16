@@ -151,6 +151,33 @@ def on_get_clients(client, data):
     ui.send_message("clients", clients, client)
 
 
+def tare_stepper_angle(client, data, notify=True):
+    # print("tare_stepper_angle")
+    # print(data)
+
+    Bridge.call("tareStepperAngle")
+    set_at_index(angles["stepper"], 0, 0)
+    if notify:
+        ui.send_message("angles", angles)
+
+
+def on_tare_angle(client, data, notify=True):
+    # print("on_tare_angle")
+    # print(data)
+
+    match data["type"]:
+        # case "servo":
+        #     tare_servo_angle(client, data, False)
+        case "stepper":
+            tare_stepper_angle(client, data, False)
+        case _:
+            print("invalid angle type")
+            print(data["type"])
+
+    if notify:
+        ui.send_message("angles", angles)
+
+
 # Handle socket messages (like in Code Scanner example)
 ui.on_message("test", on_test)
 ui.on_message("getAngles", on_get_angles)
@@ -163,6 +190,7 @@ ui.on_message("updateState", on_update_state)
 ui.on_connect(on_connect)
 ui.on_disconnect(on_disconnect)
 ui.on_message("getClients", on_get_clients)
+ui.on_message("tareAngle", on_tare_angle)
 
 # Start the application
 App.run()

@@ -1,7 +1,7 @@
 AFRAME.registerSystem("recenter-listener", {
   schema: {
     target: { type: "selector", default: "a-camera" },
-    distanceThreshold: { type: "number", default: 0.1 },
+    distanceThreshold: { type: "number", default: 0.4 },
     angleThreshold: { type: "number", default: Math.PI / 4 },
   },
 

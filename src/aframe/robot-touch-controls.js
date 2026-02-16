@@ -298,11 +298,15 @@
     },
 
     onLowerButton: function (event) {
-      if (!this.system.isActive) {
-        return;
-      }
       if (this.isDominantHand) {
-        this.updateTargetPosition();
+        if (this.system.isActive) {
+          this.updateTargetPosition();
+        }
+      } else {
+        this.targetEntity.emit("robot-tare-angle", {
+          type: "stepper",
+          index: 0,
+        });
       }
     },
     onUpperButton: function (event) {

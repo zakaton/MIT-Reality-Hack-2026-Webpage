@@ -14,6 +14,7 @@ int servoAngles[numberOfServos] = {0};
 
 AccelStepper stepper(AccelStepper::DRIVER, STEP_PIN, DIR_PIN);
 int stepperAngle = 0;
+int stepperAngleOffset = 0;
 
 long stepperAngleToSteps(float degrees)
 {
@@ -73,6 +74,13 @@ void setStepperAngle(int angle)
     shouldUpdateStepper = true;
     stepperAngle = angle;
 }
+void tareStepperAngle()
+{
+    // Monitor.println("tareStepperAngle");
+
+    stepperAngleOffset = stepperAngle;
+    stepperAngle = 0;
+}
 
 void setup()
 {
@@ -90,6 +98,7 @@ void setup()
     Bridge.provide("test", test);
     Bridge.provide("setServoAngle", setServoAngle);
     Bridge.provide("setStepperAngle", setStepperAngle);
+    Bridge.provide("tareStepperAngle", tareStepperAngle);
     // Monitor.println("setup");
 }
 
@@ -122,7 +131,7 @@ void loop()
     {
         // Monitor.print("shouldUpdateStepper ");
         // Monitor.println(stepperAngle);
-        moveStepperToAngle(stepperAngle);
+        moveStepperToAngle(stepperAngle + stepperAngleOffset);
         isUpdatingStepper = true;
         shouldUpdateStepper = false;
     }

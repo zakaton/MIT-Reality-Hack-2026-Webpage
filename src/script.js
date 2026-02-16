@@ -135,6 +135,21 @@ const setAngle = (type, index, angle) => {
   }
 };
 
+/**
+ * @param {AngleType} type
+ * @param {number} index
+ */
+const tareAngle = (type, index) => {
+  console.log("tareAngle", { type, index });
+  if (unoQ.isConnected) {
+    unoQ.tareAngle(type, index);
+  } else {
+    const newAngles = structuredClone(angles);
+    newAngles[type][index] = 0;
+    setAngles(newAngles);
+  }
+};
+
 const anglesContainer = document.getElementById("anglesContainer");
 /** @type {HTMLTemplateElement} */
 const angleTemplate = document.getElementById("angleTemplate");
@@ -173,6 +188,14 @@ forEachAngle((type, index, angle) => {
 
   const indexSpan = angleContainer.querySelector("span.index");
   indexSpan.innerText = index;
+
+  const tareButton = angleContainer.querySelector("button.tare");
+  if (type == "stepper" && index == 0) {
+    tareButton.classList.remove("hidden");
+  }
+  tareButton.addEventListener("click", () => {
+    tareAngle(type, index);
+  });
 
   const angleRange = angleContainer.querySelector("input[type='range']");
   const angleInput = angleContainer.querySelector("input[type='number']");
@@ -215,5 +238,10 @@ robotEntity.addEventListener("robot-angle", (event) => {
   const { type, index, angle } = event.detail;
   //console.log("robot-angle", { type, index, angle });
   setAngle(type, index, angle);
+});
+robotEntity.addEventListener("robot-tare-angle", (event) => {
+  const { type, index } = event.detail;
+  console.log("robot-tare-angle", { type, index });
+  tareAngle(type, index);
 });
 // ROBOT END

@@ -651,6 +651,19 @@ class UnoQ {
   }
 
   /**
+   * @param {AngleType} type
+   * @param {number} index
+   */
+  async tareAngle(type, index = 0) {
+    if (this.angles[type]?.[index] == 0) {
+      return;
+    }
+    const promise = this.waitForEvent("angles");
+    this.#socket.emit("tareAngle", { type, index });
+    await promise;
+  }
+
+  /**
    * @param {OnAnglesCallback} callback
    * @param {CallbackOptions} options
    */
