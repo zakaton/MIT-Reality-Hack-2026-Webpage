@@ -98,8 +98,8 @@ const setupContainer = (valueName) => {
     const { name, model } = event.detail;
     const { [valuesArrayName]: valuesArray, [allValuesName]: allValues } =
       model;
-    //console.log(valuesArrayName, valuesArray);
-    //console.log(allValuesName, allValues);
+    console.log(valuesArrayName, valuesArray);
+    console.log(allValuesName, allValues);
 
     const valueContainers = {};
 
@@ -316,14 +316,14 @@ setupInput("squashColliderCenter", { property: "y" });
 setupInput("turn");
 // POWER PET TURN END
 
-// POWER PET PUPIL OFFSETS START
-setupContainer("pupilOffset");
-// POWER PET PUPIL OFFSETS END
-
-// POWER PET PUPIL SCALE START
+// POWER PET PUPIL START
 setupContainer("pupilScale");
-// POWER PET PUPIL SCALE END
-
-// POWER PET PUPIL ROTATION START
+setupContainer("pupilOffset");
 setupContainer("pupilRotation");
-// POWER PET PUPIL ROTATION END
+// POWER PET PUPIL END
+
+// POWER PET EYE START
+setupInput("blinking");
+setupInput("lookAround");
+setupContainer("closedEye");
+// POWER PET EYE END

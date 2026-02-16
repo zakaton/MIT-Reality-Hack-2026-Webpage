@@ -50,8 +50,7 @@
       height: 100vh !important;
       z-index: 9999;
     }
-    #optionsContainer,
-    #squashContainer {
+    .container {
       display: flex;
       flex-direction: column;
       align-items: baseline;
@@ -124,7 +123,7 @@
 
           <a-entity
             id="powerPet"
-            power-pet="showSquashCollider: false; showSquashCenter: false; showSquashControlPoint: false; showLookAt: false; showLookAtPupils: false; showModelBoundingBox: false;"
+            power-pet="showSquashCollider: false; showSquashCenter: false; showSquashControlPoint: false; showLookAt: false; showLookAtPupils: false; showModelBoundingBox: false; blinking:false;"
             position="0 1.1 -0.4"
             rotation="0 180 0"
           ></a-entity>
@@ -202,7 +201,7 @@
           <a-sky color="#ECECEC" hide-on-enter-ar></a-sky>
         </a-scene>
       </div>
-      <div id="pupilOffsets" class="hidden">
+      <div id="pupilOffsets" class="hidden container">
         <h2>Pupil Offsets</h2>
         <template>
           <label class="pupilOffset">
@@ -247,7 +246,7 @@
           </label>
         </template>
       </div>
-      <div id="optionsContainer">
+      <div id="options" class="container">
         <h2>Options</h2>
         <button id="openInspector">open inspector</button>
         <label>
@@ -281,7 +280,7 @@
           </label>
         </template>
       </div>
-      <div id="squashContainer">
+      <div id="squash" class="container">
         <h2>Squash</h2>
         <label>
           squash
@@ -344,6 +343,26 @@
             value="0"
           />
         </label>
+      </div>
+      <div id="eye" class="container">
+        <h2>Eye</h2>
+        <label>
+          look around
+          <input type="checkbox" id="lookAround" />
+        </label>
+        <label>
+          blinking
+          <input type="checkbox" id="blinking" />
+        </label>
+      </div>
+      <div id="closedEyes" class="hidden container">
+        <h2>Closed Eyes</h2>
+        <template>
+          <label class="closedEye">
+            <span class="path"></span>
+            <input type="checkbox" class="input" />
+          </label>
+        </template>
       </div>
     </div>
   </body>
