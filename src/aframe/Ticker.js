@@ -42,6 +42,7 @@
 
     stop() {
       this.#timeInterpolation = -1;
+      this.#duration = 0;
     }
   }
 

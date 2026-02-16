@@ -223,7 +223,7 @@
       lookableWorldMeshTickerMax: { type: "number", default: 2300 },
 
       lookAtLookableNoiseMin: { type: "number", default: 0.005 },
-      lookAtLookableNoiseMax: { type: "number", default: 0.08 },
+      lookAtLookableNoiseMax: { type: "number", default: 0.07 },
 
       isModelFacingBack: { type: "boolean", default: true },
 
@@ -236,6 +236,9 @@
       blinkOpenTickerMax: { type: "number", default: 5000 },
       blinkCloseTickerMin: { type: "number", default: 30 },
       blinkCloseTickerMax: { type: "number", default: 200 },
+
+      blinkOffsetMin: { type: "number", default: 10 },
+      blinkOffsetMax: { type: "number", default: 30 },
     },
 
     init: function () {
@@ -662,6 +665,12 @@
             case "blinkCloseTickerMax":
               this.setBlinkCloseTickerMax(this.data.blinkCloseTickerMax);
               break;
+            case "blinkOffsetMin":
+              this.setBlinkOffsetMin(this.data.blinkOffsetMin);
+              break;
+            case "blinkOffsetMax":
+              this.setBlinkOffsetMax(this.data.blinkOffsetMax);
+              break;
             default:
               console.warn(`uncaught diffKey "${diffKey}"`);
               break;
@@ -1064,6 +1073,7 @@
           pupilRotationsArray,
           eyes,
           eyeNodes,
+          closedEyes,
           closedEyesArray,
           openEyes,
         };
@@ -1160,7 +1170,7 @@
         ...pupilRotationSchema,
         ...closedEyesSchema,
       };
-      console.log("extensionSchema", extensionSchema);
+      //console.log("extensionSchema", extensionSchema);
       this.extendSchema(extensionSchema);
       this._selectVariants();
       this._setPupilOffsets();
@@ -1416,7 +1426,7 @@
       const { x, y } = this.data.squashMin;
 
       squash = THREE.MathUtils.clamp(squash, y, 1);
-      //console.log("setSquash", squash);
+      // console.log("setSquash", squash);
 
       const height = squash;
       const heightLerp = THREE.MathUtils.inverseLerp(1, y, height);
@@ -2232,7 +2242,7 @@
         }
         this._updateLookAtPosition(pupilNode, lookAtPosition);
       });
-      this._updateData("lookAtPosition", lookAtPosition);
+      this._updateData("lookAtPosition", lookAtPosition, false);
     },
 
     getIsLookAtSelectedInInspector: function () {
@@ -2664,6 +2674,10 @@
           (1 - distanceInterpolation);
       }
 
+      if (entity.id) {
+        //console.log({ score, id: entity.id });
+      }
+
       Object.assign(lookable, {
         distance,
         yawInterpolation,
@@ -2674,7 +2688,7 @@
       });
     },
     _focusOnLookable: function (lookable) {
-      // console.log("_focusOnLookable", lookable);
+      //console.log("_focusOnLookable", lookable);
       this._focusedLookable = lookable ?? this._updateWorldMeshLookable();
     },
     _tickUpdateLookablesInterval: 200,
@@ -2933,6 +2947,7 @@
 
     _initEyes: function () {
       this._blinkTicker = new Ticker();
+      this._blinkOffsetTicker = new Ticker();
       this._blinkSequence = [];
     },
 
@@ -2982,33 +2997,33 @@
       return path;
     },
 
-    _setClosedEye: function (variantPath, close) {
+    _setClosedEye: function (variantPath, closed) {
       const path = this._sanitizeClosedEyePath(variantPath);
       const variants = this._getVariants();
       const openEyes = this._getOpenEyes();
 
       let value;
-      if (typeof close == "string") {
-        value = close;
-        close = value == this.data.closedEyeName;
-      } else if (typeof close == "boolean") {
-        value = close ? this.data.closedEyeName : openEyes[path];
+      if (typeof closed == "string") {
+        value = closed;
+        closed = value == this.data.closedEyeName;
+      } else if (typeof closed == "boolean") {
+        value = closed ? this.data.closedEyeName : openEyes[path];
       } else {
-        console.error(`uncaught type "${typeof close}" for close`, close);
+        console.error(`uncaught type "${typeof closed}" for close`, closed);
       }
       value = value ?? variants[variantPath];
 
-      if (!close) {
+      if (!closed) {
         openEyes[path] = value;
       }
 
-      // console.log({ variantPath, path, value, close });
+      //console.log({ variantPath, path, value, closed });
 
       this._updateValue({
         prefix: this._closedEyePrefix,
         path,
         values: this._getClosedEyes(),
-        value: close,
+        value: closed,
         eventName: "closedEye",
         valuesArray: this._getClosedEyesArray(),
         shouldFlushToDOM: false,
@@ -3016,7 +3031,7 @@
 
       return value;
     },
-    setClosedEye: function (path, close) {
+    setClosedEye: function (path, closed) {
       path = this._sanitizeClosedEyePath(path);
 
       let variantPath = path;
@@ -3025,18 +3040,26 @@
       } else {
         variantPath = [this.data.eyeName, variantPath].join(".");
       }
-      //console.log({ path, variantPath, close });
-      this.selectVariant(variantPath, close);
+      // console.log({ path, variantPath, closed });
+      this.selectVariant(variantPath, closed);
     },
-    setClosedEyes: function (close) {
-      //console.log("setClosedEyes", { close });
-      this.setClosedEye("", close);
+    setClosedEyes: async function (closed, offset = 0) {
+      offset = Math.max(0, offset);
+      //console.log("setClosedEyes", { closed, offset });
+
+      const offsetTicker = this._blinkOffsetTicker;
+      if (offset == 0) {
+        offsetTicker.stop();
+        this.setClosedEye("", closed);
+      } else {
+        offsetTicker.wait(offset);
+      }
     },
-    closeEyes: function () {
-      this.setClosedEyes(true);
+    closeEyes: function (offset) {
+      this.setClosedEyes(true, offset);
     },
-    openEyes: function () {
-      this.setClosedEyes(false);
+    openEyes: function (offset) {
+      this.setClosedEyes(false, offset);
     },
     _tickEyes: function (time, timeDelta) {
       this._tickBlink(...arguments);
@@ -3048,38 +3071,81 @@
       const sequence = this._blinkSequence;
 
       const ticker = this._blinkTicker;
-      if (ticker.isDone) {
+      const offsetTicker = this._blinkOffsetTicker;
+
+      ticker.tick();
+      offsetTicker.tick();
+
+      if (offsetTicker.duration > 0) {
+        const interpolation = offsetTicker.timeInterpolation;
+        const eyeKeys = Object.keys(this._getEyes());
+        const numberOfEyesToUpdate = Math.floor(
+          THREE.MathUtils.lerp(1, eyeKeys.length, interpolation)
+        );
+        let closedEyesArray = this._getClosedEyesArray().filter(
+          ([path, closed]) => {
+            return eyeKeys.includes(path) && closed != this._isBlinking;
+          }
+        );
+        const numberOfUpdatedEyes = eyeKeys.length - closedEyesArray.length;
+        // console.log({
+        //   interpolation,
+        //   numberOfUpdatedEyes,
+        //   numberOfEyesToUpdate,
+        // });
+        if (
+          closedEyesArray.length > 0 &&
+          numberOfUpdatedEyes < numberOfEyesToUpdate
+        ) {
+          const [path, _] =
+            closedEyesArray[
+              THREE.MathUtils.randInt(0, closedEyesArray.length - 1)
+            ];
+          //console.log({ path, close: this._isBlinking });
+          this.setClosedEye(path, this._isBlinking);
+        }
+
+        if (offsetTicker.isDone) {
+          // console.log("offsetTicker.done");
+          offsetTicker.stop();
+
+          const segment = sequence.at(-1);
+          if (this._isBlinking) {
+            if (segment?.[0]) {
+              ticker.wait(segment[0]);
+            } else {
+              ticker.waitRandom(
+                this.data.blinkCloseTickerMin,
+                this.data.blinkCloseTickerMax
+              );
+            }
+          } else {
+            if (segment?.[1]) {
+              ticker.wait(segment[1]);
+              sequence.pop();
+            } else {
+              ticker.waitRandom(
+                this.data.blinkOpenTickerMin,
+                this.data.blinkOpenTickerMax
+              );
+            }
+          }
+        }
+      } else if (ticker.isDone) {
         if (this._isBlinking == undefined) {
           this._isBlinking = false;
         } else {
           this._isBlinking = !this._isBlinking;
         }
-
-        const segment = sequence.at(-1);
-        if (this._isBlinking) {
-          if (segment?.[0]) {
-            ticker.wait(segment[0]);
-          } else {
-            ticker.waitRandom(
-              this.data.blinkCloseTickerMin,
-              this.data.blinkCloseTickerMax
-            );
-          }
-        } else {
-          if (segment?.[1]) {
-            ticker.wait(segment[1]);
-            sequence.pop();
-          } else {
-            ticker.waitRandom(
-              this.data.blinkOpenTickerMin,
-              this.data.blinkOpenTickerMax
-            );
-          }
-        }
-        //console.log("isBlinking", this._isBlinking, ticker.duration);
-        this.setClosedEyes(this._isBlinking);
+        //console.log("isBlinking", this._isBlinking);
+        this.setClosedEyes(
+          this._isBlinking,
+          THREE.MathUtils.randFloat(
+            this.data.blinkOffsetMin,
+            this.data.blinkOffsetMax
+          )
+        );
       }
-      ticker.tick();
     },
     blink: function () {
       this.setBlinkSequence([]);
@@ -3119,6 +3185,15 @@
     },
     setBlinkCloseTickerMax: function (blinkCloseTickerMax) {
       //console.log("setBlinkCloseTickerMax", blinkCloseTickerMax);
+      this._updateData("blinkCloseTickerMax", blinkCloseTickerMax);
+    },
+
+    setBlinkOffsetMin: function (blinkOffsetMin) {
+      //console.log("setBlinkCloseTickerMin", blinkOffsetMin);
+      this._updateData("blinkOffsetMin", blinkOffsetMin);
+    },
+    setBlinkOffsetMax: function (blinkCloseTickerMax) {
+      //console.log("setBlinkOffsetMin", blinkCloseTickerMax);
       this._updateData("blinkCloseTickerMax", blinkCloseTickerMax);
     },
 

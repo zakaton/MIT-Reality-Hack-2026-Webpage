@@ -98,8 +98,8 @@ const setupContainer = (valueName) => {
     const { name, model } = event.detail;
     const { [valuesArrayName]: valuesArray, [allValuesName]: allValues } =
       model;
-    console.log(valuesArrayName, valuesArray);
-    console.log(allValuesName, allValues);
+    // console.log(valuesArrayName, valuesArray);
+    // console.log(allValuesName, allValues);
 
     const valueContainers = {};
 
@@ -138,12 +138,17 @@ const setupContainer = (valueName) => {
         });
       }
 
-      input.value = value;
+      if (input.type == "checkbox") {
+        input.checked = value;
+      } else {
+        input.value = value;
+      }
 
       input.addEventListener("input", () => {
-        const { value } = input;
-        //console.log({ path }, value);
-        powerPetEntity.setAttribute("power-pet", `${valueName}_${path}`, value);
+        const value = input.type == "checkbox" ? input.checked : input.value;
+        const attributeName = `${valueName}_${path}`;
+        //console.log({ path, attributeName }, value);
+        powerPetEntity.setAttribute("power-pet", attributeName, value);
       });
 
       _valuesContainer.appendChild(valueContainer);
@@ -189,7 +194,11 @@ const setupContainer = (valueName) => {
     //console.log(event.type, { name, path, value }, allValueContainers);
     const input = allValueContainers[name][path]?.input;
     if (input) {
-      input.value = value;
+      if (input.type == "checkbox") {
+        input.checked = value;
+      } else {
+        input.value = value;
+      }
     }
   });
 };
@@ -325,5 +334,7 @@ setupContainer("pupilRotation");
 // POWER PET EYE START
 setupInput("blinking");
 setupInput("lookAround");
+setupInput("showLookAt");
+setupInput("showLookAtPupils");
 setupContainer("closedEye");
 // POWER PET EYE END

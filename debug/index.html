@@ -123,7 +123,7 @@
 
           <a-entity
             id="powerPet"
-            power-pet="showSquashCollider: false; showSquashCenter: false; showSquashControlPoint: false; showLookAt: false; showLookAtPupils: false; showModelBoundingBox: false; blinking:false;"
+            power-pet="showSquashCollider: false; showSquashCenter: false; showSquashControlPoint: false; showLookAt: false; showLookAtPupils: false; showModelBoundingBox: false; blinking: true;"
             position="0 1.1 -0.4"
             rotation="0 180 0"
           ></a-entity>
@@ -280,7 +280,7 @@
           </label>
         </template>
       </div>
-      <div id="squash" class="container">
+      <div id="squashContainer" class="container">
         <h2>Squash</h2>
         <label>
           squash
@@ -353,6 +353,14 @@
         <label>
           blinking
           <input type="checkbox" id="blinking" />
+        </label>
+        <label>
+          show look at
+          <input type="checkbox" id="showLookAt" />
+        </label>
+        <label>
+          show look at pupils
+          <input type="checkbox" id="showLookAtPupils" />
         </label>
       </div>
       <div id="closedEyes" class="hidden container">
