@@ -277,6 +277,7 @@
     },
 
     // UTILS START
+    _waitForAnimationToEnd: false,
     _initUtils: function () {
       this._worldToLocalScale = new THREE.Vector3();
     },
@@ -1447,20 +1448,25 @@
       //console.log({ width, height, dur });
 
       if (dur > 0) {
-        this.squashScaleEntity.removeAttribute("animation__squash");
-        this.squashScaleEntity.addEventListener(
-          "animationcomplete__squash",
-          () => {
-            this._updateData("squash", squash);
-          },
-          { once: true }
-        );
+        if (this._waitForAnimationToEnd) {
+          this.squashScaleEntity.removeAttribute("animation__squash");
+          this.squashScaleEntity.addEventListener(
+            "animationcomplete__squash",
+            () => {
+              this._updateData("squash", squash);
+            },
+            { once: true }
+          );
+        }
         this.squashScaleEntity.setAttribute("animation__squash", {
           property: "scale",
           to: { x: width, y: height, z: width },
           dur: dur - 0,
           easing: "linear",
         });
+        if (!this._waitForAnimationToEnd) {
+          this._updateData("squash", squash);
+        }
       } else {
         const { scale } = this.squashScaleEntity.object3D;
         scale.y = height;
@@ -1470,6 +1476,17 @@
 
       if (this._petState == "petting") {
         this.setPurrSoundVolume(heightLerp);
+
+        const { x, y } = this.data.tilt;
+        if (heightLerp < 0.8) {
+          this.openEyes();
+        } else if (Math.abs(x) < 0.09) {
+          this.closeEyes();
+        } else {
+          const isLeftEyeDominant = x < 0;
+          this.setClosedEye("l", !isLeftEyeDominant);
+          this.setClosedEye("r", isLeftEyeDominant);
+        }
       }
     },
     setSquashCenter: function (squashCenter) {
@@ -1520,14 +1537,16 @@
         const pitchDeg = this.clampFloatToZero(THREE.MathUtils.radToDeg(pitch));
         const rollDeg = this.clampFloatToZero(THREE.MathUtils.radToDeg(roll));
 
-        this.squashTiltEntity.removeAttribute("animation__tilt");
-        this.squashTiltEntity.addEventListener(
-          "animationcomplete__tilt",
-          () => {
-            this._updateData("tilt", tilt);
-          },
-          { once: true }
-        );
+        if (this._waitForAnimationToEnd) {
+          this.squashTiltEntity.removeAttribute("animation__tilt");
+          this.squashTiltEntity.addEventListener(
+            "animationcomplete__tilt",
+            () => {
+              this._updateData("tilt", tilt);
+            },
+            { once: true }
+          );
+        }
 
         const { rotation } = this.squashTiltEntity.object3D;
         rotation.x = this.clampFloatToZero(rotation.x);
@@ -1543,6 +1562,9 @@
           dur: dur - 0,
           easing: "linear",
         });
+        if (!this._waitForAnimationToEnd) {
+          this._updateData("tilt", tilt);
+        }
       } else {
         const { rotation } = this.squashTiltEntity.object3D;
         rotation.x = pitch;
@@ -1705,7 +1727,8 @@
 
         if (squash <= 1.03) {
           isNudging = radius > this.data.squashRadiusThreshold;
-          isNudging = isNudging || squash <= 0.57;
+          isNudging = isNudging || squash <= 0.6;
+          isNudging = isNudging || overshotTilt;
           //console.log({ squash, radius, angle2D, useSquash: isNudging });
 
           if (isNudging) {
@@ -1803,8 +1826,8 @@
       switch (this._petState) {
         case "idle":
           this.setBlinkSequence();
-          this.selectVariant("mouth", "default");
           this.selectVariant("pupil", "emo");
+          this.selectVariant("mouth", "tongue");
           break;
         case "petting":
           this.openEyes();
@@ -1848,6 +1871,7 @@
         if (ticker.isDone) {
           this.blink();
           this.selectVariant("pupil", "default");
+          this.selectVariant("mouth", "default");
           ticker.stop();
         }
       }
@@ -1862,20 +1886,25 @@
       const yaw = turn;
 
       if (dur > 0) {
-        this.squashScaleEntity.removeAttribute("animation__turn");
-        this.squashScaleEntity.addEventListener(
-          "animationcomplete__turn",
-          () => {
-            this._updateData("turn", turn);
-          },
-          { once: true }
-        );
+        if (this._waitForAnimationToEnd) {
+          this.squashScaleEntity.removeAttribute("animation__turn");
+          this.squashScaleEntity.addEventListener(
+            "animationcomplete__turn",
+            () => {
+              this._updateData("turn", turn);
+            },
+            { once: true }
+          );
+        }
         this.squashScaleEntity.setAttribute("animation__turn", {
           property: "rotation",
           to: { x: 0, y: yaw, z: 0 },
           dur: dur - 0,
           easing: "linear",
         });
+        if (!this._waitForAnimationToEnd) {
+          this._updateData("turn", turn);
+        }
       } else {
         const yawRadians = THREE.MathUtils.degToRad(yaw);
         const { rotation } = this.squashScaleEntity.object3D;
