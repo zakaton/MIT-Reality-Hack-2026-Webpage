@@ -2844,16 +2844,15 @@
         .sort((a, b) => b.score - a.score);
 
       let closestLookable = sortedLookables[0];
-      if (closestLookable) {
-        // console.log(
-        //   "closestLookable.score",
-        //   closestLookable.entity.id || closestLookable.entity.parentEl.id,
-        //   closestLookable.score
-        // );
+      if (false && closestLookable) {
+        console.log(
+          "closestLookable.score",
+          closestLookable.entity.id || closestLookable.entity.parentEl.id,
+          closestLookable.score
+        );
       }
 
       const ticker = this._updateLookablesTicker;
-
       if (sortedLookables.length > 1) {
         if (this.asideLookable) {
         } else {
@@ -3207,6 +3206,33 @@
     _tickEyes: function (time, timeDelta) {
       this._tickBlink(...arguments);
     },
+    _blinkTickerTick: function () {
+      const ticker = this._blinkTicker;
+
+      const sequence = this._blinkSequence;
+      const segment = sequence.at(-1);
+      if (this._isBlinking) {
+        if (segment?.[0]) {
+          ticker.wait(segment[0]);
+        } else {
+          ticker.waitRandom(
+            this.data.blinkCloseTickerMin,
+            this.data.blinkCloseTickerMax
+          );
+        }
+      } else {
+        if (segment?.[1]) {
+          ticker.wait(segment[1]);
+          sequence.pop();
+        } else {
+          ticker.waitRandom(
+            this.data.blinkOpenTickerMin,
+            this.data.blinkOpenTickerMax
+          );
+        }
+      }
+    },
+    _offsetBlinking: !true,
     _tickBlink: function (time, timeDelta) {
       if (!this.data.blinking) {
         return;
@@ -3214,7 +3240,6 @@
       if (this._petState != "idle") {
         return;
       }
-      const sequence = this._blinkSequence;
 
       const ticker = this._blinkTicker;
       const offsetTicker = this._blinkOffsetTicker;
@@ -3254,28 +3279,7 @@
         if (offsetTicker.isDone) {
           // console.log("offsetTicker.done");
           offsetTicker.stop();
-
-          const segment = sequence.at(-1);
-          if (this._isBlinking) {
-            if (segment?.[0]) {
-              ticker.wait(segment[0]);
-            } else {
-              ticker.waitRandom(
-                this.data.blinkCloseTickerMin,
-                this.data.blinkCloseTickerMax
-              );
-            }
-          } else {
-            if (segment?.[1]) {
-              ticker.wait(segment[1]);
-              sequence.pop();
-            } else {
-              ticker.waitRandom(
-                this.data.blinkOpenTickerMin,
-                this.data.blinkOpenTickerMax
-              );
-            }
-          }
+          this._blinkTickerTick();
         }
       } else if (ticker.isDone) {
         if (this._isBlinking == undefined) {
@@ -3286,11 +3290,17 @@
         //console.log("isBlinking", this._isBlinking);
         this.setClosedEyes(
           this._isBlinking,
-          THREE.MathUtils.randFloat(
-            this.data.blinkOffsetMin,
-            this.data.blinkOffsetMax
-          )
+          this._offsetBlinking
+            ? THREE.MathUtils.randFloat(
+                this.data.blinkOffsetMin,
+                this.data.blinkOffsetMax
+              )
+            : 0
         );
+
+        if (!this._offsetBlinking) {
+          this._blinkTickerTick();
+        }
       }
     },
     blink: function () {
