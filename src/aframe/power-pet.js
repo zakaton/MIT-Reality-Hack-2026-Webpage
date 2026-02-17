@@ -60,6 +60,8 @@
                 "obb-collider",
                 `trackedObject3D: parentEl.components.hand-tracking-controls.bones.${joint}; size: ${this.data.jointSize};`
               );
+              entity.joint = joint;
+              entity.setAttribute("power-pet-lookable", "");
               component.el.appendChild(entity);
             });
           });
@@ -201,7 +203,7 @@
       lookAtOffsetMin: { type: "vec2", default: { x: -0.03, y: -0.1 } },
       lookAtOffsetMax: { type: "vec2", default: { x: 0.03, y: 0.1 } },
 
-      lookableAngleMin: { type: "vec2", default: { x: -1, y: -1 } },
+      lookableAngleMin: { type: "vec2", default: { x: -1, y: -0.5 } },
       lookableAngleMax: { type: "vec2", default: { x: 1, y: 1 } },
 
       lookableDistanceMin: { type: "number", default: 0.05 },
@@ -239,6 +241,9 @@
 
       blinkOffsetMin: { type: "number", default: 10 },
       blinkOffsetMax: { type: "number", default: 30 },
+
+      purrVolumeMin: { type: "number", default: 0.08 },
+      purrVolumeMax: { type: "number", default: 1 },
     },
 
     init: function () {
@@ -255,6 +260,7 @@
     remove: function () {
       this._removeLookAt();
       this._removeLookables();
+      this._removePurr();
       this.system._remove(this);
     },
 
@@ -671,6 +677,12 @@
               break;
             case "blinkOffsetMax":
               this.setBlinkOffsetMax(this.data.blinkOffsetMax);
+              break;
+            case "purrVolumeMin":
+              this.setPurrVolumeMin(this.data.purrVolumeMin);
+              break;
+            case "purrVolumeMax":
+              this.setPurrVolumeMax(this.data.purrVolumeMax);
               break;
             default:
               console.warn(`uncaught diffKey "${diffKey}"`);
@@ -1455,6 +1467,10 @@
         scale.x = scale.z = width;
         this._updateData("squash", squash);
       }
+
+      if (this._petState == "petting") {
+        this.setPurrSoundVolume(heightLerp);
+      }
     },
     setSquashCenter: function (squashCenter) {
       value = Object.assign({}, this.data.squashCenter, squashCenter);
@@ -1786,9 +1802,9 @@
 
       switch (this._petState) {
         case "idle":
-          this.setBlinkSequence([]);
+          this.setBlinkSequence();
           this.selectVariant("mouth", "default");
-          this.selectVariant("pupil", "default");
+          this.selectVariant("pupil", "emo");
           break;
         case "petting":
           this.openEyes();
@@ -1803,11 +1819,21 @@
             this.setClosedEye("r", isLeftEyeDominant);
             this.selectVariant("mouth", "w");
             this.selectVariant("pupil", "heart");
+            this.setPurrSoundVolume(1);
           }
           break;
         default:
           console.error(`uncaught petState "${this._petState}"`);
           break;
+      }
+
+      const ticker = this._pettingTicker;
+      if (this._petState == "idle") {
+        this.stopPurrSound();
+        ticker.waitRandom(1000, 2000);
+      } else {
+        ticker.stop();
+        this.playPurrSound();
       }
 
       this.el.emit("power-pet-petState", {
@@ -1817,7 +1843,14 @@
     },
     _tickPet: function (time, timeDelta) {
       const ticker = this._pettingTicker;
-      // FILL
+      ticker.tick();
+      if (ticker.duration > 0) {
+        if (ticker.isDone) {
+          this.blink();
+          this.selectVariant("pupil", "default");
+          ticker.stop();
+        }
+      }
     },
     // PETTING END
 
@@ -2668,7 +2701,18 @@
       const { entity, position, localPosition, normalizedLocalPosition } =
         lookable;
 
-      entity.object3D.getWorldPosition(position);
+      if (!isNaN(entity.joint)) {
+        const bone =
+          entity.parentEl.components?.["hand-tracking-controls"]?.bones?.[
+            entity.joint
+          ];
+        if (!bone) {
+          return;
+        }
+        bone.getWorldPosition(position);
+      } else {
+        entity.object3D.getWorldPosition(position);
+      }
       localPosition.copy(position);
       this.worldToLocal(pupilCenterEntity.object3D, localPosition);
 
@@ -3199,11 +3243,15 @@
     blink: function () {
       this.setBlinkSequence([]);
     },
-    setBlinkSequence: function (..._sequence) {
+    clearBlinkSequence: function () {
       const ticker = this._blinkTicker;
       const sequence = this._blinkSequence;
       ticker.stop();
       sequence.length = 0;
+    },
+    setBlinkSequence: function (..._sequence) {
+      this.clearBlinkSequence();
+      const sequence = this._blinkSequence;
       sequence.push(..._sequence);
     },
     setBlinking: function (blinking) {
@@ -3247,5 +3295,102 @@
     },
 
     // EYES END
+
+    // SOUND START
+    _waitForSoundToLoad: async function (entity) {
+      return new Promise((resolve) => {
+        if (entity.components.sound) {
+          resolve();
+        } else {
+          let onComponentInitialized = (event) => {
+            if (event.detail.name == "sound") {
+              entity.removeEventListener(
+                "componentinitialized",
+                onComponentInitialized
+              );
+              resolve();
+            }
+          };
+          onComponentInitialized = onComponentInitialized.bind(this);
+
+          entity.addEventListener(
+            "componentinitialized",
+            onComponentInitialized
+          );
+        }
+      });
+    },
+    _playSound: async function (name, entity, volume) {
+      entity = entity ?? this.el;
+      volume = volume ?? 1;
+      this._returnSound(name);
+      const poolName = `pool__${name.toLowerCase()}`;
+      const sound = (this[name] =
+        this.el.sceneEl.components[poolName].requestEntity());
+      sound.poolName = poolName;
+      entity.object3D.getWorldPosition(sound.object3D.position);
+      sound.play();
+      await this._waitForSoundToLoad(sound);
+      sound.components.sound.playSound();
+      sound.components.sound.pool.children[0].setVolume(volume);
+      sound.addEventListener("sound-ended", () => this._returnSound(name), {
+        once: true,
+      });
+    },
+    _returnSound: function (name) {
+      const sound = this[name];
+      if (sound) {
+        sound.components["sound"].stopSound();
+        this.el.sceneEl.components[sound.poolName].returnEntity(sound);
+        this[name] = undefined;
+      }
+    },
+    // SOUND END
+
+    // PURR START
+    _removePurr: function () {
+      if (this.purrSound) {
+        this.stopPurrSound();
+      }
+    },
+    setPurrVolumeMin: function (purrVolumeMin) {
+      //console.log("setPurrVolumeMin", purrVolumeMin);
+      this._updateData("purrVolumeMin", purrVolumeMin);
+    },
+    setPurrVolumeMax: function (purrVolumeMax) {
+      //console.log("setPurrVolumeMax", purrVolumeMax);
+      this._updateData("purrVolumeMax", purrVolumeMax);
+    },
+    playPurrFadeOutSound: function () {
+      this._playSound("purrSoundFadeOut", undefined);
+    },
+
+    playPurrSound: function () {
+      this._playSound("purrSound");
+    },
+    stopPurrSound: function (includeFadeout = true) {
+      this._returnSound("purrSound");
+      if (includeFadeout) {
+        this.playPurrFadeOutSound();
+      }
+    },
+
+    setPurrSoundVolume: function (interpolation) {
+      const sound = this.purrSound;
+      if (!sound) {
+        return;
+      }
+      const purrSoundVolume = THREE.MathUtils.lerp(
+        this.data.purrVolumeMin,
+        this.data.purrVolumeMax,
+        interpolation
+      );
+      this._purrSoundVolume = purrSoundVolume;
+      this.purrSound.components.sound.pool.children[0].setVolume(
+        purrSoundVolume
+      );
+    },
+
+    // PURR END
   });
 }
