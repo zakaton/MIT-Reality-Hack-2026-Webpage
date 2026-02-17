@@ -267,6 +267,7 @@
         this._tickLookables(...arguments);
       }
       this._tickEyes(...arguments);
+      this._tickPet(...arguments);
     },
 
     // UTILS START
@@ -1725,9 +1726,6 @@
         squash = THREE.MathUtils.clamp(squash, 0, 1);
       }
 
-      const wasNudging = this._isNudging;
-      this._isNudging = isNudging;
-
       if (
         newHasSquashControlPoint ||
         this._hasSquashControlPoint != newHasSquashControlPoint
@@ -1743,8 +1741,13 @@
       this.squashControlPointEntity.object3D.visible =
         this.data.showSquashControlPoint && this._hasSquashControlPoint;
 
-      const isBeingPet = squash != 1 || tilt.x != 0 || tilt.y != 0;
-      this._setIsBeingPet(isBeingPet);
+      let petState = "idle";
+      if (squash != 1) {
+        petState = "petting";
+      } else if (Math.abs(tilt.x) > 0.005 || Math.abs(tilt.y) > 0.005) {
+        petState = "nudging";
+      }
+      this._setPetState(petState, squash, tilt);
     },
 
     _tickSquashAnimation: function (time, timeDelta) {
@@ -1763,15 +1766,58 @@
 
     // PETTING START
     _initPetting: function () {
-      this._isBeingPet = false;
+      this._petState = "idle";
+      this._pettingTicker = new Ticker();
     },
-    _setIsBeingPet: function (newIsBeingPet) {
-      if (this._isBeingPet == newIsBeingPet) {
+    _petStates: ["idle", "petting", "nudging"],
+    _setPetState: function (newPetState, squash, tilt) {
+      squash = squash ?? this.data.squash;
+      tilt = tilt ?? this.data.tilt;
+      if (this._petState == newPetState) {
         return;
       }
-      this._isBeingPet = newIsBeingPet;
-      //console.log("isBeingPet", newIsBeingPet);
-      this.el.emit("power-pet-isBeingPet", { isBeingPet: this._isBeingPet });
+      if (!this._petStates.includes(newPetState)) {
+        console.error(`invalid petState "${newPetState}"`);
+        return;
+      }
+      const previousPetState = this._petState;
+      this._petState = newPetState;
+      // console.log("petState", this._petState);
+
+      switch (this._petState) {
+        case "idle":
+          this.setBlinkSequence([]);
+          this.selectVariant("mouth", "default");
+          this.selectVariant("pupil", "default");
+          break;
+        case "petting":
+          this.openEyes();
+          this.selectVariant("pupil", "emo");
+          this.selectVariant("mouth", "tongue");
+          break;
+        case "nudging":
+          {
+            const { x, y } = tilt;
+            const isLeftEyeDominant = x > 0;
+            this.setClosedEye("l", !isLeftEyeDominant);
+            this.setClosedEye("r", isLeftEyeDominant);
+            this.selectVariant("mouth", "w");
+            this.selectVariant("pupil", "heart");
+          }
+          break;
+        default:
+          console.error(`uncaught petState "${this._petState}"`);
+          break;
+      }
+
+      this.el.emit("power-pet-petState", {
+        petState: this._petState,
+        previousPetState,
+      });
+    },
+    _tickPet: function (time, timeDelta) {
+      const ticker = this._pettingTicker;
+      // FILL
     },
     // PETTING END
 
@@ -3066,6 +3112,9 @@
     },
     _tickBlink: function (time, timeDelta) {
       if (!this.data.blinking) {
+        return;
+      }
+      if (this._petState != "idle") {
         return;
       }
       const sequence = this._blinkSequence;
