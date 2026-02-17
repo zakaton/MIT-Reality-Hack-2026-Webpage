@@ -1,9 +1,13 @@
 AFRAME.registerComponent("anchorable", {
   dependencies: ["grabbable"],
   init: function () {
-    this.el.addEventListener("loaded", () => {
+    if (this.el.hasLoaded) {
       this.el.sceneEl.emit("anchorableEntity", this.el);
-    });
+    } else {
+      this.el.addEventListener("loaded", () => {
+        this.el.sceneEl.emit("anchorableEntity", this.el);
+      });
+    }
     this.el.addEventListener("grabstarted", this.onGrabStarted.bind(this));
     this.el.addEventListener("grabended", this.onGrabEnded.bind(this));
   },
@@ -59,7 +63,7 @@ AFRAME.registerComponent("grabbable-anchor", {
         console.log({ anchorFound });
         if (anchorFound) {
           this._loadRelativeTransforms();
-          this.el.emit("anchorLoaded", {
+          this.el.sceneEl.emit("anchorLoaded", {
             anchor: this.el,
             relativeTransforms: this._relativeTransforms,
           });
@@ -282,7 +286,9 @@ AFRAME.registerComponent("grabbable-anchor", {
 
   _updateAnchorableEntity: function (entity) {
     if (!this._relativeTransforms?.[entity.id]) {
-      //console.log(`no relativeTransform found for anchorableEntity "${entity.id}"`);
+      // console.log(
+      //   `no relativeTransform found for anchorableEntity "${entity.id}"`
+      // );
       return;
     }
 

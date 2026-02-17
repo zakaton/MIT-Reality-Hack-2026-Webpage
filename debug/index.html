@@ -3,6 +3,7 @@
     <title>Debug | Power Pet</title>
     <script src="../src/aframe/aframe-master.min.js"></script>
     <script src="../src/aframe/Ticker.js"></script>
+    <script src="../src/aframe/poster.js"></script>
     <script src="../src/aframe/occlude-hand-tracking-controls.js"></script>
     <script src="../src/aframe/grabbable-listener.js"></script>
     <script src="../src/aframe/grabbable-anchor.js"></script>
@@ -93,6 +94,7 @@
           device-orientation-permission-ui="enabled: false"
           pool__purrsound="mixin: purrSoundMixin; size: 2; dynamic: true;"
           pool__purrsoundfadeout="mixin: purrFadeOutSoundMixin; size: 2; dynamic: true;"
+          real-world-meshing="meshMixin: realWorldMeshMixin; meshesEnabled: false; planeMixin: realWorldPlaneMixin; planesEnabled: true; filterLabels: floor, table, wall, ceiling, desk, storage, other, plant, screen, lamp, couch, bed, screen;"
         >
           <a-assets>
             <a-asset-item
@@ -131,7 +133,21 @@
               id="purrFadeOutSoundMixin"
               sound="src: #purrFadeOutAudio;"
             ></a-mixin>
+
+            <img id="btsImage" src="../assets/images/bts.webp" />
+            <img id="btsLogoImage" src="../assets/images/btsLogo.webp" />
           </a-assets>
+
+          <a-mixin
+            id="realWorldPlaneMixin"
+            visible="false"
+            class="surface"
+          ></a-mixin>
+          <a-mixin
+            id="realWorldMeshMixin"
+            visible="false"
+            class="surface"
+          ></a-mixin>
 
           <!-- <a-light type="ambient"></a-light> -->
 
@@ -142,6 +158,75 @@
             wasd-controls="enabled: true; acceleration: 1;"
             position="0 1.2 0"
           ></a-camera>
+
+          <a-image
+            visible="false"
+            poster
+            id="btsPoster"
+            src="#btsLogoImage"
+            position="0 1.2 -0.5"
+            height="1"
+            width="1.77777"
+            scale="0.4 0.4 0.4"
+            rotation="0 0 0"
+          >
+            <a-entity
+              power-pet-lookable
+              position="-0.103 -0.229 0.000"
+              visible="false"
+            >
+              <a-sphere color="red" radius="0.05"></a-sphere>
+            </a-entity>
+            <a-entity
+              power-pet-lookable
+              position="0.210 -0.226 0.000"
+              visible="false"
+            >
+              <a-sphere color="red" radius="0.05"></a-sphere>
+            </a-entity>
+            <a-entity
+              power-pet-lookable
+              position="0.539 -0.219 0.000"
+              visible="false"
+            >
+              <a-sphere color="red" radius="0.05"></a-sphere>
+            </a-entity>
+            <a-entity
+              power-pet-lookable
+              position="0.578 0.099 0.000"
+              visible="false"
+            >
+              <a-sphere color="red" radius="0.05"></a-sphere>
+            </a-entity>
+            <a-entity
+              power-pet-lookable
+              position="0.224 0.038 0.000"
+              visible="false"
+            >
+              <a-sphere color="red" radius="0.05"></a-sphere>
+            </a-entity>
+            <a-entity
+              power-pet-lookable
+              position="-0.074 0.037 0.000"
+              visible="false"
+            >
+              <a-sphere color="red" radius="0.05"></a-sphere>
+            </a-entity>
+            <a-entity
+              power-pet-lookable
+              position="0.027 0.264 0.000"
+              visible="false"
+            >
+              <a-sphere color="red" radius="0.05"></a-sphere>
+            </a-entity>
+            <a-entity
+              power-pet-lookable
+              position="-0.485 0.316 0.000"
+              visible="false"
+            >
+              <a-sphere color="red" radius="0.05"></a-sphere>
+            </a-entity>
+          </a-image>
 
           <a-entity
             id="powerPet"
@@ -159,8 +244,9 @@
           ></a-box>
 
           <a-box
+            visible="false"
             id="lookableTest"
-            power-pet-lookable
+            power-pet-lookable_
             position="-0.2 1.2 -0.2"
             scale="0.05 0.05 0.05"
           ></a-box>
@@ -175,14 +261,6 @@
           >
             <a-entity gltf-model="#anchorModel"></a-entity>
           </a-entity>
-
-          <a-plane
-            data-world-mesh
-            color="yellow"
-            rotation="0 180 0"
-            position="0 1 1"
-            scale="4 4 1"
-          ></a-plane>
 
           <a-entity
             id="leftController"

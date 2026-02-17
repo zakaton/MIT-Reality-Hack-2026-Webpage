@@ -224,8 +224,8 @@
       lookableWorldMeshTickerMin: { type: "number", default: 750 },
       lookableWorldMeshTickerMax: { type: "number", default: 2300 },
 
-      lookAtLookableNoiseMin: { type: "number", default: 0.005 },
-      lookAtLookableNoiseMax: { type: "number", default: 0.07 },
+      lookAtLookableNoiseMin: { type: "number", default: 0.002 },
+      lookAtLookableNoiseMax: { type: "number", default: 0.06 },
 
       isModelFacingBack: { type: "boolean", default: true },
 
@@ -2655,7 +2655,7 @@
     _updateWorldMeshLookableList: function () {
       const worldMeshEntities =
         this.el.sceneEl.querySelectorAll("[data-world-mesh]");
-      //console.log("worldMeshEntities", worldMeshEntities);
+      // console.log("worldMeshEntities", worldMeshEntities);
       worldMeshEntities.forEach((worldMeshEntity) => {
         this._addWorldMeshEntity(worldMeshEntity);
       });
@@ -2730,11 +2730,13 @@
       const { entity, position, localPosition, normalizedLocalPosition } =
         lookable;
 
+      const handTrackingControlsComponent =
+        entity.parentEl.components?.["hand-tracking-controls"];
+      const metaTouchControlsComponent =
+        entity.parentEl.components["meta-touch-controls"];
+
       if (!isNaN(entity.joint)) {
-        const bone =
-          entity.parentEl.components?.["hand-tracking-controls"]?.bones?.[
-            entity.joint
-          ];
+        const bone = handTrackingControlsComponent?.bones?.[entity.joint];
         if (!bone) {
           return;
         }
@@ -2769,7 +2771,7 @@
       );
       yawInterpolation -= 0.5;
       yawInterpolation *= 2;
-      // yawInterpolation = THREE.MathUtils.clamp(yawInterpolation, -1, 1);
+      yawInterpolation = THREE.MathUtils.clamp(yawInterpolation, -1, 1);
 
       let pitchInterpolation = THREE.MathUtils.inverseLerp(
         this.data.lookableAngleMin.y,
@@ -2778,23 +2780,37 @@
       );
       pitchInterpolation -= 0.5;
       pitchInterpolation *= 2;
-      // pitchInterpolation = THREE.MathUtils.clamp(pitchInterpolation, -1, 1);
+      pitchInterpolation = THREE.MathUtils.clamp(pitchInterpolation, -1, 1);
 
-      const isInView =
-        distanceInterpolation >= 0 &&
-        Math.abs(yawInterpolation) <= 1 &&
-        Math.abs(pitchInterpolation) <= 1;
+      let isInView =
+        distanceInterpolation > 0 &&
+        distanceInterpolation < 1 &&
+        Math.abs(yawInterpolation) < 1 &&
+        Math.abs(pitchInterpolation) < 1;
+
+      if (handTrackingControlsComponent) {
+        isInView = isInView && handTrackingControlsComponent.controllerPresent;
+      }
+      if (metaTouchControlsComponent) {
+        isInView = isInView && metaTouchControlsComponent.controllerPresent;
+      }
 
       let score = -Infinity;
       if (isInView) {
         score =
-          (1 - yawInterpolation) *
-          (1 - pitchInterpolation) *
+          (1 - Math.abs(yawInterpolation)) *
+          (1 - Math.abs(pitchInterpolation)) *
           (1 - distanceInterpolation);
       }
 
-      if (entity.id) {
-        //console.log({ score, id: entity.id });
+      if (false && entity.id) {
+        console.log({
+          score,
+          distanceInterpolation,
+          yawInterpolation,
+          pitchInterpolation,
+          isInView,
+        });
       }
 
       Object.assign(lookable, {
@@ -2807,7 +2823,7 @@
       });
     },
     _focusOnLookable: function (lookable) {
-      //console.log("_focusOnLookable", lookable);
+      //console.log("_focusOnLookable", lookable.entity);
       this._focusedLookable = lookable ?? this._updateWorldMeshLookable();
     },
     _tickUpdateLookablesInterval: 200,
@@ -2828,6 +2844,13 @@
         .sort((a, b) => b.score - a.score);
 
       let closestLookable = sortedLookables[0];
+      if (closestLookable) {
+        // console.log(
+        //   "closestLookable.score",
+        //   closestLookable.entity.id || closestLookable.entity.parentEl.id,
+        //   closestLookable.score
+        // );
+      }
 
       const ticker = this._updateLookablesTicker;
 
@@ -2851,6 +2874,7 @@
                 THREE.MathUtils.randInt(1, sortedLookables.length - 1)
               ];
             closestLookable = this.asideLookable;
+            // console.log("asideLookable", this.asideLookable);
             ticker.waitRandom(
               this.data.lookableAsideTickerMin,
               this.data.lookableAsideTickerMax
