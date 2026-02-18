@@ -1,7 +1,7 @@
 /** @typedef {import("socket.io-client") io} */
 /** @typedef {import("socket.io-client").Socket} Socket */
 
-import { throttleLeadingAndTrailing } from "../utils/helpers.js";
+import { throttleLeadingAndTrailing, clamp } from "../utils/helpers.js";
 
 /** @type {io} */
 const ioClient = window.io;
@@ -616,6 +616,7 @@ class UnoQ {
     if (!this.isConnected) {
       return;
     }
+    angle = this.#sanitizeAngle(type, index, angle);
     // console.log({ type, index, angle });
     const promise = this.waitForEvent("angles");
     this.#socket.emit("setAngle", { type, index, angle });
@@ -645,12 +646,33 @@ class UnoQ {
     }
     await this.#throttledSetAngleFunctions[key](type, index, angle);
   }
+  /**
+   *
+   * @param {AngleType} type
+   * @param {number} index
+   * @param {number} angle
+   */
+  #sanitizeAngle(type, index, angle) {
+    switch (type) {
+      case "servo":
+        angle = clamp(angle, 0, 160);
+        break;
+      case "stepper":
+        break;
+    }
+    return angle;
+  }
   /** @param {Angles} angles */
   async setAngles(angles) {
     if (!this.isConnected) {
       return;
     }
     const promise = this.waitForEvent("angles");
+    Object.entries(angles).forEach(([type, angles]) => {
+      angles.forEach((angle, index) => {
+        angles[index] = this.#sanitizeAngle(type, index, angle);
+      });
+    });
     this.#socket.emit("setAngles", angles);
     await promise;
   }

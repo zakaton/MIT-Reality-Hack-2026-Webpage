@@ -1,6 +1,7 @@
 <html>
   <head>
     <title>Power Pet</title>
+    <script src="./src/utils/gamepad.js"></script>
     <script src="./src/aframe/aframe-master.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.6.1/dist/aframe-extras.min.js"></script>
     <script src="../src/utils/canvasInput.js"></script>
@@ -424,6 +425,7 @@
             data-input
           ></canvas>
         </label>
+        <button id="lockPointer">lock pointer</button>
         <template id="angleTemplate">
           <div class="angle">
             <label>

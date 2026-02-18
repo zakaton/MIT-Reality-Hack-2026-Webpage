@@ -50,3 +50,16 @@ export function throttleLeadingAndTrailing(
     }
   };
 }
+
+/**
+ * https://github.com/mrdoob/three.js/blob/master/src/math/MathUtils.js#L35C1-L47C2
+ * Clamps the given value between min and max.
+ *
+ * @param {number} value - The value to clamp.
+ * @param {number} min - The min value.
+ * @param {number} max - The max value.
+ * @return {number} The clamped value.
+ */
+export function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}

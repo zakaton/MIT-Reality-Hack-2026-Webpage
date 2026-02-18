@@ -1,5 +1,6 @@
 // UNO Q START
 import UnoQ from "./uno-q/UnoQ.js";
+import { throttleLeadingAndTrailing } from "./utils/helpers.js";
 const unoQ = new UnoQ();
 window.unoQ = unoQ;
 
@@ -110,9 +111,22 @@ const updateAngles = (newAngles) => {
 };
 unoQ.onAngles((event) => updateAngles(event.detail.angles));
 
-/** @param {Angles} newAngles */
-const setAngles = (newAngles) => {
-  // console.log("setAngles", newAngles);
+/**
+ *
+ * @param {Angles} newAngles
+ * @param {boolean} isOffset
+ */
+const setAngles = (newAngles, isOffset) => {
+  // console.log("setAngles", newAngles, { isOffset });
+  if (isOffset) {
+    const newAngleOffsets = newAngles;
+    newAngles = structuredClone(angles);
+    for (let type in newAngleOffsets) {
+      newAngleOffsets[type].forEach((angle, index) => {
+        newAngles[type][index] = Math.round(newAngles[type][index] + angle);
+      });
+    }
+  }
   if (unoQ.isConnected) {
     unoQ.setAngles(newAngles);
   } else {
@@ -144,7 +158,7 @@ const setAngle = (type, index, angle, isOffset = false) => {
  * @param {number} index
  */
 const tareAngle = (type, index) => {
-  console.log("tareAngle", { type, index });
+  //console.log("tareAngle", { type, index });
   if (unoQ.isConnected) {
     unoQ.tareAngle(type, index);
   } else {
@@ -263,3 +277,126 @@ anglesCanvasInput.addEventListener("input", (event) => {
   });
 });
 // CANVAS INPUT END
+
+// POINTER LOCK START
+const lockPointerButton = document.getElementById("lockPointer");
+lockPointerButton.addEventListener("click", async () => {
+  if (isPointerLocked) {
+    return;
+  }
+  lockPointerButton.requestPointerLock();
+});
+const lockPointerScalars = {
+  stepper: 3,
+  servo0: 2,
+};
+lockPointerButton.addEventListener("mousemove", (event) => {
+  if (!isPointerLocked) {
+    return;
+  }
+  const { movementX, movementY } = event;
+  // console.log({ movementX, movementY });
+  const servo0Angle = movementY * lockPointerScalars.servo0;
+  const stepperAngle = movementX * lockPointerScalars.stepper;
+  // console.log({ stepperAngle, servo0Angle });
+  setAngles(
+    {
+      servo: [servo0Angle],
+      stepper: [stepperAngle],
+    },
+    true
+  );
+});
+
+let isPointerLocked = false;
+const setIsPointerLocked = (newIsPointerLocked) => {
+  isPointerLocked = newIsPointerLocked;
+  //console.log({ isPointerLocked });
+  lockPointerButton.innerText = isPointerLocked
+    ? "pointer locked"
+    : "lock pointer";
+};
+document.addEventListener("pointerlockchange", () => {
+  if (document.pointerLockElement === lockPointerButton) {
+    setIsPointerLocked(true);
+  } else {
+    setIsPointerLocked(false);
+  }
+});
+// POINTER LOCK END
+
+// GAMEPAD START
+const gamepadScalars = {
+  stepper: -6,
+  servo0: -5,
+  servo1: -5,
+};
+
+/** @type {Angles} */
+const gamepadAngleOffsets = {
+  servo: [],
+  stepper: [],
+};
+let onGamepadTick = (event) => {
+  const { gamepadIndex, gamepad, timestamp, axes, thumbsticks } = event.detail;
+  thumbsticks.forEach((thumbstick, index) => {
+    const { x, y } = thumbstick;
+    switch (index) {
+      case 0: // left thumbstick
+        {
+          const servo1Angle = Math.round(y * gamepadScalars.servo1);
+          gamepadAngleOffsets.servo[1] = servo1Angle;
+          //console.log({ servo1Angle });
+        }
+        break;
+      case 1: // right thumbstick
+        {
+          const stepperAngle = Math.round(x * gamepadScalars.stepper);
+          gamepadAngleOffsets.stepper[0] = stepperAngle;
+          const servo0Angle = Math.round(y * gamepadScalars.servo0);
+          gamepadAngleOffsets.servo[0] = servo0Angle;
+          //console.log({ stepperAngle, servo0Angle });
+        }
+        break;
+    }
+  });
+
+  const shouldSetAngles = Object.keys(gamepadAngleOffsets).some((type) => {
+    return gamepadAngleOffsets[type].some((angle) => angle != 0);
+  });
+
+  // console.log({ shouldSetAngles });
+  if (shouldSetAngles) {
+    setAngles(gamepadAngleOffsets, true);
+  }
+};
+onGamepadTick = throttleLeadingAndTrailing(onGamepadTick, 50);
+window.addEventListener("gamepadtick", onGamepadTick);
+
+window.addEventListener("gamepadthumbstickchange", (event) => {
+  const { thumbstickChange, gamepad } = event.detail;
+  //console.log("thumbstickChange", thumbstickChange);
+});
+window.addEventListener("gamepadbuttonchange", (event) => {
+  const { buttonChange } = event.detail;
+  //console.log("buttonChange", buttonChange);
+  const { index, pressed } = buttonChange;
+
+  switch (index) {
+    case 5: // right bumper
+      if (pressed) {
+        tareAngle("stepper", 0);
+      }
+      break;
+  }
+});
+window.addEventListener("gamepadaxischange", (event) => {
+  const { axisChange } = event.detail;
+  //console.log("axisChange", axisChange);
+});
+
+// GAMEPAD END
+
+// MIDI START
+// FILL
+// MIDI END
