@@ -1,0 +1,477 @@
+<html>
+  <head>
+    <title>Debug | Power Pet</title>
+    <script src="../src/aframe/aframe-master.min.js"></script>
+    <script src="../src/aframe/Ticker.js"></script>
+    <script src="../src/aframe/poster.js"></script>
+    <script src="../src/aframe/occlude-hand-tracking-controls.js"></script>
+    <script src="../src/aframe/grabbable-listener.js"></script>
+    <script src="../src/aframe/grabbable-anchor.js"></script>
+    <script src="../src/aframe/power-pet.js"></script>
+    <script src="../src/aframe/recenter-listener.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.6.1/dist/aframe-extras.min.js"></script>
+    <script src="./src/script.js" type="module"></script>
+
+    <script src="../src/utils/canvasInput.js"></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.3/gh-fork-ribbon.min.css"
+    />
+  </head>
+  <style>
+    .github-fork-ribbon:before {
+      background-color: #333;
+    }
+
+    #container {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    #sceneContainer {
+      display: grid;
+      aspect-ratio: 1.3;
+      height: 500px;
+    }
+    #sceneContainer > * {
+      width: 100%;
+      height: 100%;
+      grid-area: 1 / 1;
+    }
+    .aframe-inspector-opened a-scene,
+    .aframe-inspector-opened a-scene canvas {
+      position: fixed !important;
+      top: 0;
+      left: 0;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 9999;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: baseline;
+    }
+    .containers {
+      display: flex;
+      flex-direction: column;
+    }
+    .hidden {
+      display: none !important;
+    }
+  </style>
+  <body>
+    <a
+      class="github-fork-ribbon"
+      href="https://github.com/zakaton/MIT-Reality-Hack-2026-Webpage"
+      data-ribbon="View on GitHub"
+      title="View on GitHub"
+      target="_blank"
+      >View on GitHub</a
+    >
+
+    <nav>
+      <a href="/">home</a>
+    </nav>
+    <h1>Debug | Power Pet</h1>
+    <div id="container">
+      <div id="sceneContainer">
+        <img id="sceneBackgroundImage" />
+        <video id="sceneBackgroundVideo"></video>
+        <video id="sceneBackgroundWebcam"></video>
+        <a-scene
+          obb-collider="showColliders: false;"
+          id="scene"
+          embedded
+          power-pet="models: #dogModel,#jimmyModel,#mouthModel"
+          xr-mode-ui="XRMode: ar"
+          light="defaultLightsEnabled: true;"
+          grabbable-listener
+          device-orientation-permission-ui="enabled: false"
+          pool__purrsound="mixin: purrSoundMixin; size: 2; dynamic: true;"
+          pool__purrsoundfadeout="mixin: purrFadeOutSoundMixin; size: 2; dynamic: true;"
+          real-world-meshing="meshMixin: realWorldMeshMixin; meshesEnabled: false; planeMixin: realWorldPlaneMixin; planesEnabled: true; filterLabels: floor, table, wall, ceiling, desk, storage, other, plant, screen, lamp, couch, bed, screen;"
+        >
+          <a-assets>
+            <a-asset-item
+              id="anchorModel"
+              src="../assets/3d/anchor.glb"
+            ></a-asset-item>
+            <a-asset-item
+              id="dogModel"
+              src="../assets/3d/pets/dog.glb"
+            ></a-asset-item>
+            <a-asset-item
+              id="mouthModel"
+              src="../assets/3d/pets/mouth.glb"
+            ></a-asset-item>
+            <a-asset-item
+              id="jimmyModel"
+              src="../assets/3d/pets/jimmy.glb"
+            ></a-asset-item>
+
+            <audio
+              id="purrAudio"
+              src="../assets/audio/purr.wav"
+              preload="auto"
+            ></audio>
+            <a-mixin
+              id="purrSoundMixin"
+              sound="src: #purrAudio; loop: true;"
+            ></a-mixin>
+
+            <audio
+              id="purrFadeOutAudio"
+              src="../assets/audio/purrFadeOut.wav"
+              preload="auto"
+            ></audio>
+            <a-mixin
+              id="purrFadeOutSoundMixin"
+              sound="src: #purrFadeOutAudio;"
+            ></a-mixin>
+
+            <img id="btsImage" src="../assets/images/bts.webp" />
+            <img id="btsLogoImage" src="../assets/images/btsLogo.webp" />
+          </a-assets>
+
+          <a-mixin
+            id="realWorldPlaneMixin"
+            visible="false"
+            class="surface"
+          ></a-mixin>
+          <a-mixin
+            id="realWorldMeshMixin"
+            visible="false"
+            class="surface"
+          ></a-mixin>
+
+          <!-- <a-light type="ambient"></a-light> -->
+
+          <a-camera
+            id="camera"
+            power-pet-lookable
+            look-controls="enabled: true; magicWindowTrackingEnabled: false;"
+            wasd-controls="enabled: true; acceleration: 1;"
+            position="0 1.2 0"
+          ></a-camera>
+
+          <a-image
+            visible="false"
+            poster
+            id="btsPoster"
+            src="#btsLogoImage"
+            position="0 1.2 -0.5"
+            height="1"
+            width="1.77777"
+            scale="0.4 0.4 0.4"
+            rotation="0 0 0"
+          >
+            <a-entity
+              power-pet-lookable
+              position="-0.103 -0.229 0.000"
+              visible="false"
+            >
+              <a-sphere color="red" radius="0.05"></a-sphere>
+            </a-entity>
+            <a-entity
+              power-pet-lookable
+              position="0.210 -0.226 0.000"
+              visible="false"
+            >
+              <a-sphere color="red" radius="0.05"></a-sphere>
+            </a-entity>
+            <a-entity
+              power-pet-lookable
+              position="0.539 -0.219 0.000"
+              visible="false"
+            >
+              <a-sphere color="red" radius="0.05"></a-sphere>
+            </a-entity>
+            <a-entity
+              power-pet-lookable
+              position="0.578 0.099 0.000"
+              visible="false"
+            >
+              <a-sphere color="red" radius="0.05"></a-sphere>
+            </a-entity>
+            <a-entity
+              power-pet-lookable
+              position="0.224 0.038 0.000"
+              visible="false"
+            >
+              <a-sphere color="red" radius="0.05"></a-sphere>
+            </a-entity>
+            <a-entity
+              power-pet-lookable
+              position="-0.074 0.037 0.000"
+              visible="false"
+            >
+              <a-sphere color="red" radius="0.05"></a-sphere>
+            </a-entity>
+            <a-entity
+              power-pet-lookable
+              position="0.027 0.264 0.000"
+              visible="false"
+            >
+              <a-sphere color="red" radius="0.05"></a-sphere>
+            </a-entity>
+            <a-entity
+              power-pet-lookable
+              position="-0.485 0.316 0.000"
+              visible="false"
+            >
+              <a-sphere color="red" radius="0.05"></a-sphere>
+            </a-entity>
+          </a-image>
+
+          <a-entity
+            id="powerPet"
+            power-pet="showSquashCollider: false; showSquashCenter: false; showSquashControlPoint: false; showLookAt: false; showLookAtPupils: false; showModelBoundingBox: false; blinking: true;"
+            position="0 1.1 -0.4"
+            rotation="0 180 0"
+          ></a-entity>
+
+          <a-box
+            id="colliderTest"
+            obb-collider
+            anchorable
+            position="0.15 1.2 -0.4"
+            scale="0.05 0.05 0.05"
+          ></a-box>
+
+          <a-box
+            visible="false"
+            id="lookableTest"
+            power-pet-lookable_
+            position="-0.2 1.2 -0.2"
+            scale="0.05 0.05 0.05"
+          ></a-box>
+
+          <a-entity
+            id="anchor"
+            anchored="persistent: true"
+            position="0.2 1 -0.3"
+            grabbable
+            grabbable-anchor
+            visible="false"
+          >
+            <a-entity gltf-model="#anchorModel"></a-entity>
+          </a-entity>
+
+          <a-entity
+            id="leftController"
+            meta-touch-controls="hand: left"
+            laser-controls="hand: left"
+            raycaster="objects: [data-world-mesh]; far: 5"
+          >
+            <a-entity
+              position="0.006 0 -0.02"
+              obb-collider="size: 0.06"
+              power-pet-lookable
+            ></a-entity>
+          </a-entity>
+          <a-entity
+            id="rightController"
+            meta-touch-controls="hand: right"
+            laser-controls="hand: right"
+            raycaster="objects: [data-world-mesh]; far: 5"
+          >
+            <a-entity
+              position="-0.006 0 -0.02"
+              obb-collider="size: 0.06"
+              power-pet-lookable
+            ></a-entity>
+          </a-entity>
+
+          <a-entity
+            id="leftHand"
+            hand-tracking-grab-controls="hand: left;"
+            occlude-hand-tracking-controls
+          ></a-entity>
+          <a-entity
+            id="rightHand"
+            hand-tracking-grab-controls="hand: right;"
+            occlude-hand-tracking-controls
+          ></a-entity>
+
+          <a-sky color="#ECECEC" hide-on-enter-ar></a-sky>
+        </a-scene>
+      </div>
+      <div id="pupilOffsets" class="hidden container">
+        <h2>Pupil Offsets</h2>
+        <template>
+          <label class="pupilOffset">
+            <span class="path"></span>
+            <canvas
+              class="input"
+              width="100"
+              height="100"
+              data-input
+              value="0"
+              data-min-x="0.5"
+              data-min-y="-0.5"
+              data-max-x="-0.5"
+              data-max-y="0.5"
+            ></canvas>
+          </label>
+        </template>
+      </div>
+      <div id="pupilScales" class="hidden">
+        <h2>Pupil Scales</h2>
+        <template>
+          <label class="pupilScale">
+            <span class="path"></span>
+            <canvas
+              class="input"
+              width="100"
+              height="100"
+              data-input
+              data-min="-2"
+              data-max="2"
+              value="1"
+            ></canvas>
+          </label>
+        </template>
+      </div>
+      <div id="pupilRotations" class="hidden">
+        <h2>Pupil Rotations</h2>
+        <template>
+          <label class="pupilRotation">
+            <span class="path"></span>
+            <input type="range" min="-180" max="180" class="input" value="0" />
+          </label>
+        </template>
+      </div>
+      <div id="options" class="container">
+        <h2>Options</h2>
+        <button id="openInspector">open inspector</button>
+        <label>
+          load model
+          <input
+            type="file"
+            id="modelFile"
+            accept=".glb,.gltf"
+            multiple="true"
+            style="width: 8rem"
+        /></label>
+        <label>
+          model
+          <select id="powerPetModel">
+            <optgroup label="select model"></optgroup>
+          </select>
+        </label>
+        <label>
+          show model bounding box
+          <input type="checkbox" id="showModelBoundingBox" />
+        </label>
+      </div>
+      <div id="variants" class="hidden">
+        <h2>Variants</h2>
+        <template id="variantTemplate">
+          <label class="variant">
+            <span class="path"></span>
+            <select class="input">
+              <optgroup label="select variant"></optgroup>
+            </select>
+          </label>
+        </template>
+      </div>
+      <div id="squashContainer" class="container">
+        <h2>Squash</h2>
+        <label>
+          squash
+          <input
+            type="range"
+            id="squash"
+            min="0"
+            max="1"
+            step="0.01"
+            value="1"
+          />
+        </label>
+        <label>
+          tilt
+          <canvas id="tilt" width="100" height="100" data-input></canvas>
+        </label>
+        <label>
+          show squash center
+          <input type="checkbox" id="showSquashCenter" />
+        </label>
+        <label>
+          squash center y
+          <input
+            type="range"
+            id="squashCenterY"
+            min="-0.1"
+            max="0.1"
+            step="0.01"
+          />
+        </label>
+        <label>
+          show squash control point
+          <input type="checkbox" id="showSquashControlPoint" />
+        </label>
+
+        <label>
+          show squash collider
+          <input type="checkbox" id="showSquashCollider" />
+        </label>
+        <label>
+          squash collider y
+          <input
+            type="range"
+            id="squashColliderCenterY"
+            min="-0.1"
+            max="0.1"
+            step="0.01"
+            value="0"
+          />
+        </label>
+
+        <label>
+          turn
+          <input
+            type="range"
+            id="turn"
+            min="-180"
+            max="180"
+            step="1"
+            value="0"
+          />
+        </label>
+      </div>
+      <div id="eye" class="container">
+        <h2>Eye</h2>
+        <label>
+          look around
+          <input type="checkbox" id="lookAround" />
+        </label>
+        <label>
+          blinking
+          <input type="checkbox" id="blinking" />
+        </label>
+        <label>
+          show look at
+          <input type="checkbox" id="showLookAt" />
+        </label>
+        <label>
+          show look at pupils
+          <input type="checkbox" id="showLookAtPupils" />
+        </label>
+      </div>
+      <div id="closedEyes" class="hidden container">
+        <h2>Closed Eyes</h2>
+        <template>
+          <label class="closedEye">
+            <span class="path"></span>
+            <input type="checkbox" class="input" />
+          </label>
+        </template>
+      </div>
+    </div>
+  </body>
+</html>
