@@ -5,7 +5,7 @@
   AFRAME.registerSystem("robot-touch-controls", {
     schema: {
       hand: { oneOf: ["left", "right"], default: "right" },
-      target: { type: "selector", default: "#robot" },
+      robot: { type: "selector", default: "#robot" },
       active: { type: "boolean", default: false },
     },
 
@@ -31,7 +31,7 @@
             break;
           case "hand":
             break;
-          case "target":
+          case "robot":
             break;
           default:
             console.warn(`uncaught diffKey "${diffKey}"`);
@@ -83,13 +83,19 @@
     },
 
     init: function () {
+      // this._tickController = AFRAME.utils.throttleTick(
+      //   this._tickController,
+      //   50,
+      //   this
+      // );
+
       this.touchControls = this.el.components["meta-touch-controls"];
       const { hand } = this.touchControls.data;
       this.hand = hand;
       this.isDominantHand = this.getIsDominantHand();
 
-      this.targetEntity = this.system.data.target;
-      this.targetEntity.object3D.rotation.order = "YXZ";
+      this.robotEntity = this.system.data.robot;
+      this.robotEntity.object3D.rotation.order = "YXZ";
 
       this._initVr();
 
@@ -133,19 +139,17 @@
     },
 
     _tickController: function (time, timeDelta) {
-      if (!this.targetEntity) {
+      if (!this.robotEntity) {
         return;
       }
-      if (!this.system.isActive) {
-        return;
-      }
-      const { x, y } = this.thumbstick;
+      const isActive = this.getIsActive();
+      let { x, y } = this.thumbstick;
       if (x == 0 && y == 0) {
         return;
       }
       // console.log({ x, y });
 
-      const { object3D } = this.targetEntity;
+      const { object3D } = this.robotEntity;
       if (object3D.rotation.order != "YXZ") {
         object3D.rotation.reorder("YXZ");
       }
@@ -154,27 +158,60 @@
 
       const isXDominant = Math.abs(x) > Math.abs(y);
       const scalars = this._thumbstickMovedScalars;
-      if (this.isDominantHand) {
-        if (isXDominant) {
-          const yawOffset = x * scalars.yaw * timeDeltaScaler;
-          // console.log({ yawOffset });
-          object3D.rotation.y += yawOffset;
+
+      x *= timeDeltaScaler;
+      y *= timeDeltaScaler;
+
+      if (isActive) {
+        if (this.isDominantHand) {
+          if (isXDominant) {
+            const yawOffset = x * scalars.yaw;
+            // console.log({ yawOffset });
+            object3D.rotation.y += yawOffset;
+          } else {
+            const pitchOffset = y * scalars.pitch;
+            // console.log({ pitchOffset });
+            object3D.rotation.x += pitchOffset;
+          }
         } else {
-          const pitchOffset = y * scalars.pitch * timeDeltaScaler;
-          // console.log({ pitchOffset });
-          object3D.rotation.x += pitchOffset;
+          if (isXDominant) {
+            const rollOffset = x * scalars.roll;
+            // console.log({ rollOffset });
+            object3D.rotation.z += rollOffset;
+          } else {
+            const yOffset = y * scalars.y;
+            // console.log({ yOffset });
+            object3D.position.y += yOffset;
+          }
         }
       } else {
-        if (isXDominant) {
-          const rollOffset = x * scalars.roll * timeDeltaScaler;
-          // console.log({ rollOffset });
-          object3D.rotation.z += rollOffset;
+        //console.log({ isXDominant, x, y });
+        if (this.isDominantHand) {
+          if (isXDominant) {
+            const stepper0Angle = x * scalars.stepper;
+            this._setAngle("stepper", 0, stepper0Angle, true);
+          } else {
+            const servo0Angle = y * scalars.servo0;
+            this._setAngle("servo", 0, servo0Angle, true);
+          }
+          //console.log({ stepper0Angle, servo0Angle });
         } else {
-          const yOffset = y * scalars.y * timeDeltaScaler;
-          // console.log({ yOffset });
-          object3D.position.y += yOffset;
+          if (isXDominant) {
+          } else {
+            const servo1Angle = y * scalars.servo1;
+            this._setAngle("servo", 1, servo1Angle, true);
+            //console.log({ servo1Angle });
+          }
         }
       }
+    },
+    _setAngle: function (type, index, angle, isOffset) {
+      this.robotEntity.emit("robot-angle", {
+        type,
+        index,
+        angle,
+        isOffset,
+      });
     },
 
     // RAYCASTER START
@@ -290,6 +327,9 @@
       pitch: 0.5,
       roll: -0.5,
       y: -0.05,
+      servo0: 400,
+      servo1: 800,
+      stepper: -800,
     },
     onThumbstickMoved: function (event) {
       const { x, y } = event.detail;
@@ -300,10 +340,10 @@
     onLowerButton: function (event) {
       if (this.isDominantHand) {
         if (this.system.isActive) {
-          this.updateTargetPosition();
+          this.updateRobotPosition();
         }
       } else {
-        this.targetEntity.emit("robot-tare-angle", {
+        this.robotEntity.emit("robot-tare-angle", {
           type: "stepper",
           index: 0,
         });
@@ -313,7 +353,7 @@
       if (this.isDominantHand) {
         this.system.toggleIsActive();
       } else {
-        this.targetEntity.components["robot"].toggleShowDebug();
+        this.getRobotComponent().toggleShowDebug();
       }
     },
     getIsActive: function () {
@@ -330,17 +370,20 @@
     },
     // CONTROLLER END
 
-    // TARGET START
-    updateTargetPosition: function () {
-      if (!this.targetEntity) {
+    // ROBOT START
+    updateRobotPosition: function () {
+      if (!this.robotEntity) {
         return;
       }
-      this.setTargetPosition(this.markerPosition);
+      this.setRobotPosition(this.markerPosition);
     },
-    setTargetPosition: function (position) {
-      this.targetEntity.object3D.position.copy(position);
+    setRobotPosition: function (position) {
+      this.robotEntity.object3D.position.copy(position);
     },
-    // TARGET END
+    getRobotComponent: function () {
+      return this.robotEntity.components["robot"];
+    },
+    // ROBOT END
 
     // LASER START
     _initLaser: function () {

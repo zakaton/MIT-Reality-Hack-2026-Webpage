@@ -146,9 +146,12 @@
         this.setAngle(type, index, angle);
       });
     },
-    setAngle: function (type, index, angle, dur = 0) {
+    setAngle: function (type, index, angle, isOffset = false, dur = 0) {
       if (!this._angles[type]?.[index]) {
         return;
+      }
+      if (isOffset) {
+        angle = Math.round(this._angles[type][index].angle + angle);
       }
       switch (type) {
         case "servo":
@@ -273,42 +276,6 @@
       this._flushToDOM();
     },
     // SCHEMA END
-
-    // SERVOS START
-    setServoAngle: function (index, angle, dur = 0) {
-      if (typeof index == "string" && index.startsWith(this._servoPrefix)) {
-        index = Number(index.replace(this._servoPrefix, ""));
-      }
-      if (!this._servos[index]) {
-        return;
-      }
-      angle = THREE.MathUtils.clamp(angle, 0, 160);
-      //console.log("setServoAngle", { index, angle });
-
-      const { entity, axis, sign, offset } = this._servos[index];
-
-      const entityAngle = (angle + offset) * sign;
-      const entityAngleRadians = THREE.MathUtils.degToRad(entityAngle);
-
-      if (dur > 0) {
-        // FILL
-      } else {
-        this._servos[index].angle = angle;
-
-        entity.object3D.rotation[axis] = entityAngleRadians;
-
-        const dataPath = this._servoPrefix + index;
-        if (dataPath in this.schema) {
-          this._updateData(dataPath, angle, false);
-          this.el.emit("robot-angle", {
-            type: "servo",
-            index,
-            angle,
-          });
-        }
-      }
-    },
-    // SERVOS END
 
     // DEBUG START
     _initDebug: function () {

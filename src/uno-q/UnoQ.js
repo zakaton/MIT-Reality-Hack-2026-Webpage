@@ -626,11 +626,16 @@ class UnoQ {
    * @param {AngleType} type
    * @param {number} index
    * @param {number} angle
+   * @param {boolean} isOffset
    */
-  async setAngle(type, index, angle) {
+  async setAngle(type, index, angle, isOffset) {
     if (this.angles[type]?.[index] == angle) {
       return;
     }
+    if (isOffset) {
+      angle = this.angles[type][index] + angle;
+    }
+    angle = Math.round(angle);
     const key = [type, index].join(".");
     if (!this.#throttledSetAngleFunctions[key]) {
       this.#throttledSetAngleFunctions[key] = throttleLeadingAndTrailing(

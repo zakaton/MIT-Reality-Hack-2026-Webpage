@@ -123,9 +123,13 @@ const setAngles = (newAngles) => {
  * @param {AngleType} type
  * @param {number} index
  * @param {number} angle
+ * @param {boolean} isOffset
  */
-const setAngle = (type, index, angle) => {
-  //console.log("setAngle", { type, index, angle });
+const setAngle = (type, index, angle, isOffset = false) => {
+  //console.log("setAngle", { type, index, angle, isOffset });
+  if (isOffset) {
+    angle = angles[type][index] + angle;
+  }
   if (unoQ.isConnected) {
     unoQ.setAngle(type, index, angle);
   } else {
@@ -235,13 +239,13 @@ const powerPetEntity = document.getElementById("powerPet");
 // ROBOT START
 const robotEntity = document.getElementById("robot");
 robotEntity.addEventListener("robot-angle", (event) => {
-  const { type, index, angle } = event.detail;
-  //console.log("robot-angle", { type, index, angle });
-  setAngle(type, index, angle);
+  const { type, index, angle, isOffset } = event.detail;
+  //console.log("robot-angle", { type, index, angle, isOffset });
+  setAngle(type, index, angle, isOffset);
 });
 robotEntity.addEventListener("robot-tare-angle", (event) => {
   const { type, index } = event.detail;
-  console.log("robot-tare-angle", { type, index });
+  //console.log("robot-tare-angle", { type, index });
   tareAngle(type, index);
 });
 // ROBOT END

@@ -203,7 +203,7 @@
       lookAtOffsetMin: { type: "vec2", default: { x: -0.03, y: -0.1 } },
       lookAtOffsetMax: { type: "vec2", default: { x: 0.03, y: 0.1 } },
 
-      lookableAngleMin: { type: "vec2", default: { x: -1, y: -0.5 } },
+      lookableAngleMin: { type: "vec2", default: { x: -1, y: -0.3 } },
       lookableAngleMax: { type: "vec2", default: { x: 1, y: 1 } },
 
       lookableDistanceMin: { type: "number", default: 0.05 },
