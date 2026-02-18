@@ -249,3 +249,17 @@ robotEntity.addEventListener("robot-tare-angle", (event) => {
   tareAngle(type, index);
 });
 // ROBOT END
+
+// CANVAS INPUT START
+const anglesCanvasInput = document.getElementById("anglesCanvasInput");
+anglesCanvasInput.addEventListener("input", (event) => {
+  const { x, y } = event.target.value;
+  // console.log({ x, y });
+  const stepperAngle = x;
+  const servoAngle = y;
+  setAngles({
+    servo: [servoAngle],
+    stepper: [stepperAngle],
+  });
+});
+// CANVAS INPUT END

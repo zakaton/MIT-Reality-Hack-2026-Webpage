@@ -83,16 +83,18 @@
     },
 
     init: function () {
-      // this._tickController = AFRAME.utils.throttleTick(
-      //   this._tickController,
-      //   50,
-      //   this
-      // );
-
       this.touchControls = this.el.components["meta-touch-controls"];
       const { hand } = this.touchControls.data;
       this.hand = hand;
       this.isDominantHand = this.getIsDominantHand();
+
+      this.textContainer = this.el.querySelector(".text");
+      this.textEntity = this.textContainer.querySelector("a-text");
+      this.textBackgroundEntity =
+        this.textContainer.querySelector(".background");
+      this.textContainer.object3D.position.z = -0.05;
+      this.textContainer.object3D.position.x =
+        this.hand == "left" ? -0.05 : 0.05;
 
       this.robotEntity = this.system.data.robot;
       this.robotEntity.object3D.rotation.order = "YXZ";
@@ -107,11 +109,71 @@
         this.system.controller = this;
       }
 
+      this.robotEntity.addEventListener("componentinitialized", (event) => {
+        if (event.detail.name == "robot") {
+          this._updateText();
+        }
+      });
+      this._updateText();
+
       this.system._add(this);
     },
     remove: function () {
       this._removeMarker();
       this.system._remove(this);
+    },
+
+    _setTextVisible: function (textVisible) {
+      this.textContainer.object3D.visible = textVisible;
+    },
+    _updateText: function () {
+      let strings = [];
+      if (this.hand == "right") {
+        strings.push("B: ", "A: ");
+      } else {
+        strings.push("Y: ", "X: ");
+      }
+      strings.push("left/right: ");
+      strings.push("up/down: ");
+      const isActive = this.getIsActive();
+
+      const robotComponent = this.getRobotComponent();
+
+      if (this.isDominantHand) {
+        strings[0] += !isActive ? "move marker" : "teleoperate";
+        if (isActive) {
+          strings[1] += "set position";
+        } else {
+          strings[1] = "";
+        }
+        if (isActive) {
+          strings[2] += "yaw";
+          strings[3] += "pitch";
+        } else {
+          strings[2] += "yaw";
+          strings[3] += "pitch";
+        }
+      } else {
+        const showDebug = robotComponent?.data?.showDebug ?? false;
+        strings[0] += showDebug ? "hide debug" : "show debug";
+        strings[1] += "tare yaw";
+
+        if (isActive) {
+          strings[2] += "roll";
+          strings[3] += "height";
+        } else {
+          strings[2] = "";
+          strings[3] += "head pitch";
+        }
+      }
+      strings = strings.filter(Boolean);
+      const string = strings.join("\n");
+      // console.log(
+      //   "updateText",
+      //   { hand: this.hand, isActive, isDominantHand: this.isDominantHand },
+      //   strings
+      // );
+      this.textEntity.setAttribute("value", string);
     },
 
     // VR START
@@ -297,11 +359,14 @@
         this.onThumbstickMoved.bind(this)
       );
     },
+
     onControllerConnected: function (event) {
       // console.log(event);
+      this._setTextVisible(true);
     },
     onControllerDisconnected: function (event) {
       // console.log(event);
+      this._setTextVisible(false);
     },
     onControllerModelReady: function (event) {
       // console.log(event);
@@ -336,7 +401,14 @@
       Object.assign(this.thumbstick, { x, y });
       // console.log("onThumbstickMoved", this.thumbstick);
     },
-
+    onUpperButton: function (event) {
+      if (this.isDominantHand) {
+        this.system.toggleIsActive();
+      } else {
+        this.getRobotComponent().toggleShowDebug();
+        this._updateText();
+      }
+    },
     onLowerButton: function (event) {
       if (this.isDominantHand) {
         if (this.system.isActive) {
@@ -347,13 +419,6 @@
           type: "stepper",
           index: 0,
         });
-      }
-    },
-    onUpperButton: function (event) {
-      if (this.isDominantHand) {
-        this.system.toggleIsActive();
-      } else {
-        this.getRobotComponent().toggleShowDebug();
       }
     },
     getIsActive: function () {
@@ -367,6 +432,7 @@
         this.setRaycasterVisible(isActive);
         this.setRaycasterEnabled(isActive);
       }
+      this._updateText();
     },
     // CONTROLLER END
 

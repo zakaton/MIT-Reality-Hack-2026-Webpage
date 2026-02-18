@@ -216,7 +216,8 @@
             wasd-controls="enabled: true; acceleration: 1;"
             position="0 1.2 0"
             power-pet-lookable
-          ></a-camera>
+          >
+          </a-camera>
 
           <a-entity
             id="robot"
@@ -331,6 +332,21 @@
               position="0.006 0 -0.02"
               obb-collider="size: 0.06"
             ></a-entity>
+            <a-entity class="text" scale="0.1 0.1 0.1" rotation="-110 0 0">
+              <a-text
+                value=""
+                align="right"
+                baseline="top"
+                color="black"
+              ></a-text>
+              <a-plane
+                color="white"
+                opacity="0.7"
+                position="-1.005 -0.450 -0.01"
+                width="2"
+                height="1"
+              ></a-plane>
+            </a-entity>
           </a-entity>
 
           <a-entity
@@ -343,6 +359,21 @@
               position="-0.006 0 -0.02"
               obb-collider="size: 0.06"
             ></a-entity>
+            <a-entity class="text" scale="0.1 0.1 0.1" rotation="-110 0 0">
+              <a-text
+                value=""
+                align="left"
+                baseline="top"
+                color="black"
+              ></a-text>
+              <a-plane
+                color="white"
+                opacity="0.7"
+                position="1.005 -0.450 -0.01"
+                width="2"
+                height="1"
+              ></a-plane>
+            </a-entity>
           </a-entity>
 
           <a-entity
@@ -381,6 +412,18 @@
       </div>
       <div id="anglesContainer" class="container">
         <h2>Angles</h2>
+        <label>
+          <canvas
+            id="anglesCanvasInput"
+            width="100"
+            height="100"
+            data-min-x="-180"
+            data-max-x="180"
+            data-min-y="160"
+            data-max-y="0"
+            data-input
+          ></canvas>
+        </label>
         <template id="angleTemplate">
           <div class="angle">
             <label>
