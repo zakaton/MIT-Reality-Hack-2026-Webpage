@@ -394,9 +394,64 @@ window.addEventListener("gamepadaxischange", (event) => {
   const { axisChange } = event.detail;
   //console.log("axisChange", axisChange);
 });
-
 // GAMEPAD END
 
 // MIDI START
-// FILL
+/** @typedef {import("webmidi").WebMidi} WebMidi */
+/** @typedef {import("webmidi").InputEventMap} InputEventMap */
+
+/** @type {WebMidi} */
+const WebMidi = window.WebMidi;
+WebMidi.octaveOffset = 0;
+
+/** @type {InputEventMap["noteon"]} */
+const onWebMidiNoteOn = (event) => {
+  const { value, note, message } = event;
+  const { channel } = message;
+  //console.log({ value, note, channel });
+  if (channel == 10) {
+    switch (note.number) {
+      case 43: // PAD 8
+        tareAngle("stepper", 0);
+        break;
+    }
+  }
+};
+/** @type {InputEventMap["noteoff"]} */
+const onWebMidiNoteOff = (event) => {
+  const { value, note } = event;
+  //console.log({ value, note });
+};
+/** @type {InputEventMap["controlchange"]} */
+const onWebMidiControlChange = (event) => {
+  const { controller, value } = event;
+  const { number } = controller;
+
+  const _value = value;
+  // console.log({ number, value, _value });
+
+  switch (number) {
+    case 70: // K1
+      setAngle("stepper", 0, THREE.MathUtils.lerp(0, -360, _value));
+      break;
+    case 71: // K2
+      setAngle("servo", 1, THREE.MathUtils.lerp(0, 160, _value));
+      break;
+    case 75: // K6
+      setAngle("servo", 0, THREE.MathUtils.lerp(0, 160, _value));
+      break;
+  }
+};
+
+try {
+  await WebMidi.enable();
+  WebMidi.inputs.forEach((webMidiInput) => {
+    webMidiInput.addListener("noteon", onWebMidiNoteOn);
+    webMidiInput.addListener("noteoff", onWebMidiNoteOff);
+    webMidiInput.addListener("controlchange", onWebMidiControlChange);
+  });
+} catch (error) {
+  console.error(error);
+}
+
 // MIDI END
