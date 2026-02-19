@@ -617,7 +617,7 @@ class UnoQ {
       return;
     }
     angle = this.#sanitizeAngle(type, index, angle);
-    // console.log({ type, index, angle });
+    //console.log({ type, index, angle });
     const promise = this.waitForEvent("angles");
     this.#socket.emit("setAngle", { type, index, angle });
     await promise;
@@ -653,6 +653,9 @@ class UnoQ {
    * @param {number} angle
    */
   #sanitizeAngle(type, index, angle) {
+    if (isNaN(angle)) {
+      return undefined;
+    }
     switch (type) {
       case "servo":
         angle = clamp(angle, 0, 160);
@@ -660,7 +663,7 @@ class UnoQ {
       case "stepper":
         break;
     }
-    return angle;
+    return Math.round(angle);
   }
   /** @param {Angles} angles */
   async setAngles(angles) {
@@ -673,6 +676,7 @@ class UnoQ {
         angles[index] = this.#sanitizeAngle(type, index, angle);
       });
     });
+    //console.log("setAngles", angles);
     this.#socket.emit("setAngles", angles);
     await promise;
   }

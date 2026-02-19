@@ -105,7 +105,9 @@ const updateAngles = (newAngles) => {
   Object.assign(angles, newAngles);
   //console.log("updateAngles", angles);
   forEachAngle((type, index, angle) => {
-    angleInputs[type][index].forEach((input) => (input.value = angle));
+    angleInputs[type][index].forEach(
+      (input) => (input.value = Math.round(angle))
+    );
     robotEntity.setAttribute("robot", `angle_${type}_${index}`, angle);
   });
 };
@@ -117,13 +119,13 @@ unoQ.onAngles((event) => updateAngles(event.detail.angles));
  * @param {boolean} isOffset
  */
 const setAngles = (newAngles, isOffset) => {
-  // console.log("setAngles", newAngles, { isOffset });
+  //console.log("setAngles", newAngles, { isOffset });
   if (isOffset) {
     const newAngleOffsets = newAngles;
     newAngles = structuredClone(angles);
     for (let type in newAngleOffsets) {
       newAngleOffsets[type].forEach((angle, index) => {
-        newAngles[type][index] = Math.round(newAngles[type][index] + angle);
+        newAngles[type][index] = newAngles[type][index] + angle;
       });
     }
   }
@@ -174,8 +176,12 @@ const angleTemplate = document.getElementById("angleTemplate");
 
 /** @param {(type: AngleType, index: number, angle: number) => void} callback */
 const forEachAngle = (callback) => {
-  Object.entries(angles).forEach(([type, angles]) => {
-    angles.forEach((angle, index) => {
+  Object.entries(angles).forEach(([type, typeAngles]) => {
+    typeAngles.forEach((angle, index) => {
+      // console.log(typeAngles, { type, index, angle });
+      if (isNaN(angle)) {
+        angle = typeAngles[index] = 0;
+      }
       callback(type, index, angle);
     });
   });
@@ -270,9 +276,9 @@ anglesCanvasInput.addEventListener("input", (event) => {
   const { x, y } = event.target.value;
   // console.log({ x, y });
   const stepperAngle = x;
-  const servoAngle = y;
+  const servo0Angle = y;
   setAngles({
-    servo: [servoAngle],
+    servo: [servo0Angle],
     stepper: [stepperAngle],
   });
 });
@@ -287,11 +293,33 @@ lockPointerButton.addEventListener("click", async () => {
   lockPointerButton.requestPointerLock();
 });
 const lockPointerScalars = {
-  stepper: 3,
-  servo0: 2,
+  stepper: 1,
+  servo0: 1,
 };
+let isPointerDown = false;
+const usePointerAsToggle = true;
+const setIsPointerDown = (newIsPointerDown) => {
+  isPointerDown = newIsPointerDown;
+  // console.log({ isPointerDown });
+};
+lockPointerButton.addEventListener("mousedown", () => {
+  if (usePointerAsToggle) {
+    setIsPointerDown(!isPointerDown);
+  } else {
+    setIsPointerDown(true);
+  }
+});
+lockPointerButton.addEventListener("mouseup", () => {
+  if (usePointerAsToggle) {
+  } else {
+    setIsPointerDown(false);
+  }
+});
 lockPointerButton.addEventListener("mousemove", (event) => {
   if (!isPointerLocked) {
+    return;
+  }
+  if (!isPointerDown) {
     return;
   }
   const { movementX, movementY } = event;
@@ -453,5 +481,167 @@ try {
 } catch (error) {
   console.error(error);
 }
-
 // MIDI END
+
+// BRILLIANT WEAR START
+import * as BS from "./brilliantwear/brilliantsole.module.min.js";
+window.BS = BS;
+
+const bsDevice = new BS.Device();
+window.bsDevice = bsDevice;
+bsDevice.addEventListener("gameRotation", (event) => {
+  const { gameRotation } = event.message;
+  // console.log("gameRotation", gameRotation);
+  onBrilliantWearOrientation(gameRotation);
+});
+bsDevice.addEventListener("rotation", (event) => {
+  const { rotation } = event.message;
+  // console.log("rotation", rotation);
+  onBrilliantWearOrientation(rotation);
+});
+
+const brilliantWearQuaternion = new THREE.Quaternion();
+const brilliantWearEuler = new THREE.Euler().reorder("YXZ");
+const brilliantWearTareEuler = new THREE.Euler().reorder("YXZ");
+/** @type {Angles} */
+const brilliantWearTareAngles = {
+  stepper: [],
+  servo: [],
+};
+
+let brilliantWearYawRevolutions = 0;
+let brilliantWearLastYaw = 0;
+bsDevice.addEventListener("connected", () => {
+  brilliantWearYawRevolutions = 0;
+  brilliantWearLastYaw = null;
+});
+
+const tareBrilliantWearOrientation = () => {
+  brilliantWearTareEuler.copy(brilliantWearEuler);
+
+  Object.assign(brilliantWearTareAngles, structuredClone(angles));
+  console.log("tareBrilliantWearOrientation", brilliantWearTareAngles);
+
+  brilliantWearYawRevolutions = 0;
+};
+tareBrilliantWearOrientation();
+
+const brilliantWearServoIndex = 0;
+
+/** @param {BS.Quaternion} quaternion */
+const onBrilliantWearOrientation = (quaternion) => {
+  brilliantWearQuaternion.copy(quaternion);
+  brilliantWearEuler.setFromQuaternion(brilliantWearQuaternion);
+  if (
+    brilliantWearLastYaw != null &&
+    Math.abs(brilliantWearLastYaw - brilliantWearEuler.y) > Math.PI
+  ) {
+    brilliantWearYawRevolutions +=
+      brilliantWearLastYaw > brilliantWearEuler.y ? 1 : -1;
+    console.log({ brilliantWearYawRevolutions });
+  }
+  brilliantWearLastYaw = brilliantWearEuler.y;
+  if (tareBrilliantWearOrientationCheckbox.checked) {
+    tareBrilliantWearOrientationCheckbox.checked = false;
+    tareBrilliantWearOrientation();
+  }
+
+  let yawRadians = brilliantWearEuler.y;
+  yawRadians -= brilliantWearTareEuler.y;
+  let pitchRadians = brilliantWearEuler.x;
+  //pitchRadians -= brilliantWearTareEuler.x;
+  //console.log({ yawRadians, pitchRadians });
+
+  if (bsDevice.isInsole) {
+    // FILL
+  }
+
+  if (bsDevice.isGlasses) {
+    if (invertIfGlassesCheckbox.checked) {
+      pitchRadians *= -1;
+      // FILL
+    }
+  }
+
+  let yaw = THREE.MathUtils.radToDeg(yawRadians);
+  yaw += brilliantWearTareAngles.stepper[0];
+  let pitch = THREE.MathUtils.radToDeg(pitchRadians);
+  pitch *= -1;
+  if (brilliantWearServoIndex == 0) {
+    pitch += 77;
+  } else {
+    pitch += 73;
+  }
+  //pitch -= brilliantWearTareAngles.servo[0];
+
+  yaw += brilliantWearYawRevolutions * 360;
+
+  //console.log({ yaw, pitch });
+
+  const stepperAngle = yaw;
+  let servo0Angle = pitch;
+  let servo1Angle = pitch;
+  const newAngles = {
+    servo: [servo0Angle, servo1Angle],
+    stepper: [stepperAngle],
+  };
+  newAngles.servo[brilliantWearServoIndex == 0 ? 1 : 0] = null;
+  //console.log("newAngles", newAngles);
+  setAngles(newAngles);
+};
+
+const toggleBrilliantWearConnectionButton = document.getElementById(
+  "toggleBrilliantWearConnection"
+);
+toggleBrilliantWearConnectionButton.addEventListener("click", () => {
+  bsDevice.toggleConnection(false);
+});
+bsDevice.addEventListener("connectionStatus", (event) => {
+  const { connectionStatus } = event.message;
+  let innerText = connectionStatus;
+  switch (connectionStatus) {
+    case "notConnected":
+      innerText = "connect";
+      break;
+    case "connected":
+      innerText = "disconnect";
+      break;
+  }
+  toggleBrilliantWearConnectionButton.innerText = innerText;
+});
+
+/** @type {BS.SensorType} */
+const orientationSensorType = "gameRotation";
+const orientationSensorRate = 40;
+
+const toggleBrilliantWearOrientationButton = document.getElementById(
+  "toggleBrilliantWearOrientation"
+);
+bsDevice.addEventListener("isConnected", (event) => {
+  const { isConnected } = event.message;
+  toggleBrilliantWearOrientationButton.disabled = !isConnected;
+});
+toggleBrilliantWearOrientationButton.addEventListener("click", () => {
+  //console.log("toggleSensor", { orientationSensorType, orientationSensorRate });
+  bsDevice.toggleSensor(orientationSensorType, orientationSensorRate);
+});
+bsDevice.addEventListener("getSensorConfiguration", (event) => {
+  const { sensorConfiguration } = event.message;
+  toggleBrilliantWearOrientationButton.innerText = sensorConfiguration[
+    orientationSensorType
+  ]
+    ? "disable orientation"
+    : "enable orientation";
+});
+
+const tareBrilliantWearOrientationCheckbox = document.getElementById(
+  "tareBrilliantWearOrientation"
+);
+bsDevice.addEventListener("isConnected", (event) => {
+  const { isConnected } = event.message;
+  tareBrilliantWearOrientationCheckbox.disabled = !isConnected;
+});
+
+const invertIfGlassesCheckbox = document.getElementById("invertIfGlasses");
+
+// BRILLIANT WEAR END
