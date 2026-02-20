@@ -64,8 +64,8 @@
       showDebug: { type: "boolean", default: false },
       cameraSelector: { type: "selector", default: "a-camera" },
       followCamera: { type: "boolean", default: false },
-      followCameraAngleMin: { type: "vec2", default: { x: -0.5, y: -0.2 } },
-      followCameraAngleMax: { type: "vec2", default: { x: 0.5, y: 0.2 } },
+      followCameraAngleMin: { type: "vec2", default: { x: -0.32, y: -0.2 } },
+      followCameraAngleMax: { type: "vec2", default: { x: 0.32, y: 0.2 } },
       followCameraAngleStep: { type: "vec2", default: { x: 5, y: 5 } },
     },
 
@@ -424,15 +424,15 @@
     },
 
     setFollowCameraAngleMin: function (followCameraAngleMin) {
-      console.log("setFollowCameraAngleMin", followCameraAngleMin);
+      // console.log("setFollowCameraAngleMin", followCameraAngleMin);
       this._updateData("followCameraAngleMin", followCameraAngleMin);
     },
     setFollowCameraAngleMax: function (followCameraAngleMax) {
-      console.log("setFollowCameraAngleMax", followCameraAngleMax);
+      // console.log("setFollowCameraAngleMax", followCameraAngleMax);
       this._updateData("followCameraAngleMax", followCameraAngleMax);
     },
     setFollowCameraAngleStep: function (followCameraAngleStep) {
-      console.log("setFollowCameraAngleStep", followCameraAngleStep);
+      // console.log("setFollowCameraAngleStep", followCameraAngleStep);
       this._updateData("followCameraAngleStep", followCameraAngleStep);
     },
     // POWER PET END
