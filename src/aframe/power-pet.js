@@ -207,7 +207,7 @@
       lookableAngleMax: { type: "vec2", default: { x: 1, y: 1 } },
 
       lookableDistanceMin: { type: "number", default: 0.05 },
-      lookableDistanceMax: { type: "number", default: 0.5 },
+      lookableDistanceMax: { type: "number", default: 2 },
 
       lookableSelector: { type: "string", default: "power-pet-lookable" },
       lookAround: { type: "boolean", default: true },
@@ -2734,6 +2734,7 @@
         entity.parentEl.components?.["hand-tracking-controls"];
       const metaTouchControlsComponent =
         entity.parentEl.components["meta-touch-controls"];
+      const cameraComponent = entity.components["camera"];
 
       if (!isNaN(entity.joint)) {
         const bone = handTrackingControlsComponent?.bones?.[entity.joint];
@@ -2801,15 +2802,22 @@
           (1 - Math.abs(yawInterpolation)) *
           (1 - Math.abs(pitchInterpolation)) *
           (1 - distanceInterpolation);
+        if (cameraComponent) {
+          score *= 1.0;
+        }
       }
 
-      if (false && entity.id) {
+      if (false && entity.id == "camera") {
         console.log({
+          id: entity.id,
           score,
+          distance,
           distanceInterpolation,
           yawInterpolation,
           pitchInterpolation,
           isInView,
+          position,
+          localPosition,
         });
       }
 
@@ -2846,7 +2854,7 @@
       let closestLookable = sortedLookables[0];
       if (false && closestLookable) {
         console.log(
-          "closestLookable.score",
+          "closestLookable",
           closestLookable.entity.id || closestLookable.entity.parentEl.id,
           closestLookable.score
         );

@@ -89,6 +89,7 @@
       this.isDominantHand = this.getIsDominantHand();
 
       this.textContainer = this.el.querySelector(".text");
+      this.textContainer.setAttribute("visible", "false");
       this.textEntity = this.textContainer.querySelector("a-text");
       this.textBackgroundEntity =
         this.textContainer.querySelector(".background");

@@ -62,23 +62,27 @@
   AFRAME.registerComponent("robot", {
     schema: {
       showDebug: { type: "boolean", default: false },
+      cameraSelector: { type: "selector", default: "a-camera" },
+      followCamera: { type: "boolean", default: false },
+      followCameraAngleMin: { type: "vec2", default: { x: -0.5, y: -0.2 } },
+      followCameraAngleMax: { type: "vec2", default: { x: 0.5, y: 0.2 } },
+      followCameraAngleStep: { type: "vec2", default: { x: 5, y: 5 } },
     },
 
     init: function () {
       this._initUtils();
       this._initDebug();
       this._initAngles();
+      this._initPowerPet();
       this._updateSchema();
-      // FILL
       this.system._add(this);
     },
     remove: function () {
-      // FILL
       this.system._remove(this);
     },
 
     tick: function (time, timeDelta) {
-      // FILL
+      this._tickPowerPet(...arguments);
     },
 
     // ANGLES START
@@ -257,6 +261,20 @@
             case "showDebug":
               this.setShowDebug(this.data.showDebug);
               break;
+            case "cameraSelector":
+              break;
+            case "followCamera":
+              this.setFollowCamera(this.data.followCamera);
+              break;
+            case "followCameraAngleMin":
+              this.setFollowCameraAngleMin(this.data.followCameraAngleMin);
+              break;
+            case "followCameraAngleMax":
+              this.setFollowCameraAngleMax(this.data.followCameraAngleMax);
+              break;
+            case "followCameraAngleStep":
+              this.setFollowCameraAngleStep(this.data.followCameraAngleStep);
+              break;
             default:
               console.warn(`uncaught diffKey "${diffKey}"`);
               break;
@@ -293,5 +311,130 @@
       this.setShowDebug(!this.data.showDebug);
     },
     // DEBUG END
+
+    // POWER PET START
+    _initPowerPet: function () {
+      this._tickPowerPetInterval = 100;
+      if (this._tickPowerPetInterval > 0) {
+        this._tickPowerPet = AFRAME.utils.throttleTick(
+          this._tickPowerPet,
+          this._tickPowerPetInterval,
+          this
+        );
+      }
+
+      this.powerPetEntity = this.el.querySelector("[power-pet]");
+      //console.log("powerPetEntity", this.powerPetEntity);
+      this.cameraEntity = this.data.cameraSelector;
+      //console.log("cameraEntity", this.cameraEntity);
+    },
+    getPowerPetComponent: function () {
+      return this.powerPetEntity.components["power-pet"];
+    },
+    getPowerPetLookables: function () {
+      return this.getPowerPetComponent()?._lookables;
+    },
+    _tickPowerPet: function (time, timeDelta) {
+      if (!this.data.followCamera) {
+        return;
+      }
+      const lookables = this.getPowerPetLookables();
+      if (!lookables) {
+        return;
+      }
+
+      const hands = Array.from(lookables).filter(
+        ([entity, lookable]) =>
+          entity.parentEl.components["hand-tracking-controls"]
+      );
+      // console.log("hands", hands);
+      const isHandClose = hands.some(([entity, lookable]) => {
+        return lookable.distance < 0.1;
+      });
+      if (isHandClose) {
+        console.log({ isHandClose });
+        return;
+      }
+
+      const lookable = lookables.get(this.cameraEntity);
+      if (!lookable) {
+        return;
+      }
+      //console.log("lookable", lookable);
+      const { isInView, pitch, yaw, yawInterpolation, pitchInterpolation } =
+        lookable;
+
+      //console.log({ yawInterpolation, pitchInterpolation });
+
+      const _yawInterpolation = THREE.MathUtils.inverseLerp(
+        this.data.followCameraAngleMin.x,
+        this.data.followCameraAngleMax.x,
+        yawInterpolation
+      );
+      const _pitchInterpolation = THREE.MathUtils.inverseLerp(
+        this.data.followCameraAngleMin.y,
+        this.data.followCameraAngleMax.y,
+        pitchInterpolation
+      );
+      //console.log({ _yawInterpolation, _pitchInterpolation });
+
+      if (
+        _yawInterpolation > 0 &&
+        _yawInterpolation < 1 &&
+        _pitchInterpolation > 0 &&
+        _pitchInterpolation < 1
+      ) {
+        return;
+      }
+
+      //console.log({ yawInterpolation, pitchInterpolation });
+
+      let servoAngleOffset =
+        pitchInterpolation * this.data.followCameraAngleStep.y;
+      servoAngleOffset *= -1;
+      servoAngleOffset = Math.round(servoAngleOffset);
+      let stepperAngleOffset =
+        yawInterpolation * this.data.followCameraAngleStep.x;
+      stepperAngleOffset *= -1;
+      stepperAngleOffset = Math.round(stepperAngleOffset);
+
+      //console.log({ servo0AngleOffset, stepperAngleOffset });
+
+      if (servoAngleOffset == 0 && stepperAngleOffset == 0) {
+        return;
+      }
+
+      /** @type {import("../uno-q/UnoQ.js").Angles} */
+      const angles = {
+        servo: [servoAngleOffset, 0],
+        stepper: [stepperAngleOffset],
+      };
+      //console.log("angles", angles);
+      this.el.emit("robot-angles", {
+        angles,
+        isOffset: true,
+      });
+    },
+    setFollowCamera: function (followCamera) {
+      //console.log("setFollowCamera", { followCamera });
+      this._updateData("followCamera", followCamera);
+    },
+    toggleFollowCamera: function () {
+      this.setFollowCamera(!this.data.followCamera);
+    },
+
+    setFollowCameraAngleMin: function (followCameraAngleMin) {
+      console.log("setFollowCameraAngleMin", followCameraAngleMin);
+      this._updateData("followCameraAngleMin", followCameraAngleMin);
+    },
+    setFollowCameraAngleMax: function (followCameraAngleMax) {
+      console.log("setFollowCameraAngleMax", followCameraAngleMax);
+      this._updateData("followCameraAngleMax", followCameraAngleMax);
+    },
+    setFollowCameraAngleStep: function (followCameraAngleStep) {
+      console.log("setFollowCameraAngleStep", followCameraAngleStep);
+      this._updateData("followCameraAngleStep", followCameraAngleStep);
+    },
+    // POWER PET END
   });
 }

@@ -235,7 +235,7 @@
           <a-entity
             id="robot"
             class="placeable"
-            robot="showDebug: true;"
+            robot="showDebug: false; followCamera: false;"
             rotation="0 180 0"
             position="0 0.8 -0.3"
             anchorable
@@ -473,6 +473,60 @@
         <label>
           invert if glasses
           <input id="invertIfGlasses" type="checkbox" />
+        </label>
+      </div>
+
+      <div id="robotContainer" class="container">
+        <h2>Robot</h2>
+        <label>
+          show debug
+          <input type="checkbox" data-robot="showDebug" />
+        </label>
+        <label>
+          follow camera
+          <input type="checkbox" data-robot="followCamera" />
+        </label>
+        <label>
+          followCameraAngleMin
+          <br />
+          <canvas
+            data-robot="followCameraAngleMin"
+            width="100"
+            height="100"
+            data-min-x="-1"
+            data-max-x="0"
+            data-min-y="-1"
+            data-max-y="0"
+            data-input
+          ></canvas>
+        </label>
+        <label>
+          followCameraAngleMax
+          <br />
+          <canvas
+            data-robot="followCameraAngleMax"
+            width="100"
+            height="100"
+            data-min-x="0"
+            data-max-x="1"
+            data-min-y="0"
+            data-max-y="1"
+            data-input
+          ></canvas>
+        </label>
+        <label>
+          followCameraAngleStep
+          <br />
+          <canvas
+            data-robot="followCameraAngleStep"
+            width="100"
+            height="100"
+            data-min-x="0"
+            data-max-x="10"
+            data-min-y="0"
+            data-max-y="10"
+            data-input
+          ></canvas>
         </label>
       </div>
     </div>

@@ -252,6 +252,25 @@ const cameraEntity = document.getElementById("camera");
 const sceneEntity = document.getElementById("scene");
 // AFRAME ENTITIES END
 
+// UTILS START
+const setupInput = (entity, name, propertyName) => {
+  const input = document.querySelector(`[data-${name}="${propertyName}"]`);
+  const isCheckbox = input.type == "checkbox";
+  input.addEventListener("input", () => {
+    const value = isCheckbox ? input.checked : input.value;
+    entity.setAttribute(name, { [propertyName]: value });
+  });
+  entity.addEventListener(`${name}-${propertyName}`, (event) => {
+    const { [propertyName]: value } = event.detail;
+    if (isCheckbox) {
+      input.checked = value;
+    } else {
+      input.value = value;
+    }
+  });
+};
+// UTILS END
+
 // POWER PET START
 const powerPetEntity = document.getElementById("powerPet");
 // POWER PET END
@@ -263,11 +282,25 @@ robotEntity.addEventListener("robot-angle", (event) => {
   //console.log("robot-angle", { type, index, angle, isOffset });
   setAngle(type, index, angle, isOffset);
 });
+robotEntity.addEventListener("robot-angles", (event) => {
+  const { angles, isOffset } = event.detail;
+  //console.log("robot-angles", { angles, isOffset });
+  setAngles(angles, isOffset);
+});
 robotEntity.addEventListener("robot-tare-angle", (event) => {
   const { type, index } = event.detail;
   //console.log("robot-tare-angle", { type, index });
   tareAngle(type, index);
 });
+
+const setupRobotInput = (propertyName) =>
+  setupInput(robotEntity, "robot", propertyName);
+setupRobotInput("followCamera");
+setupRobotInput("showDebug");
+setupRobotInput("followCameraAngleMin");
+setupRobotInput("followCameraAngleMax");
+setupRobotInput("followCameraAngleStep");
+
 // ROBOT END
 
 // CANVAS INPUT START
