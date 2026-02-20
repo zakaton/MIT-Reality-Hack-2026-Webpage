@@ -553,13 +553,15 @@ const onBrilliantWearOrientation = (quaternion) => {
   //console.log({ yawRadians, pitchRadians });
 
   if (bsDevice.isInsole) {
-    // FILL
+    pitchRadians *= -1;
+    pitchRadians -= 0.1;
+    pitchRadians *= 4;
+    yawRadians *= 8;
   }
 
   if (bsDevice.isGlasses) {
     if (invertIfGlassesCheckbox.checked) {
       pitchRadians *= -1;
-      // FILL
     }
   }
 
