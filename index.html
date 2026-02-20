@@ -3,11 +3,12 @@
     <title>Power Pet</title>
     <script src="./src/utils/gamepad.js"></script>
     <script src="./src/aframe/aframe-master.min.js"></script>
+    <script src="./src/aframe/microgestures.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.6.1/dist/aframe-extras.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/webmidi@latest/dist/iife/webmidi.iife.js"></script>
-    <script src="../src/utils/canvasInput.js"></script>
-    <script src="../src/aframe/Ticker.js"></script>
-    <script src="../src/aframe/poster.js"></script>
+    <script src="./src/utils/canvasInput.js"></script>
+    <script src="./src/aframe/Ticker.js"></script>
+    <script src="./src/aframe/poster.js"></script>
     <script src="./src/aframe/occlude-hand-tracking-controls.js"></script>
     <script src="./src/aframe/grabbable-listener.js"></script>
     <script src="./src/aframe/grabbable-anchor.js"></script>
@@ -84,6 +85,7 @@
         <video id="sceneBackgroundVideo"></video>
         <video id="sceneBackgroundWebcam"></video>
         <a-scene
+          microgestures="showDebug: false; debugSelector: #debugMicrogestures"
           obb-collider="showColliders: false;"
           id="scene"
           embedded
@@ -219,6 +221,15 @@
             position="0 1.2 0"
             power-pet-lookable
           >
+            <a-text
+              id="debugMicrogestures"
+              position="0 0 -0.2"
+              scale="0.1 0.1 0.1"
+              color="black"
+              value=""
+              align="center"
+              baseline="center"
+            ></a-text>
           </a-camera>
 
           <a-entity
@@ -382,11 +393,13 @@
             id="leftHand"
             hand-tracking-grab-controls="hand: left;"
             occlude-hand-tracking-controls
+            microgestures
           ></a-entity>
           <a-entity
             id="rightHand"
             hand-tracking-grab-controls="hand: right;"
             occlude-hand-tracking-controls
+            microgestures
           ></a-entity>
 
           <a-sky color="#ECECEC" hide-on-enter-ar></a-sky>

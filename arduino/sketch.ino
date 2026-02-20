@@ -18,7 +18,8 @@ int stepperAngleOffset = 0;
 
 long stepperAngleToSteps(float degrees)
 {
-    return (degrees / 360.0) * STEPS_PER_REV;
+    float steps = (degrees / 360.0f) * STEPS_PER_REV;
+    return (long)(steps >= 0 ? steps + 0.5f : steps - 0.5f);
 }
 void moveStepperToAngle(float degrees)
 {
@@ -78,7 +79,7 @@ void tareStepperAngle()
 {
     // Monitor.println("tareStepperAngle");
 
-    stepperAngleOffset = stepperAngle;
+    stepperAngleOffset = stepperAngle + stepperAngleOffset;
     stepperAngle = 0;
 }
 
@@ -86,8 +87,11 @@ void setup()
 {
     // stepper.setMaxSpeed(2000);
     // stepper.setAcceleration(1000);
-    stepper.setMaxSpeed(400);
-    stepper.setAcceleration(300);
+    // stepper.setMaxSpeed(400);
+    // stepper.setAcceleration(300);
+
+    stepper.setMaxSpeed(200);
+    stepper.setAcceleration(100);
 
     for (uint8_t i = 0; i < numberOfServos; i++)
     {
@@ -100,6 +104,12 @@ void setup()
     Bridge.provide("setStepperAngle", setStepperAngle);
     Bridge.provide("tareStepperAngle", tareStepperAngle);
     // Monitor.println("setup");
+
+    for (uint8_t i = 0; i < numberOfServos; i++)
+    {
+        shouldUpdateServos[i] = true;
+    }
+    shouldUpdateStepper = true;
 }
 
 int servoTest = 0;
@@ -135,7 +145,7 @@ void loop()
         isUpdatingStepper = true;
         shouldUpdateStepper = false;
     }
-    if (isUpdatingStepper)
+    if (true || isUpdatingStepper)
     {
         isUpdatingStepper = stepper.run();
     }
