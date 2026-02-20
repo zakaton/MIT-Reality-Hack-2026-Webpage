@@ -301,6 +301,12 @@ setupRobotInput("followCameraAngleMin");
 setupRobotInput("followCameraAngleMax");
 setupRobotInput("followCameraAngleStep");
 
+sceneEntity.addEventListener("microgesture-left-thumb-tap", () => {
+  let { followCamera } = robotEntity.getAttribute("robot");
+  followCamera = !followCamera;
+  robotEntity.setAttribute("robot", { followCamera });
+});
+
 // ROBOT END
 
 // CANVAS INPUT START

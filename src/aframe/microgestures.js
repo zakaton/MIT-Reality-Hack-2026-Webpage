@@ -13,6 +13,9 @@ AFRAME.registerSystem("microgestures", {
     if (!this.debugTextEntity) {
       return;
     }
+    if (!this.data.showDebug) {
+      return;
+    }
     clearTimeout(this.timeoutId);
     this.debugTextEntity.setAttribute("value", `${hand}-${label}`);
     this.timeoutId = window.setTimeout(() => {
