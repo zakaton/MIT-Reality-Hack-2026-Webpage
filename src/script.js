@@ -538,7 +538,7 @@ const onBrilliantWearOrientation = (quaternion) => {
   ) {
     brilliantWearYawRevolutions +=
       brilliantWearLastYaw > brilliantWearEuler.y ? 1 : -1;
-    console.log({ brilliantWearYawRevolutions });
+    //console.log({ brilliantWearYawRevolutions });
   }
   brilliantWearLastYaw = brilliantWearEuler.y;
   if (tareBrilliantWearOrientationCheckbox.checked) {
@@ -642,6 +642,10 @@ const tareBrilliantWearOrientationCheckbox = document.getElementById(
 bsDevice.addEventListener("isConnected", (event) => {
   const { isConnected } = event.message;
   tareBrilliantWearOrientationCheckbox.disabled = !isConnected;
+});
+bsDevice.addEventListener("getSensorConfiguration", (event) => {
+  tareBrilliantWearOrientationCheckbox.disabled =
+    event.message.sensorConfiguration[orientationSensorType] != 0;
 });
 
 const invertIfGlassesCheckbox = document.getElementById("invertIfGlasses");
