@@ -520,7 +520,7 @@ const tareBrilliantWearOrientation = () => {
   brilliantWearTareEuler.copy(brilliantWearEuler);
 
   Object.assign(brilliantWearTareAngles, structuredClone(angles));
-  console.log("tareBrilliantWearOrientation", brilliantWearTareAngles);
+  //console.log("tareBrilliantWearOrientation", brilliantWearTareAngles);
 
   brilliantWearYawRevolutions = 0;
 };
