@@ -97,6 +97,7 @@
           real-world-meshing="meshMixin: realWorldMeshMixin; meshesEnabled: false; planeMixin: realWorldPlaneMixin; planesEnabled: true; filterLabels: floor, table, wall, ceiling, desk, storage, other, plant, screen, lamp, couch, bed, screen;"
           pool__purrsound="mixin: purrSoundMixin; size: 2; dynamic: true;"
           pool__purrsoundfadeout="mixin: purrFadeOutSoundMixin; size: 2; dynamic: true;"
+          pool__sneezesound="mixin: sneezeSoundMixin; size: 2; dynamic: true;"
         >
           <a-assets>
             <a-asset-item
@@ -127,6 +128,13 @@
               id="purrFadeOutSoundMixin"
               sound="src: #purrFadeOutAudio;"
             ></a-mixin>
+
+            <audio
+              id="sneezeAudio"
+              src="../assets/audio/sneeze.wav"
+              preload="auto"
+            ></audio>
+            <a-mixin id="sneezeSoundMixin" sound="src: #sneezeAudio;"></a-mixin>
 
             <img id="btsImage" src="../assets/images/bts.webp" />
             <img id="btsLogoImage" src="../assets/images/btsLogo.webp" />

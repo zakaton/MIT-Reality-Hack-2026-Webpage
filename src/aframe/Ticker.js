@@ -12,7 +12,7 @@
     #currentTime = 0;
     #timeOffset = 0;
     wait(duration) {
-      this.#startTime = this.#currentTime;
+      this.#startTime = this.#currentTime = AFRAME.scenes[0].time;
       this.#duration = duration;
     }
 
@@ -25,12 +25,26 @@
       this.wait(THREE.MathUtils.lerp(from, to, this.#randomInterpolation));
     }
 
+    get timeUntilDone() {
+      if (!this.isTicking) {
+        return Infinity;
+      }
+      return this.#duration - this.#timeOffset;
+    }
+
     #timeInterpolation = -1;
     get timeInterpolation() {
       return this.#timeInterpolation;
     }
     get isDone() {
       return this.#timeInterpolation == -1 || this.#timeInterpolation >= 1;
+    }
+    get isTicking() {
+      return (
+        this.#duration > 0 &&
+        this.#timeInterpolation >= 0 &&
+        this.#timeInterpolation < 1
+      );
     }
 
     tick(time = AFRAME.scenes[0].time) {

@@ -273,6 +273,13 @@ const setupInput = (entity, name, propertyName) => {
 
 // POWER PET START
 const powerPetEntity = document.getElementById("powerPet");
+unoQ.onBroadcast((event) => {
+  const { type, variant, value } = event.detail.message;
+  if (type != "variant") {
+    return;
+  }
+  powerPetEntity.setAttribute("power-pet", `variant_${variant}`, value);
+});
 // POWER PET END
 
 // ROBOT START
@@ -306,7 +313,6 @@ sceneEntity.addEventListener("microgesture-left-thumb-tap", () => {
   followCamera = !followCamera;
   robotEntity.setAttribute("robot", { followCamera });
 });
-
 // ROBOT END
 
 // CANVAS INPUT START

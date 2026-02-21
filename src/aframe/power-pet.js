@@ -224,8 +224,8 @@
       lookableWorldMeshTickerMin: { type: "number", default: 750 },
       lookableWorldMeshTickerMax: { type: "number", default: 2300 },
 
-      lookAtLookableNoiseMin: { type: "number", default: 0.002 },
-      lookAtLookableNoiseMax: { type: "number", default: 0.06 },
+      lookAtLookableNoiseMin: { type: "number", default: 0.05 },
+      lookAtLookableNoiseMax: { type: "number", default: 0.25 },
 
       isModelFacingBack: { type: "boolean", default: true },
 
@@ -244,6 +244,8 @@
 
       purrVolumeMin: { type: "number", default: 0.08 },
       purrVolumeMax: { type: "number", default: 1 },
+
+      sneezeNoseDistanceThreshold: { type: "number", default: 0.06 },
     },
 
     init: function () {
@@ -251,7 +253,6 @@
       this._initModel();
       this._initSquash();
       this._initPetting();
-      this._initPupils();
       this._initLookAt();
       this._initLookables();
       this._initEyes();
@@ -267,7 +268,6 @@
     tick: function (time, timeDelta) {
       this._tickSquash(...arguments);
       this._tickSquashAnimation(...arguments);
-      this._tickPupils(...arguments);
       this._tickLookAt(...arguments);
       if (this.data.lookAround) {
         this._tickLookables(...arguments);
@@ -685,6 +685,11 @@
             case "purrVolumeMax":
               this.setPurrVolumeMax(this.data.purrVolumeMax);
               break;
+            case "sneezeNoseDistanceThreshold":
+              this.setSneezeNoseDistanceThreshold(
+                this.data.sneezeNoseDistanceThreshold
+              );
+              break;
             default:
               console.warn(`uncaught diffKey "${diffKey}"`);
               break;
@@ -919,6 +924,22 @@
         });
         //console.log("meshTree", meshTree);
 
+        const noseEntity = document.createElement("a-entity");
+        noseEntity.classList.add("nose");
+        const noseSphereEntity = document.createElement("a-sphere");
+        noseSphereEntity.setAttribute("visible", "false");
+        noseSphereEntity.setAttribute("radius", "0.005");
+        noseSphereEntity.setAttribute("color", "orange");
+        noseEntity.appendChild(noseSphereEntity);
+
+        const nosePosition = new THREE.Vector3();
+        if (meshTree.nose) {
+          const { mesh } = meshTree.nose;
+          nosePosition.copy(mesh.position);
+          noseEntity.setAttribute("position", nosePosition.toArray().join(" "));
+          modelEntity.appendChild(noseEntity);
+        }
+
         Object.entries(allVariants).forEach(([key, oneOf]) => {
           if (oneOf.length < 2) {
             delete allVariants[key];
@@ -1090,6 +1111,9 @@
           closedEyes,
           closedEyesArray,
           openEyes,
+          noseEntity,
+          noseSphereEntity,
+          nosePosition,
         };
         // console.log("model", model);
         this.models[name] = model;
@@ -1637,6 +1661,9 @@
       if (!this._isModelLoaded()) {
         return;
       }
+      if (this._isSneezing) {
+        return;
+      }
 
       const { size, center } = this._getModel();
 
@@ -1807,8 +1834,11 @@
     _initPetting: function () {
       this._petState = "idle";
       this._pettingTicker = new Ticker();
+      this._sneezeTicker = new Ticker();
+      this._nosePosition = new THREE.Vector3();
+      this._noseColliderPosition = new THREE.Vector3();
     },
-    _petStates: ["idle", "petting", "nudging"],
+    _petStates: ["idle", "petting", "nudging", "sneezing"],
     _setPetState: function (newPetState, squash, tilt) {
       squash = squash ?? this.data.squash;
       tilt = tilt ?? this.data.tilt;
@@ -1821,18 +1851,31 @@
       }
       const previousPetState = this._petState;
       this._petState = newPetState;
-      // console.log("petState", this._petState);
+      //console.log("petState", this._petState);
+
+      const ticker = this._pettingTicker;
 
       switch (this._petState) {
         case "idle":
           this.setBlinkSequence();
           this.selectVariant("pupil", "emo");
           this.selectVariant("mouth", "tongue");
+          this._sneezeTicker.stop();
+          switch (previousPetState) {
+            case "nudging":
+            case "petting":
+              this.stopPurrSound();
+              break;
+          }
+          ticker.waitRandom(1000, 2000);
           break;
         case "petting":
           this.openEyes();
           this.selectVariant("pupil", "emo");
           this.selectVariant("mouth", "tongue");
+          this.playPurrSound();
+          ticker.stop();
+          this._sneezeTicker.stop();
           break;
         case "nudging":
           {
@@ -1843,26 +1886,42 @@
             this.selectVariant("mouth", "w");
             this.selectVariant("pupil", "heart");
             this.setPurrSoundVolume(1);
+            this._sneezeTicker.stop();
+            this._isAboutToSneeze = false;
+            this._didSneeze = false;
+            this.playPurrSound();
+            ticker.stop();
           }
+          break;
+        case "sneezing":
+          this.stopPurrSound(false);
+          this._didSneeze = true;
+          this._isAboutToSneeze = false;
+          this.selectVariant("mouth", "o");
+          this.selectVariant("pupil", "star");
+          this.el.emit("power-pet-sneeze", {});
+          this.playSneezeSound();
+          this._isSneezing = true;
+          this.setTilt({ x: 0, y: 0 });
+          this._sneezeTicker.waitRandom(1000, 1500);
+          ticker.stop();
           break;
         default:
           console.error(`uncaught petState "${this._petState}"`);
           break;
       }
 
-      const ticker = this._pettingTicker;
-      if (this._petState == "idle") {
-        this.stopPurrSound();
-        ticker.waitRandom(1000, 2000);
-      } else {
-        ticker.stop();
-        this.playPurrSound();
+      if (previousPetState == "sneezing") {
+        this.el.emit("power-pet-sneeze-finish", {});
       }
 
       this.el.emit("power-pet-petState", {
         petState: this._petState,
         previousPetState,
       });
+    },
+    _getNoseEntity: function () {
+      return this._getModel()?.noseEntity;
     },
     _tickPet: function (time, timeDelta) {
       const ticker = this._pettingTicker;
@@ -1875,6 +1934,79 @@
           ticker.stop();
         }
       }
+
+      const sneezeTicker = this._sneezeTicker;
+      if (
+        this._petState == "nudging" &&
+        !this._didSneeze &&
+        !this._isSneezing
+      ) {
+        const noseEntity = this._getNoseEntity();
+        if (noseEntity) {
+          noseEntity.object3D.getWorldPosition(this._nosePosition);
+          this.squashControlPointEntity.object3D
+            .getWorldPosition(this._noseColliderPosition)
+            .sub(this._nosePosition);
+          const distanceToNose = this._noseColliderPosition.length();
+          const isCloseToNose =
+            distanceToNose < this.data.sneezeNoseDistanceThreshold;
+          // console.log({ distanceToNose, isCloseToNose });
+          if (isCloseToNose && !sneezeTicker.isTicking) {
+            sneezeTicker.waitRandom(3000, 4000);
+            //console.log("wait sneezeTicker", sneezeTicker.duration);
+          }
+          if (!isCloseToNose && sneezeTicker.isTicking) {
+            sneezeTicker.stop();
+            this._isAboutToSneeze = false;
+            //console.log("stop sneezeTicker");
+          }
+
+          sneezeTicker.tick();
+          if (
+            !this._isAboutToSneeze &&
+            sneezeTicker.isTicking &&
+            sneezeTicker.timeUntilDone < 400
+          ) {
+            //console.log("isAboutToSneeze");
+            this._isAboutToSneeze = true;
+            this.selectVariant("mouth", "default");
+            this.selectVariant("pupil", "default");
+            this.openEyes();
+            const dominantSide = THREE.MathUtils.randInt(0, 1) ? "l" : "r";
+            const otherSide = dominantSide == "l" ? "r" : "l";
+            this.setPupilScale(dominantSide, { x: 0.6, y: 0.6 });
+            this.setPupilScale(otherSide, { x: 0.4, y: 0.4 });
+            this.setPupilOffset("l", { x: -0.06, y: 0.02 });
+            this.setPupilOffset("r", { x: 0.08, y: 0.03 });
+          }
+          if (sneezeTicker.isDone && sneezeTicker.duration > 0) {
+            sneezeTicker.stop();
+            this._setPetState("sneezing");
+          }
+        }
+      }
+
+      if (this._isSneezing) {
+        sneezeTicker.tick();
+        if (sneezeTicker.isDone && sneezeTicker.duration > 0) {
+          this._isSneezing = false;
+          //console.log("done sneezing");
+          sneezeTicker.stop();
+          this.setPupilScale("", { x: 1, y: 1 });
+          this.setPupilOffset("", { x: 0, y: 0 });
+          this._setPetState("idle");
+        }
+      }
+    },
+    playSneezeSound: function () {
+      this._playSound("sneezeSound");
+    },
+    setSneezeNoseDistanceThreshold: function (sneezeNoseDistanceThreshold) {
+      //console.log("setSneezeNoseDistanceThreshold", sneezeNoseDistanceThreshold);
+      this._updateData(
+        "sneezeNoseDistanceThreshold",
+        sneezeNoseDistanceThreshold
+      );
     },
     // PETTING END
 
@@ -1983,8 +2115,6 @@
         .scale(1 / scale.x, 1 / scale.y)
         .translate(0.5, 0.5);
     },
-    _initPupils: function () {},
-    _tickPupils: function (time, timeDelta) {},
     // PUPILS END
 
     // PUPIL OFFSETS START
@@ -2361,6 +2491,9 @@
         return;
       }
       if (!this.getIsLookAtSelectedInInspector()) {
+        return;
+      }
+      if (this._isAboutToSneeze) {
         return;
       }
 
@@ -3004,6 +3137,9 @@
       if (!this._isModelLoaded()) {
         return;
       }
+      if (this._isAboutToSneeze) {
+        return;
+      }
       // console.log("_lookAtLookable");
 
       const lookable = this._focusedLookable;
@@ -3037,7 +3173,7 @@
             this.data.lookAtLookableNoiseMax,
             ticker.randomInterpolation
           ) * distanceInterpolation;
-        // console.log({ noiseLength });
+        //console.log({ noiseLength });
         noise
           .set(1, 0, 0)
           .setLength(noiseLength)
@@ -3248,6 +3384,9 @@
       if (this._petState != "idle") {
         return;
       }
+      if (this._isAboutToSneeze) {
+        return;
+      }
 
       const ticker = this._blinkTicker;
       const offsetTicker = this._blinkOffsetTicker;
@@ -3432,8 +3571,9 @@
       //console.log("setPurrVolumeMax", purrVolumeMax);
       this._updateData("purrVolumeMax", purrVolumeMax);
     },
+
     playPurrFadeOutSound: function () {
-      this._playSound("purrSoundFadeOut", undefined);
+      this._playSound("purrSoundFadeOut");
     },
 
     playPurrSound: function () {
