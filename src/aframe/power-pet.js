@@ -1986,7 +1986,7 @@
             this._isAboutToSneeze = true;
             this.selectVariant("mouth", "default");
             this.selectVariant("pupil", "default");
-            this.blink();
+            this.openEyes();
             const dominantSide = THREE.MathUtils.randInt(0, 1) ? "l" : "r";
             const otherSide = dominantSide == "l" ? "r" : "l";
             this.setPupilScale(dominantSide, { x: 0.6, y: 0.6 });
