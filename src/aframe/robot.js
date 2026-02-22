@@ -339,7 +339,7 @@
         "power-pet-state",
         this.onPowerPetState.bind(this)
       );
-      if (true) {
+      if (AFRAME.utils.device.checkHeadsetConnected()) {
         this.powerPetEntity.addEventListener(
           "power-pet-about-to-sneeze",
           this.onPowerPetSneeze.bind(this)
