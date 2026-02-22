@@ -68,7 +68,7 @@
       followCamera: { type: "boolean", default: false },
       followCameraAngleMin: { type: "vec2", default: { x: -0.32, y: -0.1 } },
       followCameraAngleMax: { type: "vec2", default: { x: 0.32, y: 0.1 } },
-      followCameraAngleStep: { type: "vec2", default: { x: 5, y: 5 } },
+      followCameraAngleStep: { type: "vec2", default: { x: 10, y: 10 } },
 
       sneezeServo0Angle: { type: "number", default: -60 },
       sneezeServo1Angle: { type: "number", default: 60 },
@@ -183,11 +183,13 @@
         const dataPath = this._anglePrefix + [type, index].join("_");
         if (dataPath in this.schema) {
           this._updateData(dataPath, angle, false);
-          this.el.emit("robot-angle", {
-            type,
-            index,
-            angle,
-          });
+          if (this._updateCalledOnce) {
+            this.el.emit("robot-angle", {
+              type,
+              index,
+              angle,
+            });
+          }
         }
       }
     },

@@ -117,16 +117,28 @@ const angles = {
   stepper: [0],
 };
 
+let numberOfAngles = 3;
+const updateNumberOfAngles = () => {
+  let _numberOfAngles = 0;
+  forEachAngle((type, index, angle) => {
+    _numberOfAngles++;
+  });
+  numberOfAngles = _numberOfAngles;
+  console.log({ numberOfAngles });
+};
 /** @param {Angles} newAngles */
 const updateAngles = (newAngles) => {
   Object.assign(angles, newAngles);
   //console.log("updateAngles", angles);
+
   forEachAngle((type, index, angle) => {
     angleInputs[type][index].forEach(
       (input) => (input.value = Math.round(angle))
     );
     robotEntity.setAttribute("robot", `angle_${type}_${index}`, angle);
   });
+  //updateNumberOfAngles();
+  drawBrilliantWearGlassesDisplay();
 };
 unoQ.onAngles((event) => updateAngles(event.detail.angles));
 
@@ -192,18 +204,22 @@ const anglesContainer = document.getElementById("anglesContainer");
 /** @type {HTMLTemplateElement} */
 const angleTemplate = document.getElementById("angleTemplate");
 
-/** @param {(type: AngleType, index: number, angle: number) => void} callback */
-const forEachAngle = (callback) => {
-  Object.entries(angles).forEach(([type, typeAngles]) => {
-    typeAngles.forEach((angle, index) => {
-      // console.log(typeAngles, { type, index, angle });
+/** @param {(type: AngleType, index: number, angle: number) => Promise<void>} callback */
+const forEachAngle = async (callback) => {
+  for (const type of Object.keys(angles).sort()) {
+    const typeAngles = angles[type];
+    for (let index in typeAngles) {
+      index = +index;
+      let angle = typeAngles[index];
+      //console.log(typeAngles, { type, index, angle });
       if (isNaN(angle)) {
         angle = typeAngles[index] = 0;
       }
-      callback(type, index, angle);
-    });
-  });
+      await callback(type, index, angle);
+    }
+  }
 };
+
 /** @type {Record<AngleType, {min: number, max: number}[]>} */
 const angleRanges = {
   servo: [
@@ -348,47 +364,15 @@ anglesCanvasInput.addEventListener("input", (event) => {
 // CANVAS INPUT END
 
 // POINTER LOCK START
-const lockPointerButton = document.getElementById("lockPointer");
-lockPointerButton.addEventListener("click", async () => {
-  if (isPointerLocked) {
-    return;
-  }
-  lockPointerButton.requestPointerLock();
-});
-const lockPointerScalars = {
+const pointerLockButton = document.getElementById("pointerLock");
+const pointerLockScalars = {
   stepper: 1,
   servo0: 1,
 };
-let isPointerDown = false;
-const usePointerAsToggle = true;
-const setIsPointerDown = (newIsPointerDown) => {
-  isPointerDown = newIsPointerDown;
-  // console.log({ isPointerDown });
-};
-lockPointerButton.addEventListener("mousedown", () => {
-  if (usePointerAsToggle) {
-    setIsPointerDown(!isPointerDown);
-  } else {
-    setIsPointerDown(true);
-  }
-});
-lockPointerButton.addEventListener("mouseup", () => {
-  if (usePointerAsToggle) {
-  } else {
-    setIsPointerDown(false);
-  }
-});
-lockPointerButton.addEventListener("mousemove", (event) => {
-  if (!isPointerLocked) {
-    return;
-  }
-  if (!isPointerDown) {
-    return;
-  }
-  const { movementX, movementY } = event;
-  // console.log({ movementX, movementY });
-  const servo0Angle = movementY * lockPointerScalars.servo0;
-  const stepperAngle = movementX * lockPointerScalars.stepper;
+pointerLockButton.addEventListener("input", (event) => {
+  const { x, y } = event.detail;
+  const servo0Angle = y * pointerLockScalars.servo0;
+  const stepperAngle = x * pointerLockScalars.stepper;
   // console.log({ stepperAngle, servo0Angle });
   setAngles(
     {
@@ -397,22 +381,6 @@ lockPointerButton.addEventListener("mousemove", (event) => {
     },
     true
   );
-});
-
-let isPointerLocked = false;
-const setIsPointerLocked = (newIsPointerLocked) => {
-  isPointerLocked = newIsPointerLocked;
-  //console.log({ isPointerLocked });
-  lockPointerButton.innerText = isPointerLocked
-    ? "pointer locked"
-    : "lock pointer";
-};
-document.addEventListener("pointerlockchange", () => {
-  if (document.pointerLockElement === lockPointerButton) {
-    setIsPointerLocked(true);
-  } else {
-    setIsPointerLocked(false);
-  }
 });
 // POINTER LOCK END
 
@@ -712,5 +680,328 @@ bsDevice.addEventListener("getSensorConfiguration", (event) => {
 });
 
 const invertIfGlassesCheckbox = document.getElementById("invertIfGlasses");
-
 // BRILLIANT WEAR END
+
+// BRILLIANT WEAR GLASSES START
+const brilliantWearPointerLockButton = document.getElementById(
+  "brilliantWearPointerLock"
+);
+const brilliantWearPointerLockScalars = {
+  stepper0: 1,
+  servo0: 1,
+  servo1: 1,
+};
+brilliantWearPointerLockButton.addEventListener("input", (event) => {
+  const { x, y } = event.detail;
+  const { type, index } = selectedAngleRow;
+
+  const value = type == "stepper" ? x : y;
+  // console.log({ stepperAngle, servo0Angle });
+  let angle = value * brilliantWearPointerLockScalars[`${type}${index}`];
+  setAngle(type, index, angle, true);
+});
+brilliantWearPointerLockButton.addEventListener("isPointerDown", (event) => {
+  const { isPointerDown } = event.detail;
+  brilliantWearGlassesDisplayCanvasHelper.setColor(
+    2,
+    brilliantWearGlassesDisplaySelectionColors[isPointerDown ? 1 : 0]
+  );
+
+  drawBrilliantWearGlassesDisplay();
+});
+brilliantWearPointerLockButton.addEventListener("keydown", (event) => {
+  const { target, key } = event;
+  const { isPointerLocked, isPointerDown } = target;
+  if (!isPointerLocked) {
+    return;
+  }
+  //console.log(event);
+  let preventDefault = true;
+  switch (key) {
+    case "ArrowUp":
+      if (!isPointerDown) {
+        setSelectedAngleRowIndex(-1, true);
+      }
+      break;
+    case "ArrowDown":
+      if (!isPointerDown) {
+        setSelectedAngleRowIndex(1, true);
+      }
+      break;
+    case "ArrowLeft":
+      brilliantWearPointerLockButton.isPointerDown = false;
+      break;
+    case "ArrowRight":
+      brilliantWearPointerLockButton.isPointerDown = true;
+      break;
+    default:
+      //console.log(`uncaught key "${key}"`);
+      preventDefault = false;
+      break;
+  }
+
+  if (preventDefault) {
+    event.preventDefault();
+  }
+});
+
+const brilliantWearGlassesDisplaySelectionColors = ["#0dff00", "#ffae00"];
+const brilliantWearGlassesDisplayCanvasHelper = new BS.DisplayCanvasHelper();
+brilliantWearGlassesDisplayCanvasHelper.setColor(1, "white");
+brilliantWearGlassesDisplayCanvasHelper.setColor(
+  2,
+  brilliantWearGlassesDisplaySelectionColors[0]
+);
+brilliantWearGlassesDisplayCanvasHelper.setColor(3, "#424242");
+const brilliantWearGlassesDisplayCanvas = document.getElementById(
+  "brilliantWearGlassesDisplay"
+);
+brilliantWearGlassesDisplayCanvasHelper.canvas =
+  brilliantWearGlassesDisplayCanvas;
+window.brilliantWearGlassesDisplayCanvasHelper =
+  brilliantWearGlassesDisplayCanvasHelper;
+
+const bsGlasses = new BS.Device();
+const toggleBrilliantWearGlassesConnectionButton = document.getElementById(
+  "toggleBrilliantWearGlassesConnection"
+);
+toggleBrilliantWearGlassesConnectionButton.addEventListener("click", () => {
+  bsGlasses.toggleConnection(false);
+});
+bsGlasses.addEventListener("connectionStatus", (event) => {
+  const { connectionStatus } = event.message;
+  let innerText = connectionStatus;
+  switch (connectionStatus) {
+    case "notConnected":
+      innerText = "connect";
+      break;
+    case "connected":
+      innerText = "disconnect";
+      break;
+  }
+  toggleBrilliantWearGlassesConnectionButton.innerText = innerText;
+});
+bsGlasses.addEventListener("connected", () => {
+  if (!bsGlasses.isGlasses || !bsGlasses.isDisplayAvailable) {
+    bsGlasses.disconnect();
+  }
+  brilliantWearGlassesDisplayCanvasHelper.device = bsGlasses;
+});
+
+/** @type {HTMLProgressElement} */
+const brilliantWearFileTransferProgress = document.getElementById(
+  "brilliantWearFileTransferProgress"
+);
+bsGlasses.addEventListener("fileTransferProgress", (event) => {
+  const progress = event.message.progress;
+  //console.log({ progress });
+  brilliantWearFileTransferProgress.value = progress == 1 ? 0 : progress;
+});
+bsGlasses.addEventListener("fileTransferStatus", () => {
+  if (bsGlasses.fileTransferStatus == "ready") {
+    brilliantWearFileTransferProgress.value = 0;
+  }
+});
+
+brilliantWearGlassesDisplayCanvasHelper.addEventListener(
+  "deviceSpriteSheetUploadStart",
+  () => {
+    isUploadingToBrilliantWearGlasses = true;
+  }
+);
+brilliantWearGlassesDisplayCanvasHelper.addEventListener(
+  "deviceSpriteSheetUploadComplete",
+  () => {
+    isUploadingToBrilliantWearGlasses = false;
+  }
+);
+brilliantWearGlassesDisplayCanvasHelper.addEventListener(
+  "deviceUpdated",
+  () => {
+    drawBrilliantWearGlassesDisplay();
+  }
+);
+
+let isUploadingToBrilliantWearGlasses = false;
+let isDrawingToBrilliantWearGlassesDisplay = false;
+let isWaitingToRedrawToBrilliantWearGlassesDisplay = false;
+
+let selectedAngleRowIndex = 0;
+/** @typedef {{type: AngleType, index: number}} AngleRow */
+/** @type {AngleRow[]} */
+const angleRows = [];
+const updateAngleRows = () => {
+  angleRows.length = 0;
+  forEachAngle((type, index, angle) => {
+    angleRows.push({ type, index });
+  });
+  console.log("angleRows", angleRows);
+  setSelectedAngleRowIndex(0);
+};
+/** @type {AngleRow} */
+let selectedAngleRow;
+const setSelectedAngleRowIndex = (newSelectedAngleRowIndex, isOffset) => {
+  if (isOffset) {
+    newSelectedAngleRowIndex = selectedAngleRowIndex + newSelectedAngleRowIndex;
+  }
+  newSelectedAngleRowIndex = THREE.MathUtils.clamp(
+    newSelectedAngleRowIndex,
+    0,
+    numberOfAngles - 1
+  );
+  //console.log({ newSelectedAngleRowIndex });
+  if (newSelectedAngleRowIndex == selectedAngleRowIndex) {
+    return;
+  }
+  selectedAngleRowIndex = newSelectedAngleRowIndex;
+  //console.log({ selectedAngleRowIndex });
+  selectedAngleRow = angleRows[selectedAngleRowIndex];
+  //console.log("selectedAngleRow", selectedAngleRow);
+  drawBrilliantWearGlassesDisplay();
+};
+updateAngleRows();
+selectedAngleRow = angleRows[0];
+
+const drawBrilliantWearGlassesDisplay = async () => {
+  if (isUploadingToBrilliantWearGlasses) {
+    return;
+  }
+  if (isDrawingToBrilliantWearGlassesDisplay) {
+    //console.warn("busy drawing");
+    isWaitingToRedrawToBrilliantWearGlassesDisplay = true;
+    return;
+  }
+  isDrawingToBrilliantWearGlassesDisplay = true;
+
+  //console.log("drawBrilliantWearGlassesDisplay");
+  const displayCanvasHelper = brilliantWearGlassesDisplayCanvasHelper;
+
+  await displayCanvasHelper.setVerticalAlignment("start");
+  await displayCanvasHelper.setHorizontalAlignment("start");
+  await displayCanvasHelper.selectSpriteColor(1, 1);
+  await displayCanvasHelper.setIgnoreFill(true);
+  if (false) {
+    await displayCanvasHelper.selectSpriteColor(0, 3);
+    await displayCanvasHelper.selectBackgroundColor(3);
+    await displayCanvasHelper.setFillBackground(true);
+  }
+  await displayCanvasHelper.setLineWidth(8);
+  let rowIndex = 0;
+  await forEachAngle(async (type, index, angle) => {
+    const isSelected = selectedAngleRowIndex == rowIndex;
+    await displayCanvasHelper.selectSpriteColor(1, isSelected ? 2 : 1);
+    await displayCanvasHelper.selectLineColor(isSelected ? 2 : 1);
+
+    angle = Math.round(angle);
+    const y = rowIndex * englishFontLineHeight;
+    if (true) {
+      // FILL - set color
+      await displayCanvasHelper.drawSpritesString(0, y, `${type}${index}`);
+      // FILL - set color
+      await displayCanvasHelper.setHorizontalAlignment("end");
+      await displayCanvasHelper.drawSpritesString(280, y, `${angle}`);
+      // FILL - set color
+      await displayCanvasHelper.setHorizontalAlignment("start");
+      let startAngle = 0;
+      if (type == "stepper") {
+        startAngle = 90;
+      } else {
+        startAngle = -90;
+      }
+      let endAngle = angle;
+      if (type == "stepper") {
+        endAngle *= -1;
+      }
+      //console.log({ startAngle, endAngle });
+      await displayCanvasHelper.drawArc(300, y, 15, startAngle, endAngle);
+    } else {
+      await displayCanvasHelper.drawSpritesString(
+        0,
+        y,
+        `${type}${index} ${angle}`
+      );
+    }
+    rowIndex++;
+  });
+
+  await displayCanvasHelper.show();
+};
+window.draw = drawBrilliantWearGlassesDisplay;
+
+brilliantWearGlassesDisplayCanvasHelper.addEventListener("ready", () => {
+  isDrawingToBrilliantWearGlassesDisplay = false;
+  if (isWaitingToRedrawToBrilliantWearGlassesDisplay) {
+    isWaitingToRedrawToBrilliantWearGlassesDisplay = false;
+    drawBrilliantWearGlassesDisplay();
+  }
+});
+
+const fontSize = 42;
+/** @type {BS.DisplaySpriteSheet} */
+let englishSpriteSheet;
+let englishFontLineHeight = 0;
+
+const fontName = "roboto.ttf";
+const fontSpriteSheetLocalStorageKey = `fontSpriteSheet.${fontName}.${fontSize}`;
+try {
+  const fontSpriteSheetString = localStorage.getItem(
+    fontSpriteSheetLocalStorageKey
+  );
+  if (fontSpriteSheetString) {
+    englishSpriteSheet = JSON.parse(fontSpriteSheetString);
+  } else {
+    const response = await fetch(`../assets/font/${fontName}`);
+    const arrayBuffer = await response.arrayBuffer();
+    const englishFont = await BS.parseFont(arrayBuffer);
+
+    englishSpriteSheet = await BS.fontToSpriteSheet(
+      englishFont,
+      fontSize,
+      "english"
+    );
+    localStorage.setItem(
+      fontSpriteSheetLocalStorageKey,
+      JSON.stringify(englishSpriteSheet)
+    );
+  }
+  //console.log("englishSpriteSheet", englishSpriteSheet);
+
+  englishFontLineHeight = englishSpriteSheet.sprites[0].height;
+  //console.log({ englishFontLineHeight });
+
+  await brilliantWearGlassesDisplayCanvasHelper.uploadSpriteSheet(
+    englishSpriteSheet
+  );
+  await brilliantWearGlassesDisplayCanvasHelper.selectSpriteSheet(
+    englishSpriteSheet.name
+  );
+  await brilliantWearGlassesDisplayCanvasHelper.setSpritesLineHeight(
+    englishFontLineHeight
+  );
+  await drawBrilliantWearGlassesDisplay();
+} catch (error) {
+  console.error("error parsing font", error);
+}
+
+/** @type {HTMLSelectElement} */
+const setBrilliantWearGlassesDisplayBrightnessSelect = document.getElementById(
+  "setBrilliantWearGlassesDisplayBrightness"
+);
+
+/** @type {HTMLOptGroupElement} */
+const setBrilliantWearGlassesDisplayBrightnessOptgroup =
+  setBrilliantWearGlassesDisplayBrightnessSelect.querySelector("optgroup");
+BS.DisplayBrightnesses.forEach((displayBrightness) => {
+  setBrilliantWearGlassesDisplayBrightnessOptgroup.appendChild(
+    new Option(displayBrightness)
+  );
+});
+setBrilliantWearGlassesDisplayBrightnessSelect.addEventListener(
+  "input",
+  (event) => {
+    brilliantWearGlassesDisplayCanvasHelper.setBrightness(event.target.value);
+  }
+);
+setBrilliantWearGlassesDisplayBrightnessSelect.value =
+  brilliantWearGlassesDisplayCanvasHelper.brightness;
+// BRILLIANT WEAR GLASSES END

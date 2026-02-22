@@ -188,12 +188,11 @@ window.addEventListener("load", () => {
 
         // Check the node itself
         if (node.tagName === "CANVAS" && node.hasAttribute("data-input")) {
-          onCanvasAdded(node);
+          loadCanvas(node);
         }
 
         // Check inside subtree (if a container was added)
         const canvases = node.querySelectorAll?.("canvas[data-input]");
-
         canvases?.forEach((canvas) => loadCanvas(canvas));
       }
     }

@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.6.1/dist/aframe-extras.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/webmidi@latest/dist/iife/webmidi.iife.js"></script>
     <script src="./src/utils/canvasInput.js"></script>
+    <script src="./src/utils/pointerLock.js"></script>
     <script src="./src/aframe/Ticker.js"></script>
     <script src="./src/aframe/poster.js"></script>
     <script src="./src/aframe/occlude-hand-tracking-controls.js"></script>
@@ -68,6 +69,9 @@
     .hidden {
       display: none !important;
     }
+    #brilliantWearGlassesDisplay {
+      background-color: black;
+    }
   </style>
   <body>
     <a
@@ -99,7 +103,7 @@
           pool__purrsoundfadeout="mixin: purrFadeOutSoundMixin; size: 2; dynamic: true;"
           pool__sneezesound="mixin: sneezeSoundMixin; size: 2; dynamic: true;"
         >
-          <a-assets>
+          <a-assets timeout="10000">
             <a-asset-item
               id="anchorModel"
               src="../assets/3d/anchor.glb"
@@ -458,7 +462,9 @@
             data-input
           ></canvas>
         </label>
-        <button id="lockPointer">lock pointer</button>
+        <button id="pointerLock" data-pointer-lock data-toggle="true">
+          lock pointer
+        </button>
         <template id="angleTemplate">
           <div class="angle">
             <label>
@@ -548,7 +554,7 @@
           ></canvas>
         </label>
       </div>
-      <div id="options" class="container">
+      <div id="optionsContainer" class="container">
         <h2>Options</h2>
         <button id="openInspector">open inspector</button>
         <label hidden>
@@ -561,6 +567,36 @@
           show model bounding box
           <input type="checkbox" id="showModelBoundingBox" />
         </label>
+      </div>
+      <div id="brilliantWearGlassesContainer" class="container">
+        <h2>
+          <a href="https://brilliantsole.com/" target="_blank">
+            Brilliant Wear Glasses
+          </a>
+        </h2>
+        <button id="toggleBrilliantWearGlassesConnection">connect</button>
+        <label>
+          file transfer progress: <span></span>
+          <progress value="0" id="brilliantWearFileTransferProgress"></progress>
+        </label>
+        <label class="verticalLabel">
+          <span>brightness</span>
+          <select id="setBrilliantWearGlassesDisplayBrightness">
+            <optgroup label="select brightness"></optgroup>
+          </select>
+        </label>
+        <button
+          id="brilliantWearPointerLock"
+          data-pointer-lock
+          data-toggle="true"
+        >
+          lock pointer
+        </button>
+        <canvas
+          id="brilliantWearGlassesDisplay"
+          width="640"
+          height="400"
+        ></canvas>
       </div>
     </div>
   </body>

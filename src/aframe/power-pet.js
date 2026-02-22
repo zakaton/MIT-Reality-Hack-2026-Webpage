@@ -1980,7 +1980,7 @@
           if (
             !this._isAboutToSneeze &&
             sneezeTicker.isTicking &&
-            sneezeTicker.timeUntilDone < 400
+            sneezeTicker.timeUntilDone < 300
           ) {
             //console.log("isAboutToSneeze");
             this._isAboutToSneeze = true;
