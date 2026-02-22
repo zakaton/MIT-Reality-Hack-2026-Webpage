@@ -2,6 +2,8 @@
   /** @type {import("three")} */
   const THREE = window.THREE;
 
+  /** @typedef {import("../uno-q/UnoQ.js").Angles} Angles */
+
   AFRAME.registerSystem("robot", {
     getIsInspectorOpen: function () {
       return AFRAME.INSPECTOR?.opened;
@@ -64,9 +66,12 @@
       showDebug: { type: "boolean", default: false },
       cameraSelector: { type: "selector", default: "a-camera" },
       followCamera: { type: "boolean", default: false },
-      followCameraAngleMin: { type: "vec2", default: { x: -0.32, y: -0.2 } },
-      followCameraAngleMax: { type: "vec2", default: { x: 0.32, y: 0.2 } },
+      followCameraAngleMin: { type: "vec2", default: { x: -0.32, y: -0.1 } },
+      followCameraAngleMax: { type: "vec2", default: { x: 0.32, y: 0.1 } },
       followCameraAngleStep: { type: "vec2", default: { x: 5, y: 5 } },
+
+      sneezeServo0Angle: { type: "number", default: -60 },
+      sneezeServo1Angle: { type: "number", default: 60 },
     },
 
     init: function () {
@@ -275,6 +280,10 @@
             case "followCameraAngleStep":
               this.setFollowCameraAngleStep(this.data.followCameraAngleStep);
               break;
+            case "sneezeServo0Angle":
+              break;
+            case "sneezeServo1Angle":
+              break;
             default:
               console.warn(`uncaught diffKey "${diffKey}"`);
               break;
@@ -314,6 +323,8 @@
 
     // POWER PET START
     _initPowerPet: function () {
+      this._sneezeTicker = new Ticker();
+
       this._tickPowerPetInterval = 100;
       if (this._tickPowerPetInterval > 0) {
         this._tickPowerPet = AFRAME.utils.throttleTick(
@@ -324,6 +335,18 @@
       }
 
       this.powerPetEntity = this.el.querySelector("[power-pet]");
+      this.powerPetEntity.addEventListener(
+        "power-pet-state",
+        this.onPowerPetState.bind(this)
+      );
+      this.powerPetEntity.addEventListener(
+        "power-pet-sneeze",
+        this.onPowerPetSneeze.bind(this)
+      );
+      this.powerPetEntity.addEventListener(
+        "power-pet-sneeze-finish",
+        this.onPowerPetSneezeFinish.bind(this)
+      );
       //console.log("powerPetEntity", this.powerPetEntity);
       this.cameraEntity = this.data.cameraSelector;
       //console.log("cameraEntity", this.cameraEntity);
@@ -334,10 +357,23 @@
     getPowerPetLookables: function () {
       return this.getPowerPetComponent()?._lookables;
     },
+    getPowerPetState: function () {
+      return this.getPowerPetComponent()?.getPetState?.() ?? "idle";
+    },
     _tickPowerPet: function (time, timeDelta) {
       if (!this.data.followCamera) {
         return;
       }
+      const petState = this.getPowerPetState();
+      if (petState != "idle") {
+        return;
+      }
+
+      this._sneezeTicker.tick();
+      if (this._sneezeTicker.isTicking) {
+        return;
+      }
+
       const lookables = this.getPowerPetLookables();
       if (!lookables) {
         return;
@@ -398,15 +434,27 @@
       stepperAngleOffset *= -1;
       stepperAngleOffset = Math.round(stepperAngleOffset);
 
-      //console.log({ servo0AngleOffset, stepperAngleOffset });
+      //console.log({ servoAngleOffset, stepperAngleOffset });
 
       if (servoAngleOffset == 0 && stepperAngleOffset == 0) {
         return;
       }
 
-      /** @type {import("../uno-q/UnoQ.js").Angles} */
+      if (this.didSneeze) {
+        return;
+      }
+
+      const servo0AngleOffset = servoAngleOffset * 0.1;
+      const servo1AngleOffset = servoAngleOffset * 1;
+
+      // console.log("tick", {
+      //   servo0Angle: servo0AngleOffset,
+      //   servo1Angle: servo1AngleOffset,
+      // });
+
+      /** @type {Angles} */
       const angles = {
-        servo: [servoAngleOffset, 0],
+        servo: [servo0AngleOffset, servo1AngleOffset],
         stepper: [stepperAngleOffset],
       };
       //console.log("angles", angles);
@@ -434,6 +482,66 @@
     setFollowCameraAngleStep: function (followCameraAngleStep) {
       // console.log("setFollowCameraAngleStep", followCameraAngleStep);
       this._updateData("followCameraAngleStep", followCameraAngleStep);
+    },
+
+    onPowerPetState: function (event) {
+      const { petState, previousPetState } = event.detail;
+      //console.log("onPowerPetState", { petState, previousPetState });
+    },
+    getCurrentAngles: function () {
+      return {
+        servo0Angle: this.data["angle_servo_0"],
+        servo1Angle: this.data["angle_servo_1"],
+      };
+    },
+    onPowerPetSneeze: function (event) {
+      //console.log("onPowerPetSneeze");
+
+      const servo0AngleOffset = this.data.sneezeServo0Angle;
+      const servo1AngleOffset = this.data.sneezeServo1Angle;
+
+      //console.log("sneeze", { servo0AngleOffset, servo1AngleOffset });
+
+      this.sneezeOriginalAngles = this.getCurrentAngles();
+
+      /** @type {Angles} */
+      const angles = {
+        servo: [servo0AngleOffset, servo1AngleOffset],
+      };
+      // console.log("sneeze", angles);
+      this.el.emit("robot-angles", {
+        angles,
+        isOffset: true,
+      });
+    },
+    onPowerPetSneezeFinish: function (event) {
+      // console.log("onPowerPetSneezeFinish");
+
+      if (true) {
+        const currentAngles = this.getCurrentAngles();
+        const originalAngles = this.sneezeOriginalAngles;
+
+        /** @type {Angles} */
+        const angles = {
+          servo: [
+            THREE.MathUtils.lerp(
+              currentAngles.servo0Angle,
+              originalAngles.servo0Angle,
+              0.8
+            ),
+            THREE.MathUtils.lerp(
+              currentAngles.servo1Angle,
+              originalAngles.servo1Angle,
+              0.8
+            ),
+          ],
+        };
+        // console.log("sneezeFinish", angles);
+        this.el.emit("robot-angles", {
+          angles,
+        });
+        this._sneezeTicker.wait(100);
+      }
     },
     // POWER PET END
   });

@@ -240,6 +240,15 @@
             ></a-text>
           </a-camera>
 
+          <!-- <a-box
+            id="colliderTest"
+            obb-collider
+            power-pet-collider
+            anchorable
+            position="-0.004 1.122 -0.087"
+            scale="0.05 0.05 0.05"
+          ></a-box> -->
+
           <a-entity
             id="robot"
             class="placeable"
@@ -280,7 +289,7 @@
                 data-angle-index="0"
                 data-angle-axis="x"
                 data-angle-sign="-1"
-                data-angle-offset="10"
+                data-angle-offset="20"
               >
                 <a-entity class="debug" visible="true">
                   <a-box
@@ -350,6 +359,7 @@
           >
             <a-entity
               power-pet-lookable
+              power-pet-collider
               position="0.006 0 -0.02"
               obb-collider="size: 0.06"
             ></a-entity>
@@ -377,6 +387,7 @@
           >
             <a-entity
               power-pet-lookable
+              power-pet-collider
               position="-0.006 0 -0.02"
               obb-collider="size: 0.06"
             ></a-entity>
@@ -535,6 +546,20 @@
             data-max-y="10"
             data-input
           ></canvas>
+        </label>
+      </div>
+      <div id="options" class="container">
+        <h2>Options</h2>
+        <button id="openInspector">open inspector</button>
+        <label hidden>
+          model
+          <select id="powerPetModel">
+            <optgroup label="select model"></optgroup>
+          </select>
+        </label>
+        <label hidden>
+          show model bounding box
+          <input type="checkbox" id="showModelBoundingBox" />
         </label>
       </div>
     </div>

@@ -1,3 +1,20 @@
+// INSPECTOR START
+const getIsInspectorOpen = () => {
+  return AFRAME.INSPECTOR?.opened;
+};
+const toggleInspector = () => {
+  if (AFRAME.INSPECTOR) {
+    AFRAME.INSPECTOR.toggle();
+  } else {
+    AFRAME.scenes[0].components.inspector.openInspector();
+  }
+};
+const openInspectorButton = document.getElementById("openInspector");
+openInspectorButton.addEventListener("click", () => {
+  toggleInspector();
+});
+// INSPECTOR END
+
 // UNO Q START
 import UnoQ from "./uno-q/UnoQ.js";
 import { throttleLeadingAndTrailing } from "./utils/helpers.js";
@@ -129,6 +146,7 @@ const setAngles = (newAngles, isOffset) => {
       });
     }
   }
+  //console.log("setAngles", newAngles);
   if (unoQ.isConnected) {
     unoQ.setAngles(newAngles);
   } else {

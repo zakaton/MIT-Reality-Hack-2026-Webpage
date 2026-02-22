@@ -60,6 +60,7 @@
                 "obb-collider",
                 `trackedObject3D: parentEl.components.hand-tracking-controls.bones.${joint}; size: ${this.data.jointSize};`
               );
+              entity.setAttribute("power-pet-collider", "");
               entity.joint = joint;
               entity.setAttribute("power-pet-lookable", "");
               component.el.appendChild(entity);
@@ -211,6 +212,8 @@
 
       lookableSelector: { type: "string", default: "power-pet-lookable" },
       lookAround: { type: "boolean", default: true },
+
+      colliderSelector: { type: "string", default: "power-pet-collider" },
 
       lookableTickerMin: { type: "number", default: 3000 },
       lookableTickerMax: { type: "number", default: 5000 },
@@ -613,6 +616,9 @@
               if (this._updateCalledOnce) {
                 this.setLookableSelector(this.data.lookableSelector);
               }
+              break;
+            case "colliderSelector":
+              this.setColliderSelector(this.data.colliderSelector);
               break;
             case "lookAround":
               this.setLookAround(this.data.lookAround);
@@ -1642,8 +1648,11 @@
     },
     onObbcollisionStarted: function (event) {
       const { withEl } = event.detail;
-      //console.log(`started collision with "${withEl.id}"`);
+      if (!withEl.hasAttribute(this.data.colliderSelector)) {
+        return;
+      }
       if (!this._squashCollidedEntities.includes(withEl)) {
+        //console.log(`started collision with "${withEl.id}"`);
         this._squashCollidedEntities.push(withEl);
       }
     },
@@ -1838,6 +1847,9 @@
       this._nosePosition = new THREE.Vector3();
       this._noseColliderPosition = new THREE.Vector3();
     },
+    getPetState: function () {
+      return this._petState;
+    },
     _petStates: ["idle", "petting", "nudging", "sneezing"],
     _setPetState: function (newPetState, squash, tilt) {
       squash = squash ?? this.data.squash;
@@ -1903,7 +1915,7 @@
           this.playSneezeSound();
           this._isSneezing = true;
           this.setTilt({ x: 0, y: 0 });
-          this._sneezeTicker.waitRandom(1000, 1500);
+          this._sneezeTicker.wait(1600);
           ticker.stop();
           break;
         default:
@@ -1915,9 +1927,9 @@
         this.el.emit("power-pet-sneeze-finish", {});
       }
 
-      this.el.emit("power-pet-petState", {
+      this.el.emit("power-pet-state", {
         petState: this._petState,
-        previousPetState,
+        previousPetState: previousPetState,
       });
     },
     _getNoseEntity: function () {
@@ -2797,6 +2809,11 @@
       //console.log("setLookableSelector", lookableSelector);
       this._observeLookables(lookableSelector);
       this._updateData("lookableSelector", lookableSelector);
+    },
+
+    setColliderSelector: function (colliderSelector) {
+      //console.log("setColliderSelector", colliderSelector);
+      this._updateData("colliderSelector", colliderSelector);
     },
 
     setLookableAngleMin: function (lookableAngleMin) {
