@@ -339,10 +339,17 @@
         "power-pet-state",
         this.onPowerPetState.bind(this)
       );
-      this.powerPetEntity.addEventListener(
-        "power-pet-sneeze",
-        this.onPowerPetSneeze.bind(this)
-      );
+      if (true) {
+        this.powerPetEntity.addEventListener(
+          "power-pet-about-to-sneeze",
+          this.onPowerPetSneeze.bind(this)
+        );
+      } else {
+        this.powerPetEntity.addEventListener(
+          "power-pet-sneeze",
+          this.onPowerPetSneeze.bind(this)
+        );
+      }
       this.powerPetEntity.addEventListener(
         "power-pet-sneeze-finish",
         this.onPowerPetSneezeFinish.bind(this)

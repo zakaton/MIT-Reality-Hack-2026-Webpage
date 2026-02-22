@@ -1900,6 +1900,7 @@
             this.setPurrSoundVolume(1);
             this._sneezeTicker.stop();
             this._isAboutToSneeze = false;
+            this._emitAboutToSneeze = false;
             this._didSneeze = false;
             this.playPurrSound();
             ticker.stop();
@@ -1909,6 +1910,7 @@
           this.stopPurrSound(false);
           this._didSneeze = true;
           this._isAboutToSneeze = false;
+          this._emitAboutToSneeze = false;
           this.selectVariant("mouth", "o");
           this.selectVariant("pupil", "star");
           this.el.emit("power-pet-sneeze", {});
@@ -1970,6 +1972,7 @@
           if (!isCloseToNose && sneezeTicker.isTicking) {
             sneezeTicker.stop();
             this._isAboutToSneeze = false;
+            this._emitAboutToSneeze = false;
             //console.log("stop sneezeTicker");
           }
 
@@ -1991,6 +1994,17 @@
             this.setPupilOffset("l", { x: -0.06, y: 0.02 });
             this.setPupilOffset("r", { x: 0.08, y: 0.03 });
           }
+
+          if (
+            !this._emitAboutToSneeze &&
+            sneezeTicker.isTicking &&
+            sneezeTicker.timeUntilDone < 100
+          ) {
+            console.log("emitAboutToSneeze");
+            this._emitAboutToSneeze = true;
+            this.el.emit("power-pet-about-to-sneeze", {});
+          }
+
           if (sneezeTicker.isDone && sneezeTicker.duration > 0) {
             sneezeTicker.stop();
             this._setPetState("sneezing");
