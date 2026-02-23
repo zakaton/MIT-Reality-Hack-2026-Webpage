@@ -1,24 +1,24 @@
 <html>
   <head>
     <title>Power Pet</title>
-    <script src="/src/utils/gamepad.js"></script>
-    <script src="/src/aframe/aframe-master.min.js"></script>
-    <script src="/src/aframe/microgestures.js"></script>
+    <script src="./src/utils/gamepad.js"></script>
+    <script src="./src/aframe/aframe-master.min.js"></script>
+    <script src="./src/aframe/microgestures.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.6.1/dist/aframe-extras.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/webmidi@latest/dist/iife/webmidi.iife.js"></script>
-    <script src="/src/utils/canvasInput.js"></script>
-    <script src="/src/utils/pointerLock.js"></script>
-    <script src="/src/aframe/Ticker.js"></script>
-    <script src="/src/aframe/poster.js"></script>
-    <script src="/src/aframe/occlude-hand-tracking-controls.js"></script>
-    <script src="/src/aframe/grabbable-listener.js"></script>
-    <script src="/src/aframe/grabbable-anchor.js"></script>
-    <script src="/src/aframe/power-pet.js"></script>
-    <script src="/src/aframe/robot.js"></script>
-    <script src="/src/aframe/recenter-listener.js"></script>
-    <script src="/src/aframe/robot-touch-controls.js"></script>
-    <script src="/src/socket.io/socket.io.min.js"></script>
-    <script src="/src/script.js" type="module"></script>
+    <script src="./src/utils/canvasInput.js"></script>
+    <script src="./src/utils/pointerLock.js"></script>
+    <script src="./src/aframe/Ticker.js"></script>
+    <script src="./src/aframe/poster.js"></script>
+    <script src="./src/aframe/occlude-hand-tracking-controls.js"></script>
+    <script src="./src/aframe/grabbable-listener.js"></script>
+    <script src="./src/aframe/grabbable-anchor.js"></script>
+    <script src="./src/aframe/power-pet.js"></script>
+    <script src="./src/aframe/robot.js"></script>
+    <script src="./src/aframe/recenter-listener.js"></script>
+    <script src="./src/aframe/robot-touch-controls.js"></script>
+    <script src="./src/socket.io/socket.io.min.js"></script>
+    <script src="./src/script.js" type="module"></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />
@@ -106,16 +106,16 @@
           <a-assets timeout="10000">
             <a-asset-item
               id="anchorModel"
-              src="/assets/3d/anchor.glb"
+              src="../assets/3d/anchor.glb"
             ></a-asset-item>
             <a-asset-item
               id="dogModel"
-              src="/assets/3d/pets/dog.glb"
+              src="../assets/3d/pets/dog.glb"
             ></a-asset-item>
 
             <audio
               id="purrAudio"
-              src="/assets/audio/purr.wav"
+              src="../assets/audio/purr.wav"
               preload="auto"
             ></audio>
             <a-mixin
@@ -125,7 +125,7 @@
 
             <audio
               id="purrFadeOutAudio"
-              src="/assets/audio/purrFadeOut.wav"
+              src="../assets/audio/purrFadeOut.wav"
               preload="auto"
             ></audio>
             <a-mixin
@@ -135,13 +135,13 @@
 
             <audio
               id="sneezeAudio"
-              src="/assets/audio/sneeze.wav"
+              src="../assets/audio/sneeze.wav"
               preload="auto"
             ></audio>
             <a-mixin id="sneezeSoundMixin" sound="src: #sneezeAudio;"></a-mixin>
 
-            <img id="btsImage" src="/assets/images/bts.webp" />
-            <img id="btsLogoImage" src="/assets/images/btsLogo.webp" />
+            <img id="btsImage" src="../assets/images/bts.webp" />
+            <img id="btsLogoImage" src="../assets/images/btsLogo.webp" />
           </a-assets>
 
           <a-mixin
