@@ -835,7 +835,7 @@ const updateAngleRows = () => {
   forEachAngle((type, index, angle) => {
     angleRows.push({ type, index });
   });
-  console.log("angleRows", angleRows);
+  //console.log("angleRows", angleRows);
   setSelectedAngleRowIndex(0);
 };
 /** @type {AngleRow} */

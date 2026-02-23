@@ -3,7 +3,7 @@ window.addEventListener("load", () => {
     if (!("pointerLock" in button.dataset)) {
       return;
     }
-    console.log("loadButton", button);
+    //console.log("loadButton", button);
 
     let isPointerLocked = false;
     const setIsPointerLocked = (newIsPointerLocked) => {
