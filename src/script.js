@@ -950,7 +950,7 @@ try {
   if (fontSpriteSheetString) {
     englishSpriteSheet = JSON.parse(fontSpriteSheetString);
   } else {
-    const response = await fetch(`../assets/font/${fontName}`);
+    const response = await fetch(`./assets/font/${fontName}`);
     const arrayBuffer = await response.arrayBuffer();
     const englishFont = await BS.parseFont(arrayBuffer);
 
