@@ -126,6 +126,7 @@ const updateNumberOfAngles = () => {
   numberOfAngles = _numberOfAngles;
   console.log({ numberOfAngles });
 };
+let drawBrilliantWearGlassesDisplay;
 /** @param {Angles} newAngles */
 const updateAngles = (newAngles) => {
   Object.assign(angles, newAngles);
@@ -862,7 +863,7 @@ const setSelectedAngleRowIndex = (newSelectedAngleRowIndex, isOffset) => {
 updateAngleRows();
 selectedAngleRow = angleRows[0];
 
-const drawBrilliantWearGlassesDisplay = async () => {
+drawBrilliantWearGlassesDisplay = async () => {
   if (isUploadingToBrilliantWearGlasses) {
     return;
   }

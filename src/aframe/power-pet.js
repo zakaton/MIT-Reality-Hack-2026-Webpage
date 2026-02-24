@@ -2907,7 +2907,11 @@
         }
         bone.getWorldPosition(position);
       } else {
-        entity.object3D.getWorldPosition(position);
+        if (cameraComponent && this.getIsInspectorOpen()) {
+          AFRAME.INSPECTOR.camera.getWorldPosition(position);
+        } else {
+          entity.object3D.getWorldPosition(position);
+        }
       }
       localPosition.copy(position);
       this.worldToLocal(pupilCenterEntity.object3D, localPosition);
